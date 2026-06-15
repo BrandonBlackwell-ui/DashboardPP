@@ -66,15 +66,15 @@ export default function ThemeView({ tab, date, plat, data, isDesktop }) {
   });
 
   // Alerts
-  const al = t.alerts||{};
+  const al = t.alertometro||t.alerts||{};
   const alPosts = (al.posts||[]).filter(p=>platMatch(p.platform)&&dateMatchTs(p.time)).map(mapPost);
 
   // Opps
-  const op = t.opps||{};
+  const op = t.oportunometro||t.opps||{};
   const opPosts = (op.posts||[]).filter(p=>platMatch(p.platform)&&dateMatchTs(p.time)).map(mapPost);
 
   // Pros/cons
-  const pc = t.proscons||{};
+  const pc = t.pros_cons||t.proscons||{};
 
   // Complaints
   const cm = t.complaints||{};
@@ -95,7 +95,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop }) {
   const newsGroups = [];
   if (t.news) {
     ['negativo','neutral','positivo'].forEach(r => {
-      (t.news[r]||[]).forEach(gp => {
+      (t.news.grupos?.[r]||t.news[r]||[]).forEach(gp => {
         const not=(gp.noticias||[]).filter(n=>dateMatchSlash(n.fecha));
         if (date!=='todas'&&not.length===0) return;
         const rmeta=ratingMeta[r];
@@ -126,10 +126,10 @@ export default function ThemeView({ tab, date, plat, data, isDesktop }) {
       categoria:p.categoria||'', pic:p.pic, url:p.url, followersFmt:fmtK(p.followers), sentColor:m.c }; });
 
   // Gap
-  const gap = t.gap;
+  const gap = t.narrative_gap||t.gap;
 
   // Recon
-  const rc = (t.recon||[]).filter(x=>x.titulo);
+  const rc = (t.reconocimientos||t.recon||[]).filter(x=>x.titulo);
 
   // Timeline
   const tl = t.timeline||{};
@@ -150,7 +150,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop }) {
   });
 
   // Comments topics
-  const ct = t.commentsTopics||{};
+  const ct = t.comments_topics||t.commentsTopics||{};
   const ctTopics = (ct.topics||[]).filter(x=>x.titulo).map(x => ({
     titulo:x.titulo, porcentaje:x.porcentaje, items:(x.items||[]).slice(0,4) }));
 
