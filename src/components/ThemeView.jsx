@@ -6,9 +6,9 @@ import { C, fmt, fmtK, platLabel, cap, riskMeta, sentMeta, sevMeta, pill } from 
 const stagger = { hidden:{}, visible:{ transition:{ staggerChildren:0.06 } } };
 const item = { hidden:{ opacity:0, y:14 }, visible:{ opacity:1, y:0, transition:{ type:'spring', stiffness:260, damping:22 } } };
 
-function Section({ title, right, children }) {
+function Section({ title, right, children, px }) {
   return (
-    <motion.div variants={item} style={{ padding:'14px 18px 6px' }}>
+    <motion.div variants={item} style={{ padding: px || '14px 18px 6px' }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:11 }}>
         <h2 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:19,
           letterSpacing:'-0.015em', color:C.ink, margin:0 }}>{title}</h2>
@@ -46,7 +46,7 @@ function SentBar({ pos, neu, neg }) {
   );
 }
 
-export default function ThemeView({ tab, date, plat, data }) {
+export default function ThemeView({ tab, date, plat, data, isDesktop }) {
   const T = data.themes;
   const t = T[tab];
   if (!t) return null;
@@ -160,11 +160,14 @@ export default function ThemeView({ tab, date, plat, data }) {
     return { w:k.w, sizePx:Math.round(12+r*14)+'px', color:r>0.66?C.ink:r>0.33?C.gold:'#8A7E6A' };
   });
 
+  const px = isDesktop ? '24px 28px' : '19px 18px';
+  const sectionPx = isDesktop ? '14px 28px 6px' : '14px 18px 6px';
+
   return (
     <motion.div key={tab} variants={stagger} initial="hidden" animate="visible">
 
       {/* Header */}
-      <motion.div variants={item} style={{ padding:'19px 18px 4px' }}>
+      <motion.div variants={item} style={{ padding: isDesktop ? '24px 28px 4px' : '19px 18px 4px' }}>
         <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, letterSpacing:'0.16em',
           textTransform:'uppercase', color:C.gold, fontWeight:600 }}>Tema · {t.label}</div>
         <h1 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:30, lineHeight:1.02,
@@ -174,27 +177,166 @@ export default function ThemeView({ tab, date, plat, data }) {
         <p style={{ fontSize:13, color:'#6B6253', margin:0 }}>{t.es}</p>
       </motion.div>
 
-      {/* Sentiment */}
-      <motion.div variants={item} style={{ padding:'16px 18px 6px' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:16, background:C.card,
-          border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:18 }}>
-          <Donut pos={s.pos} neu={s.neu} neg={s.neg} size={100} showLabel />
-          <div style={{ flex:1 }}>
-            <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, letterSpacing:'0.14em',
-              textTransform:'uppercase', color:'#6B6253', marginBottom:10 }}>Sentimiento general</div>
-            {[{color:C.teal,label:'Favorable',pct:Math.round(s.pos)+'%'},{color:C.slate,label:'Neutral',pct:Math.round(s.neu)+'%'},{color:C.crim,label:'Crítica',pct:Math.round(s.neg)+'%'}].map(l => (
-              <div key={l.label} style={{ display:'flex', alignItems:'center', gap:9, marginBottom:8 }}>
-                <span style={{ width:8,height:8,borderRadius:'50%',flex:'none',background:l.color }} />
-                <span style={{ fontSize:12, color:'#2A241C', flex:1 }}>{l.label}</span>
-                <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:600, fontSize:12.5, color:C.ink }}>{l.pct}</span>
+      {/* Desktop 2-column: Sentiment + Alertómetro | Oportunidades + Pros/contras */}
+      {isDesktop ? (
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:0, padding:'0 28px' }}>
+          {/* Left col */}
+          <div style={{ paddingRight:14 }}>
+            {/* Sentiment */}
+            <motion.div variants={item} style={{ paddingTop:16, paddingBottom:6 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:16, background:C.card,
+                border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:18 }}>
+                <Donut pos={s.pos} neu={s.neu} neg={s.neg} size={100} showLabel />
+                <div style={{ flex:1 }}>
+                  <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, letterSpacing:'0.14em',
+                    textTransform:'uppercase', color:'#6B6253', marginBottom:10 }}>Sentimiento general</div>
+                  {[{color:C.teal,label:'Favorable',pct:Math.round(s.pos)+'%'},{color:C.slate,label:'Neutral',pct:Math.round(s.neu)+'%'},{color:C.crim,label:'Crítica',pct:Math.round(s.neg)+'%'}].map(l => (
+                    <div key={l.label} style={{ display:'flex', alignItems:'center', gap:9, marginBottom:8 }}>
+                      <span style={{ width:8,height:8,borderRadius:'50%',flex:'none',background:l.color }} />
+                      <span style={{ fontSize:12, color:'#2A241C', flex:1 }}>{l.label}</span>
+                      <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:600, fontSize:12.5, color:C.ink }}>{l.pct}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
+            </motion.div>
+            {/* Alertómetro */}
+            <motion.div variants={item} style={{ paddingTop:14, paddingBottom:6 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:11 }}>
+                <h2 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:19,
+                  letterSpacing:'-0.015em', color:C.ink, margin:0 }}>Alertómetro &amp; riesgo</h2>
+                <Pill rm={rm} />
+              </div>
+              <Card accentColor={rm.c}>
+                <div style={{ display:'flex', gap:0 }}>
+                  <div style={{ flex:1, borderRight:'1px solid rgba(33,28,23,0.10)', paddingRight:12 }}>
+                    <div style={{ fontSize:26, fontWeight:600, color:C.ink, lineHeight:1 }}>{Math.round(t.risk?.negPct||s.neg||0)}<span style={{ fontSize:15 }}>%</span></div>
+                    <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, letterSpacing:'0.08em', textTransform:'uppercase', color:'#6B6253', marginTop:6 }}>Conversación crítica</div>
+                  </div>
+                  <div style={{ flex:1, paddingLeft:14 }}>
+                    <div style={{ fontSize:26, fontWeight:600, color:C.ink, lineHeight:1 }}>{al.total||0}</div>
+                    <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, letterSpacing:'0.08em', textTransform:'uppercase', color:'#6B6253', marginTop:6 }}>Posts con alerta / {al.analizados||0}</div>
+                  </div>
+                </div>
+                <div style={{ fontSize:12.5, lineHeight:1.5, color:'#2A241C', marginTop:13, paddingTop:13, borderTop:'1px solid rgba(33,28,23,0.10)' }}>
+                  {al.recomendacion||'Sin recomendaciones de crisis en el periodo.'}
+                </div>
+              </Card>
+              {alPosts.map((p,i) => (
+                <TiltCard key={i} style={{ display:'block', textDecoration:'none', background:C.card,
+                  border:'1px solid rgba(33,28,23,0.13)', borderLeft:`3px solid ${C.crim}`,
+                  borderRadius:3, padding:13, marginBottom:8 }}>
+                  <a href={p.url} target="_blank" rel="noopener" style={{ textDecoration:'none', display:'block' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:7 }}>
+                      <span style={{ ...pill(C.crim,'rgba(155,51,49,0.12)','rgba(155,51,49,0.38)') }}>{p.tipoLabel}</span>
+                      <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, color:'#8A7E6A', marginLeft:'auto', textTransform:'uppercase' }}>{p.platformLabel} · {p.dateLabel}</span>
+                    </div>
+                    <div style={{ fontSize:12.5, lineHeight:1.45, color:'#2A241C' }}>{p.text}</div>
+                    <div style={{ fontSize:11.5, lineHeight:1.4, color:'#6B6253', marginTop:7 }}>{p.razon}</div>
+                    <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:9, paddingTop:8, borderTop:'1px dotted rgba(33,28,23,0.10)' }}>
+                      <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, color:C.crim }}>PELIGROSIDAD {p.score}</span>
+                      <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, color:'#8A7E6A' }}>{p.engagementLabel} INTERACC.</span>
+                      <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, color:C.goldDeep, fontWeight:600, marginLeft:'auto' }}>ABRIR ↗</span>
+                    </div>
+                  </a>
+                </TiltCard>
+              ))}
+            </motion.div>
+          </div>
+          {/* Right col */}
+          <div style={{ paddingLeft:14 }}>
+            {/* Oportunidades */}
+            {(op.recomendacion||opPosts.length>0) && (
+              <motion.div variants={item} style={{ paddingTop:16, paddingBottom:6 }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:11 }}>
+                  <h2 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:19,
+                    letterSpacing:'-0.015em', color:C.ink, margin:0 }}>Oportunidades</h2>
+                  <span style={{ ...pill(C.teal,C.tealBg,C.tealBd) }}>Nivel {cap(op.nivel||'—')}</span>
+                </div>
+                <Card accentColor={C.teal}>
+                  <div style={{ fontSize:12.5, lineHeight:1.5, color:'#2A241C' }}>{op.recomendacion}</div>
+                </Card>
+                {opPosts.map((p,i) => (
+                  <TiltCard key={i} style={{ marginBottom:8, borderRadius:3 }}>
+                    <a href={p.url} target="_blank" rel="noopener" style={{ display:'block', textDecoration:'none',
+                      background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderLeft:`3px solid ${C.teal}`,
+                      borderRadius:3, padding:13 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:7 }}>
+                        <span style={{ ...pill(C.teal,C.tealBg,C.tealBd) }}>Impacto {p.impacto}</span>
+                        <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, color:'#8A7E6A', marginLeft:'auto', textTransform:'uppercase' }}>{p.platformLabel} · {p.dateLabel}</span>
+                      </div>
+                      <div style={{ fontSize:12.5, lineHeight:1.45, color:'#2A241C' }}>{p.text}</div>
+                      <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:9, paddingTop:8, borderTop:'1px dotted rgba(33,28,23,0.10)' }}>
+                        <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, color:C.teal }}>OPORTUNIDAD {p.score}</span>
+                        <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, color:C.goldDeep, fontWeight:600, marginLeft:'auto' }}>ABRIR ↗</span>
+                      </div>
+                    </a>
+                  </TiltCard>
+                ))}
+              </motion.div>
+            )}
+            {/* Pros y contras */}
+            <motion.div variants={item} style={{ paddingTop:14, paddingBottom:6 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:11 }}>
+                <h2 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:19,
+                  letterSpacing:'-0.015em', color:C.ink, margin:0 }}>Pros y contras</h2>
+              </div>
+              <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:'4px 15px 12px' }}>
+                {(pc.positive||[]).length>0 && (
+                  <div style={{ padding:'12px 0 4px' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:9 }}>
+                      <span style={{ width:8,height:8,borderRadius:'50%',background:C.teal }} />
+                      <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:C.teal }}>A favor</span>
+                    </div>
+                    {(pc.positive||[]).map((it,i) => (
+                      <div key={i} style={{ display:'flex', gap:11, padding:'7px 0', borderBottom:'1px dotted rgba(33,28,23,0.07)' }}>
+                        <span style={{ flex:'none', width:14, height:1, background:C.teal, marginTop:9 }} />
+                        <span style={{ fontSize:12.5, lineHeight:1.5, color:'#2A241C' }}>{it}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {(pc.negative||[]).length>0 && (
+                  <div style={{ padding:'12px 0 4px', borderTop:'1px solid rgba(33,28,23,0.10)' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:9 }}>
+                      <span style={{ width:8,height:8,borderRadius:'50%',background:C.crim }} />
+                      <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, fontWeight:600, letterSpacing:'0.12em', textTransform:'uppercase', color:C.crim }}>En contra</span>
+                    </div>
+                    {(pc.negative||[]).map((it,i) => (
+                      <div key={i} style={{ display:'flex', gap:11, padding:'7px 0', borderBottom:'1px dotted rgba(33,28,23,0.07)' }}>
+                        <span style={{ flex:'none', width:14, height:1, background:C.crim, marginTop:9 }} />
+                        <span style={{ fontSize:12.5, lineHeight:1.5, color:'#2A241C' }}>{it}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
           </div>
         </div>
-      </motion.div>
+      ) : (
+        <>
+          {/* Mobile: Sentiment */}
+          <motion.div variants={item} style={{ padding:'16px 18px 6px' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:16, background:C.card,
+              border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:18 }}>
+              <Donut pos={s.pos} neu={s.neu} neg={s.neg} size={100} showLabel />
+              <div style={{ flex:1 }}>
+                <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, letterSpacing:'0.14em',
+                  textTransform:'uppercase', color:'#6B6253', marginBottom:10 }}>Sentimiento general</div>
+                {[{color:C.teal,label:'Favorable',pct:Math.round(s.pos)+'%'},{color:C.slate,label:'Neutral',pct:Math.round(s.neu)+'%'},{color:C.crim,label:'Crítica',pct:Math.round(s.neg)+'%'}].map(l => (
+                  <div key={l.label} style={{ display:'flex', alignItems:'center', gap:9, marginBottom:8 }}>
+                    <span style={{ width:8,height:8,borderRadius:'50%',flex:'none',background:l.color }} />
+                    <span style={{ fontSize:12, color:'#2A241C', flex:1 }}>{l.label}</span>
+                    <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:600, fontSize:12.5, color:C.ink }}>{l.pct}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
 
-      {/* Alertómetro */}
-      <Section title="Alertómetro & riesgo" right={<Pill rm={rm} />}>
+          {/* Alertómetro */}
+          <Section title="Alertómetro & riesgo" right={<Pill rm={rm} />}>
         <Card accentColor={rm.c}>
           <div style={{ display:'flex', gap:0 }}>
             <div style={{ flex:1, borderRight:'1px solid rgba(33,28,23,0.10)', paddingRight:12 }}>
@@ -290,10 +432,12 @@ export default function ThemeView({ tab, date, plat, data }) {
           )}
         </div>
       </Section>
+        </>
+      )}
 
       {/* Quejas */}
       {cats.length>0 && (
-        <Section title="Quejas y críticas" right={<span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', letterSpacing:'0.04em' }}>{cm.total||0} ANALIZADAS</span>}>
+        <Section title="Quejas y críticas" px={sectionPx} right={<span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', letterSpacing:'0.04em' }}>{cm.total||0} ANALIZADAS</span>}>
           {cats.map((cat,ci) => (
             <TiltCard key={ci} style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:14, marginBottom:9 }}>
               <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', gap:10 }}>
@@ -321,7 +465,7 @@ export default function ThemeView({ tab, date, plat, data }) {
 
       {/* Noticias */}
       {newsGroups.length>0 && (
-        <Section title="Noticias · semáforo" right={<span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', letterSpacing:'0.04em' }}>{t.news?.total||newsGroups.length} TEMAS</span>}>
+        <Section title="Noticias · semáforo" px={sectionPx} right={<span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', letterSpacing:'0.04em' }}>{t.news?.total||newsGroups.length} TEMAS</span>}>
           <p style={{ fontSize:11, color:'#8A7E6A', margin:'0 0 12px', fontFamily:"'Geist Mono',monospace" }}>Toca para abrir la fuente.</p>
           {newsGroups.map((g,gi) => (
             <TiltCard key={gi} style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)',
@@ -351,7 +495,7 @@ export default function ThemeView({ tab, date, plat, data }) {
 
       {/* Tendencias */}
       {trending.length>0 && (
-        <Section title="Temas en tendencia">
+        <Section title="Temas en tendencia" px={sectionPx}>
           {trending.map(tr => (
             <TiltCard key={tr.rank} style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:14, marginBottom:8 }}>
               <div style={{ display:'flex', gap:12, alignItems:'flex-start' }}>
@@ -374,7 +518,7 @@ export default function ThemeView({ tab, date, plat, data }) {
 
       {/* Voces */}
       {(v.resumen||vsegs.length||valertas.length) ? (
-        <Section title="Voces de la conversación">
+        <Section title="Voces de la conversación" px={sectionPx}>
           {v.resumen && (
             <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:'16px 18px', marginBottom:10 }}>
               <div style={{ fontFamily:"'Fraunces',serif", fontStyle:'italic', fontWeight:300, fontSize:18, lineHeight:1.3, color:C.ink }}>"{v.resumen}"</div>
@@ -402,9 +546,10 @@ export default function ThemeView({ tab, date, plat, data }) {
 
       {/* Influencers */}
       {itop.length>0 && (
-        <Section title="Voces con más alcance" right={<span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A' }}>{inf.total||0} ANALIZADAS</span>}>
+        <Section title="Voces con más alcance" px={sectionPx} right={<span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A' }}>{inf.total||0} ANALIZADAS</span>}>
+          <div style={{ display:'grid', gridTemplateColumns: isDesktop ? '1fr 1fr' : '1fr', gap:8 }}>
           {itop.map(i => (
-            <TiltCard key={i.rank} style={{ marginBottom:8, borderRadius:3 }}>
+            <TiltCard key={i.rank} style={{ borderRadius:3 }}>
               <a href={i.url} target="_blank" rel="noopener"
                 style={{ display:'flex', gap:12, alignItems:'center', textDecoration:'none',
                   background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:11 }}>
@@ -423,12 +568,13 @@ export default function ThemeView({ tab, date, plat, data }) {
               </a>
             </TiltCard>
           ))}
+          </div>
         </Section>
       )}
 
       {/* Brecha narrativa */}
       {gap && gap.contraste && (
-        <Section title="Brecha narrativa">
+        <Section title="Brecha narrativa" px={sectionPx}>
           <p style={{ fontSize:11, color:'#8A7E6A', margin:'0 0 11px', fontFamily:"'Geist Mono',monospace" }}>Lo que comunica el equipo vs. lo que opina el público.</p>
           <Card>
             <div style={{ fontSize:12.5, lineHeight:1.5, color:'#2A241C' }}>{gap.contraste?.gap_principal||''}</div>
@@ -444,7 +590,7 @@ export default function ThemeView({ tab, date, plat, data }) {
 
       {/* Reconocimientos */}
       {rc.length>0 && (
-        <Section title="Reconocimientos">
+        <Section title="Reconocimientos" px={sectionPx}>
           {rc.map((r,i) => (
             <div key={i} style={{ display:'flex', gap:12, background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderLeft:`3px solid ${C.gold}`, borderRadius:3, padding:13, marginBottom:8 }}>
               <span style={{ flex:'none', width:14, height:1, background:C.gold, marginTop:9 }} />
@@ -459,7 +605,7 @@ export default function ThemeView({ tab, date, plat, data }) {
 
       {/* Timeline */}
       {events.length>0 && (
-        <Section title="Línea de tiempo">
+        <Section title="Línea de tiempo" px={sectionPx}>
           {events.map((e,i) => (
             <div key={i} style={{ display:'flex', gap:13 }}>
               <div style={{ display:'flex', flexDirection:'column', alignItems:'center', flex:'none', width:12 }}>
@@ -482,7 +628,7 @@ export default function ThemeView({ tab, date, plat, data }) {
 
       {/* Desglose por red */}
       {pls.length>0 && (
-        <Section title="Desglose por red">
+        <Section title="Desglose por red" px={sectionPx}>
           {pls.map((p,i) => (
             <div key={i} style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:13, marginBottom:8 }}>
               <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:9 }}>
@@ -503,7 +649,7 @@ export default function ThemeView({ tab, date, plat, data }) {
 
       {/* Temas en comentarios */}
       {ctTopics.length>0 && (
-        <Section title="Temas en comentarios" right={<span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A' }}>{ct.total||0} COM.</span>}>
+        <Section title="Temas en comentarios" px={sectionPx} right={<span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A' }}>{ct.total||0} COM.</span>}>
           {ctTopics.map((cat,i) => (
             <div key={i} style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:13, marginBottom:8 }}>
               <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', gap:10, marginBottom:8 }}>
@@ -522,7 +668,7 @@ export default function ThemeView({ tab, date, plat, data }) {
       )}
 
       {/* Pulso emocional */}
-      <Section title="Pulso emocional">
+      <Section title="Pulso emocional" px={sectionPx}>
         <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:15 }}>
           {emojis.length>0 && (<>
             <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', color:'#8A7E6A', marginBottom:10 }}>Emojis más usados</div>

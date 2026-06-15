@@ -18,7 +18,7 @@ function Chip({ label, active, onClick }) {
   );
 }
 
-export default function SubBar({ tab, pano, date, plat, data, onPanoChange, onDateChange, onPlatChange }) {
+export default function SubBar({ tab, pano, date, plat, data, onPanoChange, onDateChange, onPlatChange, isDesktop }) {
   const isPanorama = tab === 'panorama';
   const isTheme = !isPanorama && tab !== 'historico';
   const isHist = tab === 'historico';
@@ -32,7 +32,7 @@ export default function SubBar({ tab, pano, date, plat, data, onPanoChange, onDa
 
   return (
     <div style={{ position:'sticky', top:0, zIndex:30, background:C.sub,
-      borderBottom:'1px solid #E3DAC6', padding:'10px 18px' }}>
+      borderBottom:'1px solid #E3DAC6', padding: isDesktop ? '10px 24px' : '10px 18px' }}>
       <AnimatePresence mode="wait">
         {isPanorama && (
           <motion.div key="pano"

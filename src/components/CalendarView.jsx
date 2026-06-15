@@ -31,7 +31,7 @@ function SentBar({ pos, neu, neg }) {
   );
 }
 
-export default function CalendarView({ calData, onGoTheme }) {
+export default function CalendarView({ calData, onGoTheme, isDesktop }) {
   const CD = calData;
   const days = CD?.days || {};
 
@@ -49,7 +49,7 @@ export default function CalendarView({ calData, onGoTheme }) {
   const item = { hidden:{ opacity:0, y:10 }, visible:{ opacity:1, y:0, transition:{ type:'spring', stiffness:300, damping:24 } } };
 
   return (
-    <motion.div variants={stagger} initial="hidden" animate="visible" style={{ padding:'20px 18px 6px' }}>
+    <motion.div variants={stagger} initial="hidden" animate="visible" style={{ padding: isDesktop ? '24px 28px 6px' : '20px 18px 6px' }}>
 
       {/* Header */}
       <motion.div variants={item}>
@@ -123,6 +123,7 @@ export default function CalendarView({ calData, onGoTheme }) {
             {(() => { const d=new Date(selected+'T12:00:00'); return d.getDate()+' '+MONTHS_ES[d.getMonth()]+' 2026'; })()}
           </div>
 
+          <div style={{ display:'grid', gridTemplateColumns: isDesktop ? '1fr 1fr' : '1fr', gap:8 }}>
           {TOPICS.map(t => {
             const td = (days[selected]||{})[t.key];
             const rm = td ? riskMeta(td.risk) : null;
@@ -133,7 +134,7 @@ export default function CalendarView({ calData, onGoTheme }) {
                 transition={{ type:'spring', stiffness:280, damping:24 }}
                 style={{ background: td ? C.card : '#F3EDE0', border:'1px solid rgba(33,28,23,0.13)',
                   borderLeft:`3px solid ${td ? t.color : '#D5CDB8'}`, borderRadius:3,
-                  padding:13, marginBottom:8, opacity: td ? 1 : 0.55 }}>
+                  padding:13, opacity: td ? 1 : 0.55 }}>
 
                 <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                   {td ? (
@@ -198,6 +199,7 @@ export default function CalendarView({ calData, onGoTheme }) {
               </motion.div>
             );
           })}
+          </div>
         </motion.div>
       </AnimatePresence>
     </motion.div>

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useData } from './hooks/useData';
+import { useBreakpoint } from './hooks/useBreakpoint';
 import Header from './components/Header';
 import SubBar from './components/SubBar';
+import DesktopShell from './components/DesktopShell';
 import PanoramaView from './components/PanoramaView';
 import ThemeView from './components/ThemeView';
 import CalendarView from './components/CalendarView';
@@ -44,6 +46,7 @@ function Loading() {
 
 export default function App() {
   const { data, calData } = useData();
+  const isDesktop = useBreakpoint();
   const [tab, setTab] = useState('panorama');
   const [pano, setPano] = useState('editorial');
   const [date, setDate] = useState('todas');
@@ -73,6 +76,58 @@ export default function App() {
 
   const isTheme = !['panorama','historico'].includes(tab);
 
+  const viewContent = data && (
+    <>
+      <div style={{ padding:'0 0 56px' }}>
+        <AnimatePresence mode="wait">
+          {tab==='panorama' && (
+            <motion.div key="panorama" initial={{ opacity:0, x:24 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-24 }} transition={{ duration:0.22 }}>
+              <PanoramaView pano={pano} data={data} onGoTheme={handleTabChange} isDesktop={isDesktop} />
+            </motion.div>
+          )}
+          {isTheme && (
+            <motion.div key={tab} initial={{ opacity:0, x:24 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-24 }} transition={{ duration:0.22 }}>
+              <ThemeView tab={tab} date={date} plat={plat} data={data} isDesktop={isDesktop} />
+            </motion.div>
+          )}
+          {tab==='historico' && (
+            <motion.div key="historico" initial={{ opacity:0, x:24 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-24 }} transition={{ duration:0.22 }}>
+              <CalendarView calData={calData} onGoTheme={handleTabChange} isDesktop={isDesktop} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <div style={{ margin:'24px 18px 0', padding:'13px 0', borderTop:'2px solid #211C17', display:'flex', flexWrap:'wrap', gap:8, justifyContent:'space-between', fontFamily:"'Geist Mono',monospace", fontSize:9.5, letterSpacing:'0.06em', textTransform:'uppercase', color:'#B0822F' }}>
+        <span>Doc. ref · BW-PA-BRIEF-1315JUN26</span>
+        <span>Preparado por Blackwell Strategy</span>
+        <span style={{ color:'#9B3331', fontWeight:600 }}>Confidencial · uso interno</span>
+      </div>
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <div style={{ minHeight:'100vh', background:'#241E18', fontFamily:"'Geist', system-ui, sans-serif" }}>
+        <div dangerouslySetInnerHTML={{ __html: INK_SVG }} />
+        <AnimatePresence>
+          {showUpload && <UploadModal onClose={() => setShowUpload(false)} onDataUpdated={handleDataUpdated} />}
+        </AnimatePresence>
+        {!data && <Loading />}
+        {data && (
+          <DesktopShell
+            tab={tab} data={data} pano={pano}
+            onTabChange={handleTabChange} onExport={handleExport} onUpload={handleUpload}>
+            {/* SubBar as sticky strip inside content */}
+            <SubBar tab={tab} pano={pano} date={date} plat={plat} data={data}
+              onPanoChange={setPano} onDateChange={setDate} onPlatChange={setPlat} isDesktop />
+            {viewContent}
+          </DesktopShell>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div style={{ minHeight:'100vh', background:'#241E18', display:'flex', justifyContent:'center', fontFamily:"'Geist', system-ui, sans-serif" }}>
       <div dangerouslySetInnerHTML={{ __html: INK_SVG }} />
@@ -89,32 +144,7 @@ export default function App() {
           <Header tab={tab} data={data} onExport={handleExport} onTabChange={handleTabChange} onUpload={handleUpload} />
           <SubBar tab={tab} pano={pano} date={date} plat={plat} data={data}
             onPanoChange={setPano} onDateChange={setDate} onPlatChange={setPlat} />
-
-          <div style={{ padding:'0 0 56px' }}>
-            <AnimatePresence mode="wait">
-              {tab==='panorama' && (
-                <motion.div key="panorama" initial={{ opacity:0, x:24 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-24 }} transition={{ duration:0.22 }}>
-                  <PanoramaView pano={pano} data={data} onGoTheme={handleTabChange} />
-                </motion.div>
-              )}
-              {isTheme && (
-                <motion.div key={tab} initial={{ opacity:0, x:24 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-24 }} transition={{ duration:0.22 }}>
-                  <ThemeView tab={tab} date={date} plat={plat} data={data} />
-                </motion.div>
-              )}
-              {tab==='historico' && (
-                <motion.div key="historico" initial={{ opacity:0, x:24 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-24 }} transition={{ duration:0.22 }}>
-                  <CalendarView calData={calData} onGoTheme={handleTabChange} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          <div style={{ margin:'24px 18px 0', padding:'13px 0', borderTop:'2px solid #211C17', display:'flex', flexWrap:'wrap', gap:8, justifyContent:'space-between', fontFamily:"'Geist Mono',monospace", fontSize:9.5, letterSpacing:'0.06em', textTransform:'uppercase', color:'#B0822F' }}>
-            <span>Doc. ref · BW-PA-BRIEF-1315JUN26</span>
-            <span>Preparado por Blackwell Strategy</span>
-            <span style={{ color:'#9B3331', fontWeight:600 }}>Confidencial · uso interno</span>
-          </div>
+          {viewContent}
         </>)}
       </div>
     </div>

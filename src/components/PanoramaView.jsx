@@ -39,7 +39,7 @@ function KPIs({ kpis }) {
   );
 }
 
-export default function PanoramaView({ pano, data, onGoTheme }) {
+export default function PanoramaView({ pano, data, onGoTheme, isDesktop }) {
   const T = data.themes, order = data.order;
 
   let p=0,n=0,g=0;
@@ -67,7 +67,7 @@ export default function PanoramaView({ pano, data, onGoTheme }) {
 
   return (
     <motion.div key={pano} variants={stagger} initial="hidden" animate="visible"
-      style={{ padding:'20px 18px 6px' }}>
+      style={{ padding: isDesktop ? '24px 28px 6px' : '20px 18px 6px' }}>
 
       {/* Editorial */}
       {pano==='editorial' && (<>
@@ -103,25 +103,27 @@ export default function PanoramaView({ pano, data, onGoTheme }) {
         <motion.div variants={item} style={{ marginTop:22, borderTop:`2px solid ${C.ink}`, paddingTop:13 }}>
           <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, letterSpacing:'0.16em',
             textTransform:'uppercase', color:C.gold, fontWeight:600, marginBottom:11 }}>Temas monitoreados</div>
-          {cards.map(c => (
-            <TiltCard key={c.key} onClick={c.onClick}
-              style={{ display:'flex', alignItems:'center', gap:14, background:C.card,
-                border:'1px solid rgba(33,28,23,0.13)', borderLeft:`3px solid ${c.accent}`,
-                borderRadius:3, padding:'13px 15px', marginBottom:9, width:'100%', textAlign:'left' }}>
-              <Donut pos={c.pos} neu={c.neu} neg={c.neg} size={52} />
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                  <span style={{ fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:17,
-                    letterSpacing:'-0.01em', color:C.ink }}>{c.label}</span>
-                  <span style={{ ...pill(c.pillStyle.ink,c.pillStyle.bg,c.pillStyle.bd) }}>{c.riskLabel}</span>
+          <div style={{ display:'grid', gridTemplateColumns: isDesktop ? '1fr 1fr' : '1fr', gap:9 }}>
+            {cards.map(c => (
+              <TiltCard key={c.key} onClick={c.onClick}
+                style={{ display:'flex', alignItems:'center', gap:14, background:C.card,
+                  border:'1px solid rgba(33,28,23,0.13)', borderLeft:`3px solid ${c.accent}`,
+                  borderRadius:3, padding:'13px 15px', width:'100%', textAlign:'left' }}>
+                <Donut pos={c.pos} neu={c.neu} neg={c.neg} size={52} />
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <span style={{ fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:17,
+                      letterSpacing:'-0.01em', color:C.ink }}>{c.label}</span>
+                    <span style={{ ...pill(c.pillStyle.ink,c.pillStyle.bg,c.pillStyle.bd) }}>{c.riskLabel}</span>
+                  </div>
+                  <div style={{ fontSize:11.5, color:'#6B6253', marginTop:4, lineHeight:1.4 }}>{c.es}</div>
+                  <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, letterSpacing:'0.05em',
+                    color:'#8A7E6A', marginTop:6, textTransform:'uppercase' }}>{c.metaLine}</div>
                 </div>
-                <div style={{ fontSize:11.5, color:'#6B6253', marginTop:4, lineHeight:1.4 }}>{c.es}</div>
-                <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, letterSpacing:'0.05em',
-                  color:'#8A7E6A', marginTop:6, textTransform:'uppercase' }}>{c.metaLine}</div>
-              </div>
-              <span style={{ fontFamily:"'Geist Mono',monospace", color:C.gold, fontSize:13 }}>→</span>
-            </TiltCard>
-          ))}
+                <span style={{ fontFamily:"'Geist Mono',monospace", color:C.gold, fontSize:13 }}>→</span>
+              </TiltCard>
+            ))}
+          </div>
         </motion.div>
       </>)}
 
@@ -135,7 +137,7 @@ export default function PanoramaView({ pano, data, onGoTheme }) {
             Vista por <em style={{ fontStyle:'normal', color:C.goldDeep }}>tema</em>.
           </h1>
         </motion.div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:9 }}>
+        <div style={{ display:'grid', gridTemplateColumns: isDesktop ? 'repeat(4, 1fr)' : '1fr 1fr', gap:9 }}>
           {cards.map(c => (
             <TiltCard key={c.key} onClick={c.onClick}
               style={{ textAlign:'left', background:C.card, border:'1px solid rgba(33,28,23,0.13)',
@@ -164,11 +166,12 @@ export default function PanoramaView({ pano, data, onGoTheme }) {
           </h1>
           <p style={{ fontSize:13, color:'#6B6253', margin:'0 0 16px' }}>Temas ordenados por nivel de riesgo.</p>
         </motion.div>
+        <div style={{ display:'grid', gridTemplateColumns: isDesktop ? '1fr 1fr' : '1fr', gap:8, marginBottom:8 }}>
         {attention.map((a, i) => (
           <TiltCard key={a.key} onClick={a.onClick}
             style={{ width:'100%', textAlign:'left', display:'flex', gap:13, alignItems:'flex-start',
               background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderLeft:`3px solid ${a.accent}`,
-              borderRadius:3, padding:14, marginBottom:8 }}>
+              borderRadius:3, padding:14 }}>
             <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:'#8A7E6A',
               flex:'none', paddingTop:2 }}>{String(i+1).padStart(2,'0')}</span>
             <div style={{ flex:1, minWidth:0 }}>
@@ -188,6 +191,7 @@ export default function PanoramaView({ pano, data, onGoTheme }) {
             <span style={{ fontFamily:"'Geist Mono',monospace", color:C.gold, fontSize:13 }}>→</span>
           </TiltCard>
         ))}
+        </div>
         <motion.div variants={item} style={{ marginTop:6 }}><KPIs kpis={kpis} /></motion.div>
       </>)}
     </motion.div>
