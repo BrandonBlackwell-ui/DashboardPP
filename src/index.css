@@ -1,0 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600&family=Fraunces:ital,opsz,wght@1,9..144,300;1,9..144,400&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body, #root { margin: 0; padding: 0; min-height: 100vh; }
+body { background: #241E18; }
+::-webkit-scrollbar { width: 0; height: 0; }
+* { scrollbar-width: none; }
+button { font-family: inherit; }
+img { display: block; }
