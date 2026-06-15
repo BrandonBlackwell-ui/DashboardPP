@@ -142,7 +142,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop }) {
 
   // Platforms
   const pls = (t.platforms||[]).filter(p=>platMatch(p.name)).map(p => {
-    const sd=p.sent||{positivo:0,neutral:0,negativo:0};
+    const sd=p.sentiment||p.sent||{positivo:0,neutral:0,negativo:0};
     const rawP=sd.positivo||0, rawN=sd.neutral||0, rawNeg=sd.negativo||0;
     const tot=rawP+rawN+rawNeg||1;
     const pp=Math.round(rawP/tot*100), pn=Math.round(rawNeg/tot*100), pu=Math.max(0,100-pp-pn);
