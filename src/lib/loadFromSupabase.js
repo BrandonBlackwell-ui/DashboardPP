@@ -6,7 +6,7 @@ export async function loadFromSupabase() {
     const { data: reports, error } = await supabase
       .from('reports')
       .select(`
-        id, date_key, theme_key, theme_label, filename,
+        id, date_key, theme_key, theme_label, filename, created_at,
         sentiment(*),
         platforms(*),
         alert_posts(*),
@@ -24,9 +24,18 @@ export async function loadFromSupabase() {
         voice_segments(*),
         narrative_gap(*)
       `)
-      .order('date_key', { ascending: true });
+      .order('created_at', { ascending: true });
 
     if (error || !reports?.length) return;
+
+    // For PA_DATA.themes: use the most recently inserted record per theme (created_at wins)
+    // This prevents stale records with wrong dates from overwriting fresh uploads
+    const latestByTheme = {};
+    for (const rep of reports) {
+      if (!latestByTheme[rep.theme_key] || rep.created_at > latestByTheme[rep.theme_key].created_at) {
+        latestByTheme[rep.theme_key] = rep;
+      }
+    }
 
     for (const rep of reports) {
       const s = rep.sentiment?.[0] || {};
@@ -86,10 +95,12 @@ export async function loadFromSupabase() {
         narrative_gap: rep.narrative_gap?.[0] || {},
       };
 
-      // Inline merge into window globals (avoids circular import with UploadModal)
-      if (window.PA_DATA?.themes) {
+      // PA_DATA.themes: only apply if this is the most recently inserted record for this theme
+      if (window.PA_DATA?.themes && latestByTheme[rep.theme_key]?.id === rep.id) {
         window.PA_DATA.themes[rep.theme_key] = themeData;
       }
+
+      // CALENDAR_DATA: apply every record by its actual date_key (full history)
       if (window.CALENDAR_DATA) {
         if (!window.CALENDAR_DATA.days[rep.date_key]) window.CALENDAR_DATA.days[rep.date_key] = {};
         const s = themeData.sentiment || {};
