@@ -113,10 +113,14 @@ export default function UploadModal({ onClose, onDataUpdated }) {
         const text = await file.text();
         const { dateKey, themeKey, themeData } = parseDailyCSV(text, file.name);
         mergeNewData(dateKey, themeKey, themeData);
-        // Fire-and-forget to Supabase — non-blocking, local flow continues regardless
-        saveReport({ dateKey, themeKey, themeData, filename: file.name, reportId: null })
-          .catch(err => console.error('Supabase save FAILED:', err));
-        newResults[file.name] = { state:'ok', dateKey, themeKey, label: themeData.label };
+        // Await Supabase save so we know if it worked
+        try {
+          await saveReport({ dateKey, themeKey, themeData, filename: file.name });
+          newResults[file.name] = { state:'ok', dateKey, themeKey, label: themeData.label, saved: true };
+        } catch (sbErr) {
+          console.error('Supabase save FAILED:', sbErr);
+          newResults[file.name] = { state:'ok', dateKey, themeKey, label: themeData.label, saved: false, sbError: sbErr?.message };
+        }
       } catch (e) {
         newResults[file.name] = { state:'err', msg: e.message };
       }
@@ -194,8 +198,8 @@ export default function UploadModal({ onClose, onDataUpdated }) {
                         {f.name}
                       </div>
                       {r?.state==='ok' && (
-                        <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, color:C.teal, marginTop:2 }}>
-                          {r.label} · {r.dateKey} ✓
+                        <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, color: r.saved===false ? C.gold : C.teal, marginTop:2 }}>
+                          {r.label} · {r.dateKey} · {r.saved===false ? `⚠ local only: ${r.sbError||'Supabase error'}` : '✓ guardado'}
                         </div>
                       )}
                       {r?.state==='err' && (

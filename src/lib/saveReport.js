@@ -25,7 +25,7 @@ export async function saveReport({ dateKey, themeKey, themeData, filename }) {
   // 4. Platforms
   const pls = (themeData.platforms || []).map(p => ({
     report_id: rid, platform: p.name, posts: p.posts, comments: p.comments, users: p.users,
-    sent_pos: p.sentiment?.positivo || 0, sent_neu: p.sentiment?.neutral || 0, sent_neg: p.sentiment?.negativo || 0
+    sent_pos: p.sent?.positivo || p.sentiment?.positivo || 0, sent_neu: p.sent?.neutral || p.sentiment?.neutral || 0, sent_neg: p.sent?.negativo || p.sentiment?.negativo || 0
   }));
   if (pls.length) await supabase.from('platforms').insert(pls).catch(e => console.warn('child insert error:', e));
 
