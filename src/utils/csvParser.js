@@ -58,8 +58,8 @@ export function detectDate(filename) {
   // patterns: 13-15jun, 09_10jun, 01_02_jun, etc.
   const m = f.match(/(\d{2})[-_](\d{2})[-_]?jun/) || f.match(/(\d{2})[-_](\d{2})jun/);
   if (m) {
-    const end = parseInt(m[2], 10);
-    return `2026-06-${String(end).padStart(2,'0')}`;
+    const start = parseInt(m[1], 10);
+    return `2026-06-${String(start).padStart(2,'0')}`;
   }
   const m2 = f.match(/(\d{2})jun/);
   if (m2) return `2026-06-${String(parseInt(m2[1],10)).padStart(2,'0')}`;
