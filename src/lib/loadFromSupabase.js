@@ -1,5 +1,4 @@
 import { supabase } from './supabase';
-import { mergeNewData } from '../components/UploadModal';
 
 // Fetch all uploaded reports from Supabase and apply them to window.PA_DATA / CALENDAR_DATA
 export async function loadFromSupabase() {
@@ -87,7 +86,21 @@ export async function loadFromSupabase() {
         narrative_gap: rep.narrative_gap?.[0] || {},
       };
 
-      mergeNewData(rep.date_key, rep.theme_key, themeData);
+      // Inline merge into window globals (avoids circular import with UploadModal)
+      if (window.PA_DATA?.themes) {
+        window.PA_DATA.themes[rep.theme_key] = themeData;
+      }
+      if (window.CALENDAR_DATA) {
+        if (!window.CALENDAR_DATA.days[rep.date_key]) window.CALENDAR_DATA.days[rep.date_key] = {};
+        const s = themeData.sentiment || {};
+        window.CALENDAR_DATA.days[rep.date_key][rep.theme_key] = {
+          pos: s.pos||0, neg: s.neg||0,
+          risk: themeData.risk?.level || 'bajo',
+          posts: themeData.totals?.posts || 0,
+          topEvents: (themeData.timeline?.events||[]).slice(0,3).map(e=>e.main).filter(Boolean),
+          headlines: [],
+        };
+      }
     }
   } catch (e) {
     console.warn('Supabase load failed (non-blocking):', e);

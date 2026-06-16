@@ -115,7 +115,7 @@ export default function UploadModal({ onClose, onDataUpdated }) {
         mergeNewData(dateKey, themeKey, themeData);
         // Fire-and-forget to Supabase — non-blocking, local flow continues regardless
         saveReport({ dateKey, themeKey, themeData, filename: file.name, reportId: null })
-          .catch(err => console.warn('Supabase save failed (non-blocking):', err));
+          .catch(err => console.error('Supabase save FAILED:', err));
         newResults[file.name] = { state:'ok', dateKey, themeKey, label: themeData.label };
       } catch (e) {
         newResults[file.name] = { state:'err', msg: e.message };
