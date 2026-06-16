@@ -118,73 +118,100 @@ export function parseDailyCSV(csvText, filename) {
   const deepSent = parseJsonField(row, 'deep_sentiment_analysis') || {};
   const agentsSummary = parseJsonField(row, 'agents_summary') || {};
 
-  // Extract sentiment
-  const sd = consolidated?.sentiment_distribution || consolidated?.sentiment_stats?.overall_sentiment?.overall_sentiment_distribution || {};
-  const pos = parseFloat(sd.positive_percentage || sd.positivo || 0);
-  const neu = parseFloat(sd.neutral_percentage || sd.neutral || 0);
-  const neg = parseFloat(sd.negative_percentage || sd.negativo || 0);
-  const posC = parseInt(sd.positive_count || sd.positivo_count || 0, 10);
-  const neuC = parseInt(sd.neutral_count || 0, 10);
-  const negC = parseInt(sd.negative_count || sd.negativo_count || 0, 10);
+  // Extract sentiment — handles both number values and {count,percentage} objects
+  function pct(v) { return parseFloat(typeof v === 'object' && v !== null ? v.percentage ?? v.porcentaje ?? 0 : v ?? 0) || 0; }
+  function cnt(v) { return parseInt(typeof v === 'object' && v !== null ? v.count ?? v.cantidad ?? 0 : v ?? 0, 10) || 0; }
+
+  const sd = consolidated?.sentiment_distribution
+    || consolidated?.sentiment_stats?.overall_sentiment?.overall_sentiment_distribution
+    || {};
+  const pos = pct(sd.positive_percentage ?? sd.positivo);
+  const neu = pct(sd.neutral_percentage ?? sd.neutral);
+  const neg = pct(sd.negative_percentage ?? sd.negativo);
+  const posC = cnt(sd.positive_count ?? sd.positivo_count ?? sd.positivo);
+  const neuC = cnt(sd.neutral_count ?? sd.neutral);
+  const negC = cnt(sd.negative_count ?? sd.negativo_count ?? sd.negativo);
 
   // Risk
-  const ra = consolidated?.risk_assessment || {};
-  const riskLevel = (ra.risk_level || ra.nivel || 'bajo').toLowerCase();
+  const ra = consolidated?.risk_assessment
+    || consolidated?.sentiment_stats?.risk_assessment
+    || {};
+  const riskLevel = (ra.overall_risk_level || ra.risk_level || ra.nivel || 'bajo').toLowerCase();
 
   // Totals
+  const sentsOverall = consolidated?.sentiment_stats?.overall_sentiment || {};
   const totals = {
-    posts: consolidated?.post_count || consolidated?.total_posts || 0,
+    posts: consolidated?.post_count || consolidated?.total_posts || sentsOverall.posts_analyzed || 0,
     users: consolidated?.unique_users || 0,
     platforms: consolidated?.platform_count || 0,
     engagement: consolidated?.avg_engagement || 0,
   };
 
-  // Platforms
-  const platforms = arr(consolidated?.platform_breakdown || consolidated?.platforms).map(p => ({
-    name: (p.platform || p.name || '').toLowerCase(),
-    posts: p.total_posts || p.posts || 0,
-    comments: p.total_comments || p.comments || 0,
-    users: p.unique_users || p.users || 0,
-    engagement: p.avg_engagement || p.engagement || 0,
-    sent: {
-      positivo: p.sentiment?.positive_percentage || p.sent?.positivo || 0,
-      neutral: p.sentiment?.neutral_percentage || p.sent?.neutral || 0,
-      negativo: p.sentiment?.negative_percentage || p.sent?.negativo || 0,
+  // Platforms — handles array OR object-of-objects {tiktok:{...}, facebook:{...}}
+  const rawPB = consolidated?.platform_breakdown || consolidated?.platforms || [];
+  let platformArr = [];
+  if (Array.isArray(rawPB)) {
+    platformArr = rawPB;
+  } else if (rawPB && typeof rawPB === 'object') {
+    // Could be {platforms: {...}, platform_comparison: ...} or directly {tiktok:{...},...}
+    const inner = rawPB.platforms || rawPB;
+    if (Array.isArray(inner)) {
+      platformArr = inner;
+    } else if (inner && typeof inner === 'object') {
+      platformArr = Object.entries(inner).map(([name, d]) => ({ ...d, _name: name }));
     }
-  }));
+  }
+  const platforms = platformArr.map(p => {
+    const name = (p.platform || p.name || p._name || '').toLowerCase();
+    const sd2 = p.sentiment_distribution || p.sentiment || p.sent || {};
+    return {
+      name,
+      posts: p.total_posts || p.posts || 0,
+      comments: p.total_comments || p.comments || 0,
+      users: p.unique_users || p.users || 0,
+      engagement: p.avg_engagement || p.engagement_rate || p.engagement || 0,
+      sent: {
+        positivo: pct(sd2.positivo ?? sd2.positive_percentage ?? sd2.positive),
+        neutral:  pct(sd2.neutral ?? sd2.neutral_percentage),
+        negativo: pct(sd2.negativo ?? sd2.negative_percentage ?? sd2.negative),
+      }
+    };
+  });
 
-  // Alerts
+  // Alerts — supports nested resumen_alertas structure
+  const alertResumen = alerts.resumen_alertas || alerts;
   const alertData = {
-    nivel: alerts.nivel || alerts.alert_level || 'sin_alertas',
-    recomendacion: alerts.recomendacion || alerts.recommendation || '',
-    total: alerts.total_alerts || alerts.total || 0,
-    analizados: alerts.posts_analyzed || alerts.analizados || 0,
-    posts: arr(alerts.high_risk_posts || alerts.posts).map(p => ({
+    nivel: alertResumen.nivel_crisis_general || alertResumen.nivel || alerts.alert_level || 'sin_alertas',
+    recomendacion: alertResumen.recomendacion || alertResumen.recommendation || '',
+    total: alertResumen.total_posts_con_alerta || alertResumen.total_alerts || alertResumen.total || 0,
+    analizados: alertResumen.posts_analizados || alertResumen.posts_analyzed || alertResumen.analizados || 0,
+    posts: arr(alerts.top_posts_peligrosos || alerts.high_risk_posts || alerts.posts).map(p => ({
       url: p.url || p.link || '',
       text: p.text || p.content || '',
-      tipo: p.tipo || p.alert_type || p.type || 'alerta',
+      tipo: p.tipo_alerta || p.tipo || p.alert_type || p.type || 'alerta',
       platform: (p.platform || '').toLowerCase(),
       time: p.timestamp || p.time || p.date || '',
-      score: p.danger_score || p.score || p.peligrosidad || '',
+      score: p.score_peligrosidad || p.danger_score || p.score || p.peligrosidad || '',
       razon: p.razon || p.reason || '',
       engagement: p.engagement || 0,
       username: p.username || p.user || '',
     })),
   };
 
-  // Opportunities
+  // Opportunities — supports nested resumen_oportunidades structure
+  const oppResumen = opps.resumen_oportunidades || opps;
   const oppData = {
-    nivel: opps.opportunity_level || opps.nivel || 'bajo',
-    recomendacion: opps.recomendacion || opps.recommendation || '',
-    total: opps.total_opportunities || opps.total || 0,
-    analizados: opps.posts_analyzed || opps.analizados || 0,
-    posts: arr(opps.top_opportunities || opps.posts).map(p => ({
+    nivel: oppResumen.nivel_oportunidad_general || oppResumen.opportunity_level || oppResumen.nivel || 'bajo',
+    recomendacion: oppResumen.recomendacion || oppResumen.recommendation || '',
+    total: oppResumen.total_posts_con_oportunidad || oppResumen.total_opportunities || oppResumen.total || 0,
+    analizados: oppResumen.posts_analizados || oppResumen.posts_analyzed || oppResumen.analizados || 0,
+    posts: arr(opps.top_mejores_oportunidades || opps.top_opportunities || opps.posts).map(p => ({
       url: p.url || p.link || '',
       text: p.text || p.content || '',
-      impacto: p.impact_level || p.impacto || '',
+      impacto: p.nivel_impacto || p.impact_level || p.impacto || '',
       platform: (p.platform || '').toLowerCase(),
       time: p.timestamp || p.time || p.date || '',
-      score: p.opportunity_score || p.score || '',
+      score: p.score_oportunidad || p.opportunity_score || p.score || '',
       razon: p.razon || p.reason || '',
       engagement: p.engagement || 0,
       username: p.username || p.user || '',
