@@ -10,7 +10,12 @@ function loadExtra() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
 }
 function saveExtra(extra) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(extra));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(extra));
+  } catch (e) {
+    // QuotaExceeded — clear old entries and retry with only the latest
+    try { localStorage.removeItem(STORAGE_KEY); localStorage.setItem(STORAGE_KEY, JSON.stringify(extra)); } catch {}
+  }
 }
 
 // Merge a new themeData into existing PA_DATA and CALENDAR_DATA in memory

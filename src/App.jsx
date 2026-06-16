@@ -10,6 +10,7 @@ import ThemeView from './components/ThemeView';
 import CalendarView from './components/CalendarView';
 import UploadModal, { applyStoredExtra } from './components/UploadModal';
 import LoginGate from './components/LoginGate';
+import { loadFromSupabase } from './lib/loadFromSupabase';
 
 const INK_SVG = `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><filter id="bw-ink" x="-3%" y="-15%" width="106%" height="130%" filterUnits="objectBoundingBox" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="3" seed="4" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/></filter><filter id="bw-ink-rough" x="-3%" y="-80%" width="106%" height="260%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.04 0.5" numOctaves="2" seed="7" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="2.5" xChannelSelector="R" yChannelSelector="G"/></filter></defs></svg>`;
 
@@ -56,8 +57,13 @@ export default function App() {
   const [showUpload, setShowUpload] = useState(false);
   const [dataVersion, setDataVersion] = useState(0);
 
-  // Apply any previously uploaded CSVs from localStorage on startup
-  useEffect(() => { if (authed && data && calData) { applyStoredExtra(); setDataVersion(v => v+1); } }, [authed, data, calData]);
+  // On startup: apply localStorage cache first (instant), then load from Supabase (authoritative)
+  useEffect(() => {
+    if (!authed || !data || !calData) return;
+    applyStoredExtra();
+    setDataVersion(v => v+1);
+    loadFromSupabase().then(() => setDataVersion(v => v+1));
+  }, [authed, data, calData]);
 
   if (!authed) return <LoginGate onAuth={() => setAuthed(true)} />;
 

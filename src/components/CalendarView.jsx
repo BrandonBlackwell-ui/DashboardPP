@@ -35,14 +35,19 @@ export default function CalendarView({ calData, onGoTheme, isDesktop }) {
   const CD = calData;
   const days = CD?.days || {};
 
-  // Build sorted day list Jun 1-15
+  // Build sorted day list from earliest known data to latest (dynamic, not hardcoded)
   const allDays = [];
-  for (let d = 1; d <= 15; d++) {
-    const key = `2026-06-${String(d).padStart(2,'0')}`;
-    allDays.push(key);
+  const knownDays = Object.keys(days).sort();
+  const startKey = knownDays[0] || '2026-06-01';
+  const endKey = knownDays[knownDays.length - 1] || '2026-06-15';
+  const startDate = new Date(startKey + 'T12:00:00');
+  const endDate = new Date(endKey + 'T12:00:00');
+  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+    allDays.push(d.toISOString().slice(0, 10));
   }
 
-  const [selected, setSelected] = useState('2026-06-15');
+  const lastDay = allDays[allDays.length - 1] || '2026-06-15';
+  const [selected, setSelected] = useState(lastDay);
   const selData = days[selected] || {};
 
   const stagger = { hidden:{}, visible:{ transition:{ staggerChildren:0.04 } } };
