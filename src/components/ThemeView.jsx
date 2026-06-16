@@ -221,7 +221,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop }) {
                   </div>
                 </div>
                 <div style={{ fontSize:12.5, lineHeight:1.5, color:'#2A241C', marginTop:13, paddingTop:13, borderTop:'1px solid rgba(33,28,23,0.10)' }}>
-                  {al.recomendacion||'Sin recomendaciones de crisis en el periodo.'}
+                  {al.recomendacion||'No se encontraron posts negativos'}
                 </div>
               </Card>
               {alPosts.map((p,i) => (
@@ -278,6 +278,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop }) {
               </motion.div>
             )}
             {/* Pros y contras */}
+            {((pc.positive||[]).length>0||(pc.negative||[]).length>0) && (
             <motion.div variants={item} style={{ paddingTop:14, paddingBottom:6 }}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:11 }}>
                 <h2 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:19,
@@ -314,6 +315,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop }) {
                 )}
               </div>
             </motion.div>
+            )}
           </div>
         </div>
       ) : (
@@ -351,7 +353,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop }) {
             </div>
           </div>
           <div style={{ fontSize:12.5, lineHeight:1.5, color:'#2A241C', marginTop:13, paddingTop:13, borderTop:'1px solid rgba(33,28,23,0.10)' }}>
-            {al.recomendacion||'Sin recomendaciones de crisis en el periodo.'}
+            {al.recomendacion||'No se encontraron posts negativos'}
           </div>
         </Card>
         {alPosts.map((p,i) => (
@@ -402,6 +404,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop }) {
       )}
 
       {/* Pros y contras */}
+      {((pc.positive||[]).length>0||(pc.negative||[]).length>0) && (
       <Section title="Pros y contras">
         <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:'4px 15px 12px' }}>
           {(pc.positive||[]).length>0 && (
@@ -434,6 +437,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop }) {
           )}
         </div>
       </Section>
+      )}
         </>
       )}
 
@@ -670,7 +674,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop }) {
       )}
 
       {/* Pulso emocional */}
-      <Section title="Pulso emocional" px={sectionPx}>
+      {(emojis.length>0||keywords.length>0) && <Section title="Pulso emocional" px={sectionPx}>
         <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:15 }}>
           {emojis.length>0 && (<>
             <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', color:'#8A7E6A', marginBottom:10 }}>Emojis más usados</div>
@@ -696,7 +700,8 @@ export default function ThemeView({ tab, date, plat, data, isDesktop }) {
             </div>
           </>)}
         </div>
-      </Section>
+      </Section>}
+
     </motion.div>
   );
 }
