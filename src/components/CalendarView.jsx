@@ -142,7 +142,7 @@ export default function CalendarView({ calData, onGoTheme, isDesktop }) {
                   padding:13, opacity: td ? 1 : 0.55 }}>
 
                 <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                  {td ? (
+                  {td && (td.pos > 0 || td.neg > 0) ? (
                     <Donut pos={td.pos||0} neu={Math.max(0,100-(td.pos||0)-(td.neg||0))} neg={td.neg||0} size={40} />
                   ) : (
                     <div style={{ width:40, height:40, borderRadius:'50%', background:'#E3DAC6', flex:'none' }} />
@@ -151,18 +151,18 @@ export default function CalendarView({ calData, onGoTheme, isDesktop }) {
                     <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                       <span style={{ fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:14,
                         color: td ? C.ink : '#A9997B' }}>{t.label}</span>
-                      {rm && <span style={{ display:'inline-flex', alignItems:'center', padding:'1px 6px',
+                      {rm && (td.pos > 0 || td.neg > 0) && <span style={{ display:'inline-flex', alignItems:'center', padding:'1px 6px',
                         borderRadius:999, fontFamily:"'Geist Mono',monospace", fontSize:8.5, fontWeight:500,
                         letterSpacing:'0.06em', textTransform:'uppercase', color:rm.ink,
                         background:rm.bg, border:`1px solid ${rm.bd}` }}>{rm.label}</span>}
                     </div>
-                    {td ? (
+                    {td && (td.pos > 0 || td.neg > 0) ? (
                       <SentBar pos={td.pos} neu={Math.max(0,100-td.pos-td.neg)} neg={td.neg} />
                     ) : (
                       <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, color:'#A9997B',
-                        marginTop:4, letterSpacing:'0.06em' }}>SIN DATOS PARA ESTA FECHA</div>
+                        marginTop:4, letterSpacing:'0.06em' }}>{td ? 'SIN ANÁLISIS DE SENTIMIENTO' : 'SIN DATOS PARA ESTA FECHA'}</div>
                     )}
-                    {td && (
+                    {td && (td.pos > 0 || td.neg > 0) && (
                       <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, color:'#6B6253',
                         letterSpacing:'0.04em' }}>
                         {Math.round(td.pos||0)}% fav · {Math.round(td.neg||0)}% crítica · {td.posts||0} posts
@@ -171,7 +171,7 @@ export default function CalendarView({ calData, onGoTheme, isDesktop }) {
                   </div>
                   {td && (
                     <motion.button whileTap={{ scale:0.9 }}
-                      onClick={() => onGoTheme(t.key)}
+                      onClick={() => onGoTheme(t.key, selected)}
                       style={{ flex:'none', fontFamily:"'Geist Mono',monospace", fontSize:9.5, fontWeight:600,
                         color:C.goldDeep, background:'transparent', border:'none', cursor:'pointer',
                         letterSpacing:'0.06em', padding:'4px 6px' }}>

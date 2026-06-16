@@ -18,7 +18,7 @@ function Chip({ label, active, onClick }) {
   );
 }
 
-export default function SubBar({ tab, pano, date, plat, data, onPanoChange, onDateChange, onPlatChange, isDesktop }) {
+export default function SubBar({ tab, pano, date, plat, data, dateOptions, onPanoChange, onDateChange, onPlatChange, isDesktop }) {
   const isPanorama = tab === 'panorama';
   const isTheme = !isPanorama && tab !== 'historico';
   const isHist = tab === 'historico';
@@ -56,7 +56,7 @@ export default function SubBar({ tab, pano, date, plat, data, onPanoChange, onDa
               <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.14em',
                 textTransform:'uppercase', color:'#8A7E6A', width:54, flex:'none' }}>Fecha</span>
               <div style={{ display:'flex', gap:5, overflowX:'auto', scrollbarWidth:'none' }}>
-                {[['todas','Todas'],['13','13 jun'],['14','14 jun'],['15','15 jun']].map(([k,l]) => (
+                {(dateOptions || [['todas','Todas'],['13','13 jun'],['14','14 jun'],['15','15 jun']]).map(([k,l]) => (
                   <Chip key={k} label={l} active={date===k} onClick={() => onDateChange(k)} />
                 ))}
               </div>

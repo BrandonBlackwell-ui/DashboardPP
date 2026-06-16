@@ -68,6 +68,13 @@ export default function App() {
   if (!authed) return <LoginGate onAuth={() => setAuthed(true)} />;
 
   function handleTabChange(t) { setTab(t); setDate('todas'); setPlat('todas'); window.scrollTo(0,0); }
+  function handleGoFromCalendar(themeKey, dateKey) {
+    const dayNum = dateKey.slice(8); // "2026-06-09" → "09"
+    setTab(themeKey);
+    setDate(dayNum);
+    setPlat('todas');
+    window.scrollTo(0, 0);
+  }
   function handleUpload() { setShowUpload(true); }
   function handleDataUpdated() { setDataVersion(v => v+1); }
 
@@ -86,6 +93,23 @@ export default function App() {
 
   const isTheme = !['panorama','historico'].includes(tab);
 
+  // Build date options dynamically from calData (last 7 days with any data, most recent first)
+  const dateOptions = (() => {
+    const dayKeys = calData ? Object.keys(calData.days).sort().reverse().slice(0, 7).reverse() : [];
+    const opts = [['todas', 'Todas']];
+    dayKeys.forEach(dk => {
+      const day = dk.slice(8); // "09"
+      const dayInt = parseInt(day, 10);
+      opts.push([day, `${dayInt} jun`]);
+    });
+    // Ensure current date is included if not already
+    if (date !== 'todas' && !opts.find(([k]) => k === date)) {
+      const dayInt = parseInt(date, 10);
+      opts.splice(1, 0, [date, `${dayInt} jun`]);
+    }
+    return opts;
+  })();
+
   const viewContent = data && (
     <>
       <div style={{ padding:'0 0 56px' }}>
@@ -102,7 +126,7 @@ export default function App() {
           )}
           {tab==='historico' && (
             <motion.div key="historico" initial={{ opacity:0, x:24 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-24 }} transition={{ duration:0.22 }}>
-              <CalendarView calData={calData} onGoTheme={handleTabChange} isDesktop={isDesktop} />
+              <CalendarView calData={calData} onGoTheme={handleGoFromCalendar} isDesktop={isDesktop} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -130,7 +154,7 @@ export default function App() {
             onTabChange={handleTabChange} onExport={handleExport} onUpload={handleUpload}>
             {/* SubBar as sticky strip inside content */}
             <SubBar tab={tab} pano={pano} date={date} plat={plat} data={data}
-              onPanoChange={setPano} onDateChange={setDate} onPlatChange={setPlat} isDesktop />
+              dateOptions={dateOptions} onPanoChange={setPano} onDateChange={setDate} onPlatChange={setPlat} isDesktop />
             {viewContent}
           </DesktopShell>
         )}
@@ -153,7 +177,7 @@ export default function App() {
         {data && (<>
           <Header tab={tab} data={data} onExport={handleExport} onTabChange={handleTabChange} onUpload={handleUpload} />
           <SubBar tab={tab} pano={pano} date={date} plat={plat} data={data}
-            onPanoChange={setPano} onDateChange={setDate} onPlatChange={setPlat} />
+            dateOptions={dateOptions} onPanoChange={setPano} onDateChange={setDate} onPlatChange={setPlat} />
           {viewContent}
         </>)}
       </div>
