@@ -35,12 +35,12 @@ export default function Donut({ pos, neu, neg, size = 80, showLabel = false }) {
         display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
         <span style={{ fontFamily:"'Geist',sans-serif", fontWeight:700,
           fontSize:Math.round(size*0.26), lineHeight:1, color:C.ink, letterSpacing:'-0.02em' }}>
-          {Math.round(animated.pos)}%
+          {Math.round(animated.neg)}%
         </span>
         {showLabel && (
           <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:Math.max(6,Math.round(size*0.09)),
             letterSpacing:'0.1em', textTransform:'uppercase', color:'#8A7E6A', marginTop:2 }}>
-            Fav.
+            Crít.
           </span>
         )}
       </div>

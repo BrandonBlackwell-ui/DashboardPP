@@ -47,13 +47,12 @@ export default function PanoramaView({ pano, data, onGoTheme, isDesktop }) {
   const tot=p+n+g||1;
   const aPos=Math.round(p/tot*100), aNeg=Math.round(g/tot*100), aNeu=100-aPos-aNeg;
 
-  let totPosts=0, totInf=0;
-  order.forEach(k => { totPosts+=T[k].totals?.posts||0; totInf+=T[k].influencers?.total||0; });
+  let totPosts=0;
+  order.forEach(k => { totPosts+=T[k].totals?.posts||0; });
 
   const kpis = [
     { label:'Menciones', value:fmt(tot), bg:C.ink, border:C.ink, lblColor:'rgba(255,255,255,0.65)', valColor:'#FBF8F1' },
     { label:'Posts', value:fmt(totPosts), bg:C.card, border:'rgba(33,28,23,0.13)', lblColor:'#6B6253', valColor:C.ink },
-    { label:'Influencers', value:fmt(totInf), bg:C.card, border:'rgba(33,28,23,0.13)', lblColor:'#6B6253', valColor:C.ink },
   ];
 
   const cards = order.map(k => {
