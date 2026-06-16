@@ -65,16 +65,29 @@ export function detectDate(filename) {
   return new Date().toISOString().slice(0,10);
 }
 
+// Known column names that identify the real header row
+const KNOWN_COLS = ['consolidated_analysis','complaints_analysis','trending_topics_analysis',
+  'timeline_analysis','news_analysis','alertometro_analysis','oportunometro_analysis',
+  'reconocimientos_analysis','influencers_impact_analysis','agents_summary',
+  'deep_sentiment_analysis','comments_topics_analysis','pros_and_cons',
+  'narrative_gap_analysis','voices_analysis'];
+
 // Main parser: takes CSV text + filename, returns structured theme data
 export function parseDailyCSV(csvText, filename) {
   const rows = parseCsvRaw(csvText);
   if (rows.length < 2) throw new Error('CSV vacío o sin datos');
 
-  // First row = headers
-  const headers = rows[0].map(h => h.trim().replace(/^﻿/, ''));
-  // Find data row (skip rows that look like sub-headers or empty)
+  // Find the real header row (handles 3-row offset format with report_id metadata)
+  let headerIdx = 0;
+  for (let i = 0; i < Math.min(rows.length, 5); i++) {
+    const normalized = rows[i].map(h => h.trim().toLowerCase());
+    if (KNOWN_COLS.some(c => normalized.includes(c))) { headerIdx = i; break; }
+  }
+  const headers = rows[headerIdx].map(h => h.trim().replace(/^﻿/, ''));
+
+  // Find data row after headers (skip empty rows)
   let dataRow = null;
-  for (let i = 1; i < rows.length; i++) {
+  for (let i = headerIdx + 1; i < rows.length; i++) {
     if (rows[i].length >= 3 && rows[i].some(f => f.trim())) { dataRow = rows[i]; break; }
   }
   if (!dataRow) throw new Error('No se encontró fila de datos');
