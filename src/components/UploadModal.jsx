@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { parseDailyCSV } from '../utils/csvParser';
 import { C } from '../utils/helpers';
+import { saveReport } from '../lib/saveReport';
 
 const STORAGE_KEY = 'bw_pa_extra_data';
 
@@ -107,6 +108,9 @@ export default function UploadModal({ onClose, onDataUpdated }) {
         const text = await file.text();
         const { dateKey, themeKey, themeData } = parseDailyCSV(text, file.name);
         mergeNewData(dateKey, themeKey, themeData);
+        // Fire-and-forget to Supabase — non-blocking, local flow continues regardless
+        saveReport({ dateKey, themeKey, themeData, filename: file.name, reportId: null })
+          .catch(err => console.warn('Supabase save failed (non-blocking):', err));
         newResults[file.name] = { state:'ok', dateKey, themeKey, label: themeData.label };
       } catch (e) {
         newResults[file.name] = { state:'err', msg: e.message };
