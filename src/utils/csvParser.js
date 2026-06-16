@@ -1,6 +1,8 @@
 // Parses a Pepe Aguilar daily report CSV (same format as historical files)
 // Returns { dateKey, themeKey, themeData } or throws on error
 
+function arr(v) { return Array.isArray(v) ? v : []; }
+
 function parseJsonField(row, col) {
   const raw = row[col];
   if (!raw || raw.trim() === '') return null;
@@ -138,7 +140,7 @@ export function parseDailyCSV(csvText, filename) {
   };
 
   // Platforms
-  const platforms = (consolidated?.platform_breakdown || consolidated?.platforms || []).map(p => ({
+  const platforms = arr(consolidated?.platform_breakdown || consolidated?.platforms).map(p => ({
     name: (p.platform || p.name || '').toLowerCase(),
     posts: p.total_posts || p.posts || 0,
     comments: p.total_comments || p.comments || 0,
@@ -157,7 +159,7 @@ export function parseDailyCSV(csvText, filename) {
     recomendacion: alerts.recomendacion || alerts.recommendation || '',
     total: alerts.total_alerts || alerts.total || 0,
     analizados: alerts.posts_analyzed || alerts.analizados || 0,
-    posts: (alerts.high_risk_posts || alerts.posts || []).map(p => ({
+    posts: arr(alerts.high_risk_posts || alerts.posts).map(p => ({
       url: p.url || p.link || '',
       text: p.text || p.content || '',
       tipo: p.tipo || p.alert_type || p.type || 'alerta',
@@ -176,7 +178,7 @@ export function parseDailyCSV(csvText, filename) {
     recomendacion: opps.recomendacion || opps.recommendation || '',
     total: opps.total_opportunities || opps.total || 0,
     analizados: opps.posts_analyzed || opps.analizados || 0,
-    posts: (opps.top_opportunities || opps.posts || []).map(p => ({
+    posts: arr(opps.top_opportunities || opps.posts).map(p => ({
       url: p.url || p.link || '',
       text: p.text || p.content || '',
       impacto: p.impact_level || p.impacto || '',
@@ -191,20 +193,20 @@ export function parseDailyCSV(csvText, filename) {
 
   // Pros & cons
   const pc = {
-    positive: proscons.pros || proscons.positive || proscons.a_favor || [],
-    negative: proscons.cons || proscons.negative || proscons.en_contra || [],
-    neutral: proscons.neutral || proscons.observaciones || [],
+    positive: arr(proscons.pros || proscons.positive || proscons.a_favor),
+    negative: arr(proscons.cons || proscons.negative || proscons.en_contra),
+    neutral: arr(proscons.neutral || proscons.observaciones),
   };
 
   // Complaints
   const cm = {
     total: complaints.total_complaints || complaints.total || 0,
-    categories: (complaints.complaint_categories || complaints.categories || []).map(cat => ({
+    categories: arr(complaints.complaint_categories || complaints.categories).map(cat => ({
       titulo: cat.category || cat.titulo || '',
       porcentaje: cat.percentage || cat.porcentaje || 0,
-      items: (cat.complaints || cat.items || []).map(it => ({
+      items: arr(cat.complaints || cat.items).map(it => ({
         texto: it.complaint || it.texto || it,
-        sources: (it.sources || []).map(s => ({ url: s.url || s.link || '', platform: s.platform || '' })),
+        sources: arr(it.sources).map(s => ({ url: s.url || s.link || '', platform: s.platform || '' })),
       })),
     })),
   };
@@ -215,11 +217,11 @@ export function parseDailyCSV(csvText, filename) {
     newsData.total = news.total_news || news.total || 0;
     ['positivo','neutral','negativo'].forEach(r => {
       const src = news[r+'_coverage'] || news[r] || [];
-      newsData[r] = (Array.isArray(src) ? src : []).map(g => ({
+      newsData[r] = arr(src).map(g => ({
         titulo: g.title || g.titulo || '',
         descripcion: g.description || g.descripcion || '',
         porcentaje: g.coverage_percentage || g.porcentaje || 0,
-        noticias: (g.articles || g.noticias || []).map(n => ({
+        noticias: arr(g.articles || g.noticias).map(n => ({
           titulo: n.headline || n.titulo || n.title || '',
           fuente: n.source || n.fuente || '',
           fecha: n.date || n.fecha || '',
@@ -230,7 +232,7 @@ export function parseDailyCSV(csvText, filename) {
   }
 
   // Trending
-  const trendData = (trending.trending_topics || trending.topics || trending.tendencias || []).map(x => ({
+  const trendData = arr(trending.trending_topics || trending.topics || trending.tendencias).map(x => ({
     titulo: x.topic || x.titulo || x.title || '',
     desc: x.description || x.desc || '',
     metricas: { views: x.metrics?.views || x.views || x.metricas?.views || 0, likes: x.metrics?.likes || x.likes || x.metricas?.likes || 0 },
@@ -238,14 +240,14 @@ export function parseDailyCSV(csvText, filename) {
   }));
 
   // Reconocimientos
-  const reconData = (recon.recognitions || recon.reconocimientos || recon.items || []).map(r => ({
+  const reconData = arr(recon.recognitions || recon.reconocimientos || recon.items).map(r => ({
     titulo: r.title || r.titulo || '',
     desc: r.description || r.desc || '',
     metricas: { views: r.metrics?.views || r.views || 0 },
   }));
 
   // Influencers
-  const infTop = (influencers.top_influencers || influencers.top || influencers.influencers || []).map((p, i) => ({
+  const infTop = arr(influencers.top_influencers || influencers.top || influencers.influencers).map((p, i) => ({
     rank: p.rank || i + 1,
     username: p.username || p.name || '',
     platform: (p.platform || '').toLowerCase(),
@@ -266,12 +268,12 @@ export function parseDailyCSV(csvText, filename) {
   // Voices
   const voicesData = {
     resumen: voices.summary || voices.resumen || '',
-    segmentos: (voices.segments || voices.segmentos || []).map(s => ({
+    segmentos: arr(voices.segments || voices.segmentos).map(s => ({
       label: s.segment || s.label || '',
       narrativa: s.narrative || s.narrativa || '',
       sentimiento: s.sentiment || s.sentimiento || '',
     })),
-    alertas: (voices.alerts || voices.alertas || []).map(a => ({
+    alertas: arr(voices.alerts || voices.alertas).map(a => ({
       tema: a.topic || a.tema || '',
       descripcion: a.description || a.descripcion || '',
       severidad: a.severity || a.severidad || 'media',
@@ -281,7 +283,7 @@ export function parseDailyCSV(csvText, filename) {
   // Comments topics
   const ctData = {
     total: commentsTopics.total_comments || commentsTopics.total || 0,
-    topics: (commentsTopics.comment_topics || commentsTopics.topics || []).map(t => ({
+    topics: arr(commentsTopics.comment_topics || commentsTopics.topics).map(t => ({
       titulo: t.topic || t.titulo || '',
       porcentaje: t.percentage || t.porcentaje || 0,
       items: (t.examples || t.items || []).slice(0, 4),
@@ -290,10 +292,10 @@ export function parseDailyCSV(csvText, filename) {
 
   // Emojis & keywords from deep sentiment or agents summary
   const emojiSrc = deepSent.top_emojis || deepSent.emojis || agentsSummary.top_emojis || [];
-  const emojis = emojiSrc.slice(0, 12).map(e => ({ emoji: e.emoji || e.symbol || '', count: e.count || e.frequency || 0 }));
+  const emojis = arr(emojiSrc).slice(0, 12).map(e => ({ emoji: e.emoji || e.symbol || '', count: e.count || e.frequency || 0 }));
 
   const kwSrc = deepSent.top_keywords || deepSent.keywords || agentsSummary.top_keywords || agentsSummary.hashtags || [];
-  const keywords = kwSrc.slice(0, 32).map(k => ({
+  const keywords = arr(kwSrc).slice(0, 32).map(k => ({
     w: k.keyword || k.word || k.hashtag || k.w || String(k),
     n: k.count || k.frequency || k.n || 1,
   })).sort((a, b) => b.n - a.n);
@@ -317,7 +319,7 @@ export function parseDailyCSV(csvText, filename) {
     commentsTopics: ctData,
     emojis, keywords,
     timeline: {
-      events: (timeline.daily_events || timeline.events || []).map(e => ({
+      events: arr(timeline.daily_events || timeline.events).map(e => ({
         date: e.date || '', main: e.main_event || e.main || e.description || '',
         sentiment: e.sentiment || '', engagement: e.engagement_level || e.engagement || '',
         posts: e.post_count || e.posts || 0,

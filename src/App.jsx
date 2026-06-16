@@ -9,6 +9,7 @@ import PanoramaView from './components/PanoramaView';
 import ThemeView from './components/ThemeView';
 import CalendarView from './components/CalendarView';
 import UploadModal, { applyStoredExtra } from './components/UploadModal';
+import LoginGate from './components/LoginGate';
 
 const INK_SVG = `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><filter id="bw-ink" x="-3%" y="-15%" width="106%" height="130%" filterUnits="objectBoundingBox" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="3" seed="4" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/></filter><filter id="bw-ink-rough" x="-3%" y="-80%" width="106%" height="260%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.04 0.5" numOctaves="2" seed="7" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="2.5" xChannelSelector="R" yChannelSelector="G"/></filter></defs></svg>`;
 
@@ -45,6 +46,7 @@ function Loading() {
 }
 
 export default function App() {
+  const [authed, setAuthed] = useState(() => sessionStorage.getItem('bw_auth') === '1');
   const { data, calData } = useData();
   const isDesktop = useBreakpoint();
   const [tab, setTab] = useState('panorama');
@@ -53,6 +55,8 @@ export default function App() {
   const [plat, setPlat] = useState('todas');
   const [showUpload, setShowUpload] = useState(false);
   const [dataVersion, setDataVersion] = useState(0);
+
+  if (!authed) return <LoginGate onAuth={() => setAuthed(true)} />;
 
   // Apply any previously uploaded CSVs from localStorage on startup
   useEffect(() => { if (data && calData) { applyStoredExtra(); setDataVersion(v => v+1); } }, [data, calData]);
