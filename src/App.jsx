@@ -56,10 +56,10 @@ export default function App() {
   const [showUpload, setShowUpload] = useState(false);
   const [dataVersion, setDataVersion] = useState(0);
 
-  if (!authed) return <LoginGate onAuth={() => setAuthed(true)} />;
-
   // Apply any previously uploaded CSVs from localStorage on startup
-  useEffect(() => { if (data && calData) { applyStoredExtra(); setDataVersion(v => v+1); } }, [data, calData]);
+  useEffect(() => { if (authed && data && calData) { applyStoredExtra(); setDataVersion(v => v+1); } }, [authed, data, calData]);
+
+  if (!authed) return <LoginGate onAuth={() => setAuthed(true)} />;
 
   function handleTabChange(t) { setTab(t); setDate('todas'); setPlat('todas'); window.scrollTo(0,0); }
   function handleUpload() { setShowUpload(true); }
