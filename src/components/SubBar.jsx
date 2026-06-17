@@ -20,7 +20,7 @@ function Chip({ label, active, onClick }) {
 
 export default function SubBar({ tab, pano, date, plat, data, dateOptions, onPanoChange, onDateChange, onPlatChange, isDesktop }) {
   const isPanorama = tab === 'panorama';
-  const isTheme = !isPanorama && tab !== 'historico';
+  const isTheme = !isPanorama && tab !== 'historico' && tab !== 'reporte';
   const isHist = tab === 'historico';
 
   const T = data?.themes || {};
