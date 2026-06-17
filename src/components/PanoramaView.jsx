@@ -73,7 +73,7 @@ export default function PanoramaView({ pano, data, onGoTheme, isDesktop }) {
         <motion.div variants={item}>
           <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, letterSpacing:'0.16em',
             textTransform:'uppercase', color:C.gold, fontWeight:600 }}>
-            Resumen del periodo · {data.meta.range_label}
+            Datos al · {data.meta.range_label}
           </div>
           <h1 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:31, lineHeight:1.05,
             letterSpacing:'-0.025em', color:C.ink, margin:'9px 0 10px' }}>

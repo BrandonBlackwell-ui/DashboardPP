@@ -113,6 +113,17 @@ export async function loadFromSupabase() {
         };
       }
     }
+
+    // Update PA_DATA.meta with the latest date_key found across all themes
+    if (window.PA_DATA?.meta) {
+      const latestDateKey = Object.values(latestByTheme).map(r => r.date_key).sort().pop();
+      if (latestDateKey) {
+        window.PA_DATA.meta.period.end = latestDateKey;
+        const d = new Date(latestDateKey + 'T12:00:00');
+        const ms = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+        window.PA_DATA.meta.range_label = `${d.getDate()} ${ms[d.getMonth()]} ${d.getFullYear()}`;
+      }
+    }
   } catch (e) {
     console.warn('Supabase load failed (non-blocking):', e);
   }
