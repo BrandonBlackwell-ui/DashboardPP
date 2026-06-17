@@ -82,17 +82,19 @@ export default function PanoramaView({ pano, data, onGoTheme, isDesktop, panoram
     p=Math.round(p/tot*100); g=Math.round(g/tot*100); n=100-p-g; tot=p+n+g||1;
   }
   const aPos=p, aNeg=g, aNeu=n;
-  const totMenciones = byDay
-    ? cards.filter(c=>!c.noData).reduce((a,c)=>a+(byDay[c.key]?.posts||0),0)
-    : order.reduce((a,k)=>{ const s=T[k].sentiment; return a+(s?(s.posC||0)+(s.neuC||0)+(s.negC||0):0); },0);
-  let totPosts = byDay
+  const totPosts = byDay
     ? cards.filter(c=>!c.noData).reduce((a,c)=>a+(byDay[c.key]?.posts||0),0)
     : order.reduce((a,k)=>a+(T[k].totals?.posts||0),0);
+  const totMenciones = byDay
+    ? null
+    : order.reduce((a,k)=>{ const s=T[k].sentiment; return a+(s?(s.posC||0)+(s.neuC||0)+(s.negC||0):0); },0);
 
-  const kpis = [
-    { label:'Menciones', value:fmt(totMenciones), bg:C.ink, border:C.ink, lblColor:'rgba(255,255,255,0.65)', valColor:'#FBF8F1' },
-    { label:'Posts', value:fmt(totPosts), bg:C.card, border:'rgba(33,28,23,0.13)', lblColor:'#6B6253', valColor:C.ink },
-  ];
+  const kpis = byDay
+    ? [{ label:'Posts', value:fmt(totPosts), bg:C.ink, border:C.ink, lblColor:'rgba(255,255,255,0.65)', valColor:'#FBF8F1' }]
+    : [
+        { label:'Menciones', value:fmt(totMenciones), bg:C.ink, border:C.ink, lblColor:'rgba(255,255,255,0.65)', valColor:'#FBF8F1' },
+        { label:'Posts', value:fmt(totPosts), bg:C.card, border:'rgba(33,28,23,0.13)', lblColor:'#6B6253', valColor:C.ink },
+      ];
 
   const attention = [...cards].sort((a,b) => b.neg - a.neg);
 
