@@ -109,13 +109,10 @@ export default function App() {
       window.scrollTo(0, 0);
       return;
     }
-    // Find the latest date that has real Supabase data for THIS theme specifically
-    const themeKeys = window.SUPABASE_KEYS
-      ? [...window.SUPABASE_KEYS].filter(k => k.startsWith(t + ':')).sort()
-      : [];
-    const latestDateKey = themeKeys.length ? themeKeys[themeKeys.length - 1].split(':')[1] : null;
+    const latestDateKey = calData ? Object.keys(calData.days).sort().pop() : null;
     const latestDay = latestDateKey?.slice(8) || 'todas';
-    if (latestDateKey) {
+    const hasDataForLatest = latestDateKey && window.SUPABASE_KEYS?.has(`${t}:${latestDateKey}`);
+    if (hasDataForLatest) {
       // Cache "todas" state before overwriting with latest date
       if (window.PA_DATA?.themes?.[t] && !todasCache.current[t]) {
         todasCache.current[t] = window.PA_DATA.themes[t];
