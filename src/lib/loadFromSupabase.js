@@ -40,6 +40,24 @@ export async function loadFromSupabase() {
       }
     }
 
+    // Compute aggregated (weighted average) sentiment across ALL records per theme for "todas" view
+    const RISK_ORDER = ['muy_bajo','bajo','medio','alto','muy_alto'];
+    const aggSent = {};
+    for (const rep of reports) {
+      const s = rep.sentiment?.[0] || {};
+      const posts = rep.platforms?.reduce((a,p)=>a+(p.posts||0),0) || 0;
+      if (!aggSent[rep.theme_key]) aggSent[rep.theme_key] = { posW:0, neuW:0, negW:0, total:0, maxRisk:'muy_bajo' };
+      const a = aggSent[rep.theme_key];
+      if (posts > 0) {
+        a.posW += (s.pos||0) * posts;
+        a.neuW += (s.neu||0) * posts;
+        a.negW += (s.neg||0) * posts;
+        a.total += posts;
+      }
+      const rIdx = RISK_ORDER.indexOf(s.risk_level||'muy_bajo');
+      if (rIdx > RISK_ORDER.indexOf(a.maxRisk)) a.maxRisk = s.risk_level;
+    }
+
     for (const rep of reports) {
       const s = rep.sentiment?.[0] || {};
       const themeData = {
@@ -99,7 +117,16 @@ export async function loadFromSupabase() {
       };
 
       // PA_DATA.themes: only apply if this is the most recently inserted record for this theme
+      // Override sentiment with weighted average across all dates so "todas" is not just the latest day
       if (window.PA_DATA?.themes && latestByTheme[rep.theme_key]?.id === rep.id) {
+        const a = aggSent[rep.theme_key];
+        if (a && a.total > 0) {
+          const pos = Math.round(a.posW / a.total * 10) / 10;
+          const neg = Math.round(a.negW / a.total * 10) / 10;
+          const neu = Math.round((100 - pos - neg) * 10) / 10;
+          themeData.sentiment = { ...themeData.sentiment, pos, neu, neg };
+          themeData.risk = { ...themeData.risk, level: a.maxRisk, negPct: neg, attention: neg > 20 };
+        }
         window.PA_DATA.themes[rep.theme_key] = themeData;
       }
 
