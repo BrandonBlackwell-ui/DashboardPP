@@ -48,7 +48,7 @@ function Loading() {
 
 export default function App() {
   const [authed, setAuthed] = useState(() => sessionStorage.getItem('bw_auth') === '1');
-  const { data, calData } = useData();
+  const { data, calData, refreshData } = useData();
   const isDesktop = useBreakpoint();
   const [tab, setTab] = useState('panorama');
   const [pano, setPano] = useState('editorial');
@@ -76,10 +76,10 @@ export default function App() {
   async function handleGoFromCalendar(themeKey, dateKey) {
     const dayNum = dateKey.slice(8);
     await loadThemeByDate(themeKey, dateKey);
+    refreshData();
     setTab(themeKey);
     setDate(dayNum);
     setPlat('todas');
-    setDataVersion(v => v + 1);
     window.scrollTo(0, 0);
   }
 
@@ -88,7 +88,7 @@ export default function App() {
     if (isTheme && newDate !== 'todas') {
       const dateKey = `2026-06-${newDate}`;
       await loadThemeByDate(tab, dateKey);
-      setDataVersion(v => v + 1);
+      refreshData();
     }
   }
   function handleUpload() { setShowUpload(true); }

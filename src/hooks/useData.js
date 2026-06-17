@@ -1,8 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 export function useData() {
   const [data, setData] = useState(null);
   const [calData, setCalData] = useState(null);
+
+  // Call this after mutating window.PA_DATA to force React to re-render with new data
+  const refreshData = useCallback(() => {
+    if (window.PA_DATA) setData({ ...window.PA_DATA, themes: { ...window.PA_DATA.themes } });
+    if (window.CALENDAR_DATA) setCalData({ ...window.CALENDAR_DATA });
+  }, []);
 
   useEffect(() => {
     function tryLoad() {
@@ -29,5 +35,5 @@ export function useData() {
     tryLoad();
   }, []);
 
-  return { data, calData };
+  return { data, calData, refreshData };
 }
