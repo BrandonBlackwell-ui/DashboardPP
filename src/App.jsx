@@ -8,6 +8,7 @@ import DesktopShell from './components/DesktopShell';
 import PanoramaView from './components/PanoramaView';
 import ThemeView from './components/ThemeView';
 import CalendarView from './components/CalendarView';
+import ReporteView from './components/ReporteView';
 import UploadModal, { applyStoredExtra } from './components/UploadModal';
 import LoginGate from './components/LoginGate';
 import { loadFromSupabase, loadThemeByDate } from './lib/loadFromSupabase';
@@ -72,6 +73,11 @@ export default function App() {
   if (!authed) return <LoginGate onAuth={() => setAuthed(true)} />;
 
   async function handleTabChange(t) {
+    if (t === 'panorama' || t === 'historico' || t === 'reporte') {
+      setTab(t); setDate('todas'); setPlat('todas');
+      window.scrollTo(0, 0);
+      return;
+    }
     const latestDateKey = calData ? Object.keys(calData.days).sort().pop() : null;
     const latestDay = latestDateKey?.slice(8) || 'todas';
     const hasDataForLatest = latestDateKey && window.SUPABASE_KEYS?.has(`${t}:${latestDateKey}`);
@@ -116,7 +122,7 @@ export default function App() {
     setTimeout(()=>URL.revokeObjectURL(url), 1500);
   }
 
-  const isTheme = !['panorama','historico'].includes(tab);
+  const isTheme = !['panorama','historico','reporte'].includes(tab);
 
   // Build date options dynamically from calData (last 7 days with any data, most recent first)
   const dateOptions = (() => {
@@ -153,6 +159,11 @@ export default function App() {
           {tab==='historico' && (
             <motion.div key="historico" initial={{ opacity:0, x:24 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-24 }} transition={{ duration:0.22 }}>
               <CalendarView calData={calData} onGoTheme={handleGoFromCalendar} isDesktop={isDesktop} supabaseKeys={window.SUPABASE_KEYS} />
+            </motion.div>
+          )}
+          {tab==='reporte' && (
+            <motion.div key="reporte" initial={{ opacity:0, x:24 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-24 }} transition={{ duration:0.22 }}>
+              <ReporteView isDesktop={isDesktop} />
             </motion.div>
           )}
         </AnimatePresence>

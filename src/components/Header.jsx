@@ -12,6 +12,7 @@ export default function Header({ tab, data, onExport, onTabChange, onUpload }) {
     { key:'panorama', label:'Panorama' },
     ...order.map(k => ({ key:k, label:T[k]?.label || k })),
     { key:'historico', label:'Histórico' },
+    { key:'reporte', label:'Reporte' },
   ];
 
   return (
