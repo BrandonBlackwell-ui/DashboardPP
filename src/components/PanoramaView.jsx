@@ -17,7 +17,7 @@ function SentLegend({ pos, neu, neg }) {
   ].map(l => (
     <div key={l.label} style={{ display:'flex', alignItems:'center', gap:9, marginBottom:9 }}>
       <span style={{ width:8,height:8,borderRadius:'50%',flex:'none',background:l.color }} />
-      <span style={{ fontSize:12.5, color:'#2A241C', flex:1 }}>{l.label}</span>
+      <span style={{ fontSize:14, color:'#2A241C', flex:1 }}>{l.label}</span>
       <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:600, fontSize:14, color:C.ink }}>{l.pct}</span>
     </div>
   ));
@@ -33,7 +33,7 @@ function KPIs({ kpis }) {
           <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, letterSpacing:'0.12em',
             textTransform:'uppercase', color:k.lblColor }}>{k.label}</div>
           <AnimatedNumber value={k.value}
-            style={{ display:'block', fontSize:27, fontWeight:600, lineHeight:1.05,
+            style={{ display:'block', fontSize:30, fontWeight:600, lineHeight:1.05,
               letterSpacing:'-0.02em', color:k.valColor, marginTop:4 }} />
         </motion.div>
       ))}
@@ -77,11 +77,11 @@ export default function PanoramaView({ pano, data, onGoTheme, isDesktop }) {
             textTransform:'uppercase', color:C.gold, fontWeight:600 }}>
             Datos al · {data.meta.range_label}
           </div>
-          <h1 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:31, lineHeight:1.05,
+          <h1 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:34, lineHeight:1.05,
             letterSpacing:'-0.025em', color:C.ink, margin:'9px 0 10px' }}>
             Estado de la <em style={{ fontStyle:'normal', color:C.goldDeep }}>conversación</em>.
           </h1>
-          <p style={{ fontSize:14, lineHeight:1.6, color:'#6B6253', margin:'0 0 18px' }}>
+          <p style={{ fontSize:15, lineHeight:1.6, color:'#6B6253', margin:'0 0 18px' }}>
             {fmt1(aPos)} de la conversación es favorable y {fmt1(aNeg)} crítica, sobre {fmt(tot)} menciones en cuatro temas.
           </p>
         </motion.div>
@@ -89,7 +89,7 @@ export default function PanoramaView({ pano, data, onGoTheme, isDesktop }) {
         <motion.div variants={item}
           style={{ display:'flex', alignItems:'center', gap:18, background:C.card,
             border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:18 }}>
-          <Donut pos={aPos} neu={aNeu} neg={aNeg} size={104} showLabel />
+          <Donut pos={aPos} neu={aNeu} neg={aNeg} size={116} showLabel />
           <div style={{ flex:1 }}>
             <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, letterSpacing:'0.14em',
               textTransform:'uppercase', color:'#6B6253', marginBottom:10 }}>Sentimiento agregado</div>
@@ -117,7 +117,7 @@ export default function PanoramaView({ pano, data, onGoTheme, isDesktop }) {
                       letterSpacing:'-0.01em', color:C.ink }}>{c.label}</span>
                     <span style={{ ...pill(c.pillStyle.ink,c.pillStyle.bg,c.pillStyle.bd) }}>{c.riskLabel}</span>
                   </div>
-                  <div style={{ fontSize:13, color:'#6B6253', marginTop:4, lineHeight:1.4 }}>{c.es}</div>
+                  <div style={{ fontSize:14, color:'#6B6253', marginTop:4, lineHeight:1.4 }}>{c.es}</div>
                   <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, letterSpacing:'0.05em',
                     color:'#8A7E6A', marginTop:6, textTransform:'uppercase' }}>{c.metaLine}</div>
                 </div>

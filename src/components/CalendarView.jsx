@@ -98,7 +98,7 @@ export default function CalendarView({ calData, onGoTheme, isDesktop, supabaseKe
                 background: isActive ? C.ink : hasAny ? C.card : '#F3EDE0',
                 border: isActive ? `1px solid ${C.ink}` : '1px solid rgba(33,28,23,0.13)',
                 transition:'all 0.15s' }}>
-              <div style={{ fontFamily:"'Geist Mono',monospace", fontWeight:700, fontSize:15,
+              <div style={{ fontFamily:"'Geist Mono',monospace", fontWeight:700, fontSize:17,
                 color: isActive ? '#FBF8F1' : hasAny ? C.ink : '#C4B89A', lineHeight:1 }}>{dayNum}</div>
               <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, letterSpacing:'0.08em',
                 textTransform:'uppercase', color: isActive ? 'rgba(255,255,255,0.5)' : '#8A7E6A',
@@ -143,7 +143,7 @@ export default function CalendarView({ calData, onGoTheme, isDesktop, supabaseKe
 
                 <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                   {td && (td.pos > 0 || td.neg > 0) ? (
-                    <Donut pos={td.pos||0} neu={Math.max(0,100-(td.pos||0)-(td.neg||0))} neg={td.neg||0} size={40} />
+                    <Donut pos={td.pos||0} neu={Math.max(0,100-(td.pos||0)-(td.neg||0))} neg={td.neg||0} size={46} />
                   ) : (
                     <div style={{ width:40, height:40, borderRadius:'50%', background:'#E3DAC6', flex:'none' }} />
                   )}
