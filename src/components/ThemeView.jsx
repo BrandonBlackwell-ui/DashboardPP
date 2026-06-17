@@ -560,8 +560,13 @@ export default function ThemeView({ tab, date, plat, data, isDesktop }) {
                 style={{ display:'flex', gap:12, alignItems:'center', textDecoration:'none',
                   background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:11 }}>
                 <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:500, fontSize:12, color:C.gold, width:18, textAlign:'center' }}>{i.rank}</span>
-                <img src={i.pic} alt="" referrerPolicy="no-referrer"
-                  style={{ width:40, height:40, borderRadius:2, objectFit:'cover', flex:'none', background:'#E3DAC6', border:'1px solid rgba(33,28,23,0.13)' }} />
+                <div style={{ width:40, height:40, borderRadius:2, flex:'none',
+                  background:'#E3DAC6', border:'1px solid rgba(33,28,23,0.13)',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:14, color:'#6B6253',
+                  textTransform:'uppercase', userSelect:'none' }}>
+                  {(i.username||'?').replace(/[^a-zA-Z0-9]/g,'').slice(0,2)}
+                </div>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                     <span style={{ fontWeight:600, fontSize:13, color:C.ink, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{i.username}</span>
