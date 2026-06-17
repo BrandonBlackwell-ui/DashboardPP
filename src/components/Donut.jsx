@@ -34,7 +34,7 @@ export default function Donut({ pos, neu, neg, size = 80, showLabel = false }) {
       <div style={{ position:'absolute', inset:stroke, borderRadius:'50%', background:'#FBF8F1',
         display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
         <span style={{ fontFamily:"'Geist',sans-serif", fontWeight:700,
-          fontSize:Math.round(size*0.26), lineHeight:1, color:C.ink, letterSpacing:'-0.02em' }}>
+          fontSize:Math.round(size*0.21), lineHeight:1, color:C.ink, letterSpacing:'-0.02em' }}>
           {(Math.round(animated.neg * 10) / 10).toFixed(1)}%
         </span>
         {showLabel && (
