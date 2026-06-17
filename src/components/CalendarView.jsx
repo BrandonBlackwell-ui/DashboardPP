@@ -165,7 +165,7 @@ export default function CalendarView({ calData, onGoTheme, isDesktop }) {
                     {td && (td.pos > 0 || td.neg > 0) && (
                       <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, color:'#6B6253',
                         letterSpacing:'0.04em' }}>
-                        {Math.round(td.pos||0)}% fav · {Math.round(td.neg||0)}% crítica · {td.posts||0} posts
+                        {(Math.round((td.pos||0)*10)/10).toFixed(1)}% fav · {(Math.round((td.neg||0)*10)/10).toFixed(1)}% crítica · {td.posts||0} posts
                       </div>
                     )}
                   </div>

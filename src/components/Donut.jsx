@@ -6,7 +6,7 @@ export default function Donut({ pos, neu, neg, size = 80, showLabel = false }) {
   const raf = useRef(null);
 
   useEffect(() => {
-    const target = { pos: Math.round(pos||0), neu: Math.round(neu||0), neg: Math.round(neg||0) };
+    const target = { pos: +(pos||0), neu: +(neu||0), neg: +(neg||0) };
     const duration = 900;
     const start = performance.now();
     function tick(now) {
@@ -35,7 +35,7 @@ export default function Donut({ pos, neu, neg, size = 80, showLabel = false }) {
         display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
         <span style={{ fontFamily:"'Geist',sans-serif", fontWeight:700,
           fontSize:Math.round(size*0.26), lineHeight:1, color:C.ink, letterSpacing:'-0.02em' }}>
-          {Math.round(animated.neg)}%
+          {(Math.round(animated.neg * 10) / 10).toFixed(1)}%
         </span>
         {showLabel && (
           <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:Math.max(6,Math.round(size*0.09)),

@@ -7,11 +7,13 @@ import { C, fmt, fmtK, riskMeta, pill } from '../utils/helpers';
 const stagger = { hidden:{}, visible:{ transition:{ staggerChildren:0.07 } } };
 const item = { hidden:{ opacity:0, y:16 }, visible:{ opacity:1, y:0, transition:{ type:'spring', stiffness:260, damping:22 } } };
 
+function fmt1(n) { return (Math.round((n||0)*10)/10).toFixed(1)+'%'; }
+
 function SentLegend({ pos, neu, neg }) {
   return [
-    { color:C.teal, label:'Favorable', pct:Math.round(pos)+'%' },
-    { color:C.slate, label:'Neutral', pct:Math.round(neu)+'%' },
-    { color:C.crim, label:'Crítica', pct:Math.round(neg)+'%' },
+    { color:C.teal, label:'Favorable', pct:fmt1(pos) },
+    { color:C.slate, label:'Neutral', pct:fmt1(neu) },
+    { color:C.crim, label:'Crítica', pct:fmt1(neg) },
   ].map(l => (
     <div key={l.label} style={{ display:'flex', alignItems:'center', gap:9, marginBottom:9 }}>
       <span style={{ width:8,height:8,borderRadius:'50%',flex:'none',background:l.color }} />
@@ -80,7 +82,7 @@ export default function PanoramaView({ pano, data, onGoTheme, isDesktop }) {
             Estado de la <em style={{ fontStyle:'normal', color:C.goldDeep }}>conversación</em>.
           </h1>
           <p style={{ fontSize:14, lineHeight:1.6, color:'#6B6253', margin:'0 0 18px' }}>
-            {aPos}% de la conversación es favorable y {aNeg}% crítica, sobre {fmt(tot)} menciones en cuatro temas.
+            {fmt1(aPos)} de la conversación es favorable y {fmt1(aNeg)} crítica, sobre {fmt(tot)} menciones en cuatro temas.
           </p>
         </motion.div>
 
