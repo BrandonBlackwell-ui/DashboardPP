@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useData } from './hooks/useData';
 import { useBreakpoint } from './hooks/useBreakpoint';
@@ -56,13 +56,17 @@ export default function App() {
   const [plat, setPlat] = useState('todas');
   const [showUpload, setShowUpload] = useState(false);
   const [dataVersion, setDataVersion] = useState(0);
+  const initialLoadDone = useRef(false);
 
-  // On startup: apply localStorage cache first (instant), then load from Supabase (authoritative)
+  // On startup only: apply localStorage cache, then load from Supabase (authoritative)
+  // useRef guard prevents re-running when refreshData() creates a new data reference
   useEffect(() => {
     if (!authed || !data || !calData) return;
+    if (initialLoadDone.current) return;
+    initialLoadDone.current = true;
     applyStoredExtra();
     setDataVersion(v => v+1);
-    loadFromSupabase().then(() => setDataVersion(v => v+1));
+    loadFromSupabase().then(() => { refreshData(); setDataVersion(v => v+1); });
   }, [authed, data, calData]);
 
   if (!authed) return <LoginGate onAuth={() => setAuthed(true)} />;
