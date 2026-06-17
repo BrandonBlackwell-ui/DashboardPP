@@ -129,6 +129,56 @@ export async function loadFromSupabase() {
   }
 }
 
+// Load a single theme's data for a specific date_key and apply it to PA_DATA.themes
+// Used when navigating from the calendar to a specific historical day
+export async function loadThemeByDate(themeKey, dateKey) {
+  try {
+    const { data: reports, error } = await supabase
+      .from('reports')
+      .select(`
+        id, date_key, theme_key, theme_label,
+        sentiment(*), platforms(*), alert_posts(*), opportunity_posts(*),
+        complaints(*), news_items(*), trending_topics(*), influencers(*),
+        timeline_events(*), pros_cons(*), reconocimientos(*), keywords(*),
+        emojis(*), comments_topics(*), voice_segments(*), narrative_gap(*)
+      `)
+      .eq('theme_key', themeKey)
+      .eq('date_key', dateKey)
+      .limit(1);
+
+    if (error || !reports?.length) return false;
+    const rep = reports[0];
+    const s = rep.sentiment?.[0] || {};
+    const themeData = {
+      label: rep.theme_label,
+      es: esLabel(rep.theme_key),
+      sentiment: { pos: s.pos||0, neu: s.neu||0, neg: s.neg||0, posC: s.pos_count||0, neuC: s.neu_count||0, negC: s.neg_count||0 },
+      risk: { level: s.risk_level || 'bajo', negPct: s.neg||0, attention: (s.neg||0) > 20 },
+      totals: { posts: rep.platforms?.reduce((a,p)=>a+(p.posts||0),0) || 0 },
+      platforms: (rep.platforms||[]).map(p => ({ name: p.platform, posts: p.posts, comments: p.comments, users: p.users, sentiment: { positivo: p.sent_pos, neutral: p.sent_neu, negativo: p.sent_neg } })),
+      alertometro: { total: rep.alert_posts?.length||0, analizados: rep.alert_posts?.length||0, nivel: s.nivel_alerta||'bajo', recomendacion: s.rec_alerta||'', posts: (rep.alert_posts||[]).map(p=>({ url:p.url,text:p.text,tipo:p.tipo,platform:p.platform,time:p.time,score:p.score,razon:p.razon,engagement:p.engagement,username:p.username })) },
+      oportunometro: { total: rep.opportunity_posts?.length||0, analizados: rep.opportunity_posts?.length||0, nivel: s.nivel_oport||'bajo', recomendacion: s.rec_oport||'', posts: (rep.opportunity_posts||[]).map(p=>({ url:p.url,text:p.text,impacto:p.impacto,platform:p.platform,time:p.time,score:p.score,razon:p.razon,engagement:p.engagement,username:p.username })) },
+      complaints: { total: rep.complaints?.length||0, categories: (rep.complaints||[]).map(c=>({ titulo:c.titulo,porcentaje:c.porcentaje,items:c.items||[] })) },
+      news: buildNews(rep.news_items||[]),
+      trending: (rep.trending_topics||[]).map(t=>({ titulo:t.titulo,desc:t.description,metricas:{ views:t.views,likes:t.likes },sent:{ positivo_porcentaje:t.pos_pct,negativo_porcentaje:t.neg_pct } })),
+      influencers: { total: rep.influencers?.length||0, top: (rep.influencers||[]).map(i=>({ rank:i.rank,username:i.username,platform:i.platform,followers:i.followers,sentiment:i.sentiment,categoria:i.categoria,url:i.url })) },
+      timeline: { events: (rep.timeline_events||[]).map(e=>({ date:e.event_date,main:e.main,sentiment:e.sentiment,engagement:e.engagement,posts:e.posts })) },
+      pros_cons: { positive: (rep.pros_cons||[]).filter(x=>x.type==='pro').map(x=>x.item), negative: (rep.pros_cons||[]).filter(x=>x.type==='con').map(x=>x.item), neutral: (rep.pros_cons||[]).filter(x=>x.type==='neutral').map(x=>x.item) },
+      reconocimientos: (rep.reconocimientos||[]).map(r=>({ titulo:r.titulo,desc:r.description })),
+      keywords: (rep.keywords||[]).map(k=>({ w:k.word,n:k.count })),
+      emojis: (rep.emojis||[]).map(e=>({ emoji:e.emoji,count:e.count })),
+      comments_topics: { total: rep.comments_topics?.length||0, topics: (rep.comments_topics||[]).map(t=>({ titulo:t.titulo,porcentaje:t.porcentaje,items:t.items||[] })) },
+      voices: { segmentos: (rep.voice_segments||[]).map(v=>({ label:v.label,narrativa:v.narrativa,sentimiento:v.sentimiento })), alertas:[] },
+      narrative_gap: rep.narrative_gap?.[0] || {},
+    };
+    if (window.PA_DATA?.themes) window.PA_DATA.themes[themeKey] = themeData;
+    return true;
+  } catch(e) {
+    console.warn('loadThemeByDate failed:', e);
+    return false;
+  }
+}
+
 function esLabel(key) {
   return { musica:'Su obra musical, conciertos y legado artístico', entrevistas:'Apariciones en medios, entrevistas y declaraciones públicas', empresas:'Sus negocios, marca y proyectos empresariales', familia:'La dinastía Aguilar y la vida familiar pública' }[key] || '';
 }

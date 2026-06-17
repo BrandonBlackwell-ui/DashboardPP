@@ -10,7 +10,7 @@ import ThemeView from './components/ThemeView';
 import CalendarView from './components/CalendarView';
 import UploadModal, { applyStoredExtra } from './components/UploadModal';
 import LoginGate from './components/LoginGate';
-import { loadFromSupabase } from './lib/loadFromSupabase';
+import { loadFromSupabase, loadThemeByDate } from './lib/loadFromSupabase';
 
 const INK_SVG = `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><filter id="bw-ink" x="-3%" y="-15%" width="106%" height="130%" filterUnits="objectBoundingBox" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="3" seed="4" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/></filter><filter id="bw-ink-rough" x="-3%" y="-80%" width="106%" height="260%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.04 0.5" numOctaves="2" seed="7" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="2.5" xChannelSelector="R" yChannelSelector="G"/></filter></defs></svg>`;
 
@@ -73,12 +73,23 @@ export default function App() {
       : 'todas';
     setTab(t); setDate(latestDay); setPlat('todas'); window.scrollTo(0,0);
   }
-  function handleGoFromCalendar(themeKey, dateKey) {
-    const dayNum = dateKey.slice(8); // "2026-06-09" → "09"
+  async function handleGoFromCalendar(themeKey, dateKey) {
+    const dayNum = dateKey.slice(8);
+    await loadThemeByDate(themeKey, dateKey);
     setTab(themeKey);
     setDate(dayNum);
     setPlat('todas');
+    setDataVersion(v => v + 1);
     window.scrollTo(0, 0);
+  }
+
+  async function handleDateChange(newDate) {
+    setDate(newDate);
+    if (isTheme && newDate !== 'todas') {
+      const dateKey = `2026-06-${newDate}`;
+      await loadThemeByDate(tab, dateKey);
+      setDataVersion(v => v + 1);
+    }
   }
   function handleUpload() { setShowUpload(true); }
   function handleDataUpdated() { setDataVersion(v => v+1); }
@@ -159,7 +170,7 @@ export default function App() {
             onTabChange={handleTabChange} onExport={handleExport} onUpload={handleUpload}>
             {/* SubBar as sticky strip inside content */}
             <SubBar tab={tab} pano={pano} date={date} plat={plat} data={data}
-              dateOptions={dateOptions} onPanoChange={setPano} onDateChange={setDate} onPlatChange={setPlat} isDesktop />
+              dateOptions={dateOptions} onPanoChange={setPano} onDateChange={handleDateChange} onPlatChange={setPlat} isDesktop />
             {viewContent}
           </DesktopShell>
         )}
@@ -182,7 +193,7 @@ export default function App() {
         {data && (<>
           <Header tab={tab} data={data} onExport={handleExport} onTabChange={handleTabChange} onUpload={handleUpload} />
           <SubBar tab={tab} pano={pano} date={date} plat={plat} data={data}
-            dateOptions={dateOptions} onPanoChange={setPano} onDateChange={setDate} onPlatChange={setPlat} />
+            dateOptions={dateOptions} onPanoChange={setPano} onDateChange={handleDateChange} onPlatChange={setPlat} />
           {viewContent}
         </>)}
       </div>
