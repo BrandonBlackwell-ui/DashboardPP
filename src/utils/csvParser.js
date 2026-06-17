@@ -218,11 +218,17 @@ export function parseDailyCSV(csvText, filename) {
     })),
   };
 
-  // Pros & cons
+  // Pros & cons — JSON can be { positive: [...] } OR { positive: { items: [...] } }
+  function pcArr(v) {
+    if (!v) return [];
+    if (Array.isArray(v)) return v;
+    if (v.items && Array.isArray(v.items)) return v.items;
+    return [];
+  }
   const pc = {
-    positive: arr(proscons.pros || proscons.positive || proscons.a_favor),
-    negative: arr(proscons.cons || proscons.negative || proscons.en_contra),
-    neutral: arr(proscons.neutral || proscons.observaciones),
+    positive: pcArr(proscons.pros || proscons.positive || proscons.a_favor),
+    negative: pcArr(proscons.cons || proscons.negative || proscons.en_contra),
+    neutral:  pcArr(proscons.neutral || proscons.observaciones),
   };
 
   // Complaints
@@ -258,12 +264,18 @@ export function parseDailyCSV(csvText, filename) {
     });
   }
 
-  // Trending
-  const trendData = arr(trending.trending_topics || trending.topics || trending.tendencias).map(x => ({
-    titulo: x.topic || x.titulo || x.title || '',
-    desc: x.description || x.desc || '',
-    metricas: { views: x.metrics?.views || x.views || x.metricas?.views || 0, likes: x.metrics?.likes || x.likes || x.metricas?.likes || 0 },
-    sent: { positivo_porcentaje: x.sentiment?.positive_percentage || x.sent?.positivo_porcentaje || 0, negativo_porcentaje: x.sentiment?.negative_percentage || x.sent?.negativo_porcentaje || 0 },
+  // Trending — also handles { temas: [...] } with accented keys (título, descripción)
+  const trendData = arr(trending.trending_topics || trending.topics || trending.tendencias || trending.temas).map(x => ({
+    titulo: x.topic || x.titulo || x['título'] || x.title || '',
+    desc: x.description || x.desc || x['descripción'] || x.descripcion || '',
+    metricas: {
+      views: x.metrics?.views || x.views || x.metricas?.views || x.metricas?.reproducciones || x.alcance || 0,
+      likes: x.metrics?.likes || x.likes || x.metricas?.likes || x.metricas?.me_gusta || 0,
+    },
+    sent: {
+      positivo_porcentaje: x.sentiment?.positive_percentage || x.sent?.positivo_porcentaje || x.analisis_sentimiento?.positivo || 0,
+      negativo_porcentaje: x.sentiment?.negative_percentage || x.sent?.negativo_porcentaje || x.analisis_sentimiento?.negativo || 0,
+    },
   }));
 
   // Reconocimientos

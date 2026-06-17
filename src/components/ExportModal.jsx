@@ -62,6 +62,25 @@ const CSV_HEADER = [
   'noticias_principales', 'tendencias',
 ].map(esc).join(',');
 
+// Static rows from Reporte PDFs
+const REPORTE_ROWS = [
+  // --- Álbum BW-26-06-PA-RAPA-001 ---
+  ['reporte_album','01_Qué se midió','','','','','293 pub · 376 coment','TikTok | Facebook | Instagram | YouTube','','','','','','','71 menciones álbum | 1.3M reproducciones «China de los Ojos Negros»'],
+  ['reporte_album','02_Peso en cifras','','','','','','','','','','','','','Huella 24% | Peso musical 13% | Engagement 1.3M | Impacto: Parcial'],
+  ['reporte_album','03_El álbum frente al resto','','','','','','','','','','','','','Familia/dinastía 60% | Álbum/música 13% | Identidad nacional 12% | Otros 13% | Figura pública 2%'],
+  ['reporte_album','04_Dentro de sus menciones','','','','','','','','','','','','','Recepción musical 38% | Ausencias tributo 30% | Lectura oportunismo 18% | Cobertura informativa 14%'],
+  ['reporte_album','05_Impacto percepción','22','53','25','medio','','','','','','','','','Instagram más positivo | Facebook concentró crítica | TikTok neutral | YouTube el más limpio'],
+  ['reporte_album','06_Conclusión','','','','','','','','','','','','','«El álbum se vio mucho pero pesó poco: encendió la conversación familiar más de lo que instaló la suya propia.» — BW-26-06-PA-RAPA-001'],
+  // --- Entrevistas PPA_QVDA ---
+  ['reporte_entrevistas','01_Qué se midió','','','','','1388 reacciones','Instagram | TikTok','','','','','','','Press junket 3 jun (EFE Imagen N+ ADN40 Univisión) | Entrevistas banqueteras 3 jun (Televisa Venga El Junket El Gordo) | Creadores 8 jun (Christian Mart David Peralta Javibi BYMA Posta)'],
+  ['reporte_entrevistas','02_Saldo del periodo','36','54','10','bajo','','','','','','','','','Vs. base habitual: +14 pts positivo | Duplica el positivo y reduce el negativo a menos de la mitad'],
+  ['reporte_entrevistas','03_Los ejes','','','','','','','Talento/música 21% (59% pos) | Homenaje/legado 11% (54% pos) | México/orgullo 8% (72% pos)','Soberbia 4% (84% neg) | Oportunismo 2% (68% neg) | Hartazgo 1% (75% neg)','Familia/dinastía 11% mixto (37% pos / 14% neg)','','','',''],
+  ['reporte_entrevistas','04_Las dos caras','','','','','','','El homenaje al padre | Talento y oficio | Orgullo mexicano | Resiliencia frente a la crítica','Percepción de soberbia | Sospecha de oportunismo | La familia como peso | Saturación | La sombra del padre','','','','',''],
+  ['reporte_entrevistas','05_La entrevista como objeto','','','','','','','','','907 likes: rechazo a entrevistar a Pepe | 277 likes: sospecha cobertura pagada | Punto de fricción: «y no me llega» soundbite más negativo','','','','',''],
+  ['reporte_entrevistas','06_Voces del público','','','','','','','«Tu voz es un referente de nuestra música regional» 145♥ | «Pepe Aguilar es México tradición y cultura» 81♥ | «Es una joya este álbum» 72♥','«Es bueno pero no se compara a su papá el gran Don Antonio» 930♥ | «Qué hueva con los Aguilar» 609♥ | «De esa dinastía ya no nos interesa» 562♥','','','','',''],
+  ['reporte_entrevistas','07_Conclusión','','','','','','','','','','','','','«El homenaje abre crédito; el carácter lo gasta.» — PPA-ENTREV-QVDA'],
+].map(r => r.map(esc).join(','));
+
 export default function ExportModal({ onClose }) {
   const [allDates, setAllDates] = useState([]);
   const [selected, setSelected] = useState(new Set());
@@ -108,7 +127,7 @@ export default function ExportModal({ onClose }) {
       if (error) throw error;
 
       setStatus('Generando CSV…');
-      const rows = [CSV_HEADER, ...reports.map(buildRow)];
+      const rows = [CSV_HEADER, ...reports.map(buildRow), '', ...REPORTE_ROWS];
       const csv = '﻿' + rows.join('\r\n');
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
