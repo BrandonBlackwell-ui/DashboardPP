@@ -10,6 +10,7 @@ import ThemeView from './components/ThemeView';
 import CalendarView from './components/CalendarView';
 import ReporteView from './components/ReporteView';
 import UploadModal, { applyStoredExtra } from './components/UploadModal';
+import ExportModal from './components/ExportModal';
 import LoginGate from './components/LoginGate';
 import { loadFromSupabase, loadThemeByDate } from './lib/loadFromSupabase';
 
@@ -56,6 +57,7 @@ export default function App() {
   const [date, setDate] = useState('todas');
   const [plat, setPlat] = useState('todas');
   const [showUpload, setShowUpload] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const [dataVersion, setDataVersion] = useState(0);
   const initialLoadDone = useRef(false);
 
@@ -110,16 +112,7 @@ export default function App() {
   function handleDataUpdated() { setDataVersion(v => v+1); }
 
   function handleExport() {
-    if (!data) return;
-    const isPano = tab==='panorama'||tab==='historico';
-    const keys = isPano ? data.order : [tab];
-    const csv = '﻿' + buildCsv(keys, data);
-    const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `pepe_aguilar_${isPano?'completo':tab}_13-15jun2026.csv`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(()=>URL.revokeObjectURL(url), 1500);
+    setShowExport(true);
   }
 
   const isTheme = !['panorama','historico','reporte'].includes(tab);
@@ -183,6 +176,7 @@ export default function App() {
         <div dangerouslySetInnerHTML={{ __html: INK_SVG }} />
         <AnimatePresence>
           {showUpload && <UploadModal onClose={() => setShowUpload(false)} onDataUpdated={handleDataUpdated} />}
+          {showExport && <ExportModal onClose={() => setShowExport(false)} />}
         </AnimatePresence>
         {!data && <Loading />}
         {data && (
@@ -204,6 +198,7 @@ export default function App() {
       <div dangerouslySetInnerHTML={{ __html: INK_SVG }} />
       <AnimatePresence>
         {showUpload && <UploadModal onClose={() => setShowUpload(false)} onDataUpdated={handleDataUpdated} />}
+        {showExport && <ExportModal onClose={() => setShowExport(false)} />}
       </AnimatePresence>
       <div style={{ width:'100%', maxWidth:468, minHeight:'100vh', background:'#EFE9DC',
         backgroundImage:'linear-gradient(rgba(33,28,23,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(33,28,23,0.05) 1px,transparent 1px)',
