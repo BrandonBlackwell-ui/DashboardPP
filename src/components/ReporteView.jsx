@@ -481,12 +481,118 @@ const ENTREV_SECTIONS = [
   },
 ];
 
+/* ─── REPORTE 3: Actividades Mayo–Junio (PPTX deck) ─────────── */
+const ACTIVIDADES_SECTIONS = [
+  {
+    id:'01', tag:'01 · Resumen · actividades mayo–junio',
+    title:'Todo lo producido en el periodo.',
+    acento:'producido',
+    render: () => (
+      <>
+        <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:16 }}>
+          Todo entregable producido entre mayo y junio operó con una sola intención: <strong style={{color:ink}}>blindar la imagen, anticipar crisis y construir criterio editorial</strong>. A continuación los entregables principales del período.
+        </p>
+        {[
+          { num:'01', titulo:'Resumen de reputación de Pepe Aguilar en 6 meses', desc:'Reporte que analiza el estado mediático de Pepe Aguilar y que da directriz del rumbo a seguir.' },
+          { num:'02', titulo:'Boletín sobre la lista Billboard Indie Power Players', desc:'Revisión y recomendaciones para el comunicado sobre la inclusión de Pepe en el listado, a fin de prevenir frentes abiertos.' },
+          { num:'03', titulo:'Plan estratégico de acción Mayo–Agosto', desc:'Primer draft de plan de comunicación: benchmark de artistas con conversaciones negativas, primeras recomendaciones estratégicas, mapeo de riesgos y Q&A con posturas.' },
+          { num:'04', titulo:'Plan lanzamiento ¡Que Viva Don Antonio!', desc:'Guía de narrativa y actividades respecto al lanzamiento del tributo, blindando posibles ataques mediáticos por distintos flancos.' },
+          { num:'05', titulo:'Comunicado cancelación evento · Teatro Esperanza Iris', desc:'Adaptación de comunicado para anunciar la cancelación del evento en el Teatro de la Ciudad debido a factores externos.' },
+          { num:'06', titulo:'Media training previo a actividades de promoción', desc:'Sesión práctica y teórica con el equipo de Blackwell Strategy y Karla Iberia Sánchez —una de las periodistas más reconocidas del país— simulando una entrevista en vivo con preguntas de riesgo.' },
+          { num:'07', titulo:'Acompañamiento Press junket QVAA', desc:'Envío de briefing books de medios asistentes para anticipar riesgos y retroalimentación in situ.' },
+          { num:'08', titulo:'Acompañamiento con creadores QVAA', desc:'Envío de briefing books de los creadores de contenido convocados para contención de riesgos y retroalimentación in situ.' },
+          { num:'09', titulo:'Retroalimentación y análisis de entrevistas', desc:'Detección de fortalezas y áreas de mejora de las actividades con medios realizadas por el lanzamiento del álbum (entrevistas 1:1 y "banqueteras").' },
+          { num:'10', titulo:'Social Listenings de actividades de promoción', desc:'Dos escuchas: la primera sobre entrevistas 1:1, "banqueteras" y encuentro con creadores; la segunda, análisis de conversación del álbum dentro del universo de conversación de Pepe Aguilar.' },
+          { num:'11', titulo:'Plan Pepe Aguilar Empresario', desc:'Planteamiento de línea narrativa basada en tres pilares (músico independiente, apasionado tecnológico y charro) para sumar atributos positivos y blindar ante conversaciones adversas.' },
+        ].map(e => (
+          <div key={e.num} style={{ display:'flex', gap:12, alignItems:'flex-start', padding:'10px 0',
+            borderBottom:`1px solid ${border}` }}>
+            <span style={{ fontFamily:MONO, fontSize:10, color:gold, fontWeight:600, flex:'none', width:24, paddingTop:2 }}>{e.num}</span>
+            <div>
+              <div style={{ fontFamily:SANS, fontWeight:600, fontSize:13, color:ink, marginBottom:3 }}>{e.titulo}</div>
+              <div style={{ fontFamily:SANS, fontSize:12, color:muted, lineHeight:1.5 }}>{e.desc}</div>
+            </div>
+          </div>
+        ))}
+      </>
+    )
+  },
+  {
+    id:'02', tag:'02 · Hallazgos · lo que estas semanas revelaron',
+    title:'Seis lecturas clave de la conversación pública.',
+    acento:'clave',
+    render: () => (
+      <>
+        <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:16 }}>
+          Cada hallazgo se desprende del listening, del press junket o del comportamiento de medios entre mayo y junio.
+        </p>
+        {[
+          { num:'01', color:teal, titulo:'Los canales propios funcionan como ancla narrativa.', desc:'Cuando Pepe comunica desde sus propios canales sobre música, la audiencia responde positivo. El silencio era lo que alimentaba la cobertura adversa; al romper el silencio con voz propia, revierte la conversación.' },
+          { num:'02', color:gold, titulo:'Pepe es leído como símbolo de identidad nacional.', desc:'La conversación del álbum deja ver que el público lo asocia con mexicanidad y con tradiciones profundamente nacionales.' },
+          { num:'03', color:teal, titulo:'Existe interés mediático genuino más allá de la crisis.', desc:'Hay un interés real en Pepe Aguilar, su trayectoria y legado profesional, lo que confirma que hay espacio mediático para hablar desde lo positivo.' },
+          { num:'04', color:gold, titulo:'La conversación adversa es ruido inflado.', desc:'Una parte significativa del porcentaje negativo proviene de bots y perfiles falsos (varios ubicados en Malasia), de notas recicladas y de noticias falsas que algunos medios publican sin verificación.' },
+          { num:'05', color:gold, titulo:'El ruido adverso se sostiene por desinformación.', desc:'Cuando una nota negativa sale, se apaga, y semanas después vuelve a salir reciclada. En otros casos, existen clips con descripciones que no coinciden con el video y alimentan el ruido sin sustento.' },
+          { num:'06', color:teal, titulo:'Pepe Empresario es la palanca para ampliar lo positivo.', desc:'La narrativa empresarial no solo balancea: también amplía la cobertura positiva hacia ecosistemas nuevos (tech, emprendimiento, cultura, deporte). Al ampliar la conversación, blinda y abre una ventana de oportunidad activa.' },
+        ].map(h => (
+          <div key={h.num} style={{ display:'flex', gap:12, alignItems:'flex-start', padding:'12px 0',
+            borderBottom:`1px solid ${border}` }}>
+            <span style={{ fontFamily:MONO, fontSize:11, color:h.color, fontWeight:700, flex:'none', width:24, paddingTop:2 }}>{h.num}</span>
+            <div>
+              <div style={{ fontFamily:SANS, fontWeight:600, fontSize:13, color:ink, marginBottom:4 }}>{h.titulo}</div>
+              <div style={{ fontFamily:SANS, fontSize:12.5, color:muted, lineHeight:1.6 }}>{h.desc}</div>
+            </div>
+          </div>
+        ))}
+      </>
+    )
+  },
+  {
+    id:'03', tag:'03 · Siguientes pasos · ruta recomendada',
+    title:'Tomar control. Ampliar lo positivo. Blindar lo adverso.',
+    acento:'positivo',
+    render: () => (
+      <>
+        <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:16 }}>
+          El silencio alimentaba la conversación negativa. La voz propia ya empezó a revertir esa lectura. La fase siguiente no es defensiva, es ofensiva.
+        </p>
+        {[
+          { titulo:'Consolidar narrativa musical desde canales propios.', desc:'Ser los dueños de la narrativa de Pepe, con nuestros propios mensajes y la información que queremos compartir. Esto ya está revirtiendo la conversación adversa.', color:teal },
+          { titulo:'Activar Pepe Empresario formalmente.', desc:'Ejecutar el Plan PPA Empresario para ampliar la narrativa con el objetivo de posicionar mensajes de manera positiva y blindar la conversación desde nuevos frentes.', color:gold },
+          { titulo:'Capitalizar el activo de mexicanidad.', desc:'Identificar y activar los momentos donde Pepe tiene mayor exposición orgánica a temas nacionalistas para construir contenido alrededor de este tema, ya que es un activo que no se ha explotado.', color:goldDeep },
+        ].map((p,i) => (
+          <div key={i} style={{ borderLeft:`3px solid ${p.color}`, paddingLeft:14, marginBottom:16 }}>
+            <div style={{ fontFamily:SANS, fontWeight:600, fontSize:13.5, color:ink, marginBottom:4 }}>{p.titulo}</div>
+            <div style={{ fontFamily:SANS, fontSize:12.5, color:muted, lineHeight:1.6 }}>{p.desc}</div>
+          </div>
+        ))}
+        <div style={{ border:`1px solid ${border}`, borderRadius:3, padding:'20px 24px', textAlign:'center',
+          background:paper, margin:'16px 0' }}>
+          <div style={{ fontFamily:MONO, fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase',
+            color:gold, fontWeight:600, marginBottom:10 }}>Lectura estratégica</div>
+          <p style={{ fontFamily:SANS, fontWeight:400, fontSize:15, fontStyle:'italic', color:ink,
+            lineHeight:1.55, margin:0, letterSpacing:'-0.01em' }}>
+            «El silencio era lo que alimentaba la conversación adversa. La voz propia ya empezó a revertirla. La fase que sigue es empujar lo positivo, no defenderse de lo negativo.»
+          </p>
+          <div style={{ fontFamily:MONO, fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase',
+            color:muted, marginTop:12 }}>Blackwell Strategy · Reporte de Actividades Mayo–Junio 2026</div>
+        </div>
+        <div style={{ fontFamily:MONO, fontSize:9, letterSpacing:'0.10em', textTransform:'uppercase',
+          color:muted, display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:6 }}>
+          <span>Folio · BW-26-MJUN-PA-ACT-001</span>
+          <span>Preparado por Blackwell Strategy</span>
+          <span style={{ color:crim, fontWeight:600 }}>Confidencial · uso interno</span>
+        </div>
+      </>
+    )
+  },
+];
+
 /* ─── Main ReporteView ───────────────────────────────────────── */
 export default function ReporteView({ isDesktop }) {
   const [activeReport, setActiveReport] = useState('periodo');
   const [sectionIdx, setSectionIdx] = useState(0);
 
-  const sections = activeReport === 'periodo' ? PERIODO_SECTIONS : ENTREV_SECTIONS;
+  const sections = activeReport === 'periodo' ? PERIODO_SECTIONS : activeReport === 'entrevistas' ? ENTREV_SECTIONS : ACTIVIDADES_SECTIONS;
   const section = sections[sectionIdx];
 
   function switchReport(key) {
@@ -510,10 +616,11 @@ export default function ReporteView({ isDesktop }) {
         </p>
 
         {/* Report selector */}
-        <div style={{ display:'flex', gap:6 }}>
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
           {[
             { key:'periodo', label:'Período · Jun 1–16', sub:'resumen general' },
             { key:'entrevistas', label:'Entrevistas · Jun 8–13', sub:'ciclo de promo álbum' },
+            { key:'actividades', label:'Actividades · May–Jun', sub:'entregables y hallazgos' },
           ].map(r => (
             <button key={r.key} onClick={() => switchReport(r.key)}
               style={{ padding:'9px 14px', borderRadius:3, cursor:'pointer',
