@@ -71,11 +71,18 @@ export default function App() {
 
   if (!authed) return <LoginGate onAuth={() => setAuthed(true)} />;
 
-  function handleTabChange(t) {
-    const latestDay = calData
-      ? Object.keys(calData.days).sort().pop()?.slice(8) || 'todas'
-      : 'todas';
-    setTab(t); setDate(latestDay); setPlat('todas'); window.scrollTo(0,0);
+  async function handleTabChange(t) {
+    const latestDateKey = calData ? Object.keys(calData.days).sort().pop() : null;
+    const latestDay = latestDateKey?.slice(8) || 'todas';
+    const hasDataForLatest = latestDateKey && window.SUPABASE_KEYS?.has(`${t}:${latestDateKey}`);
+    if (hasDataForLatest) {
+      await loadThemeByDate(t, latestDateKey);
+      refreshData();
+      setTab(t); setDate(latestDay); setPlat('todas');
+    } else {
+      setTab(t); setDate('todas'); setPlat('todas');
+    }
+    window.scrollTo(0, 0);
   }
   async function handleGoFromCalendar(themeKey, dateKey) {
     const dayNum = dateKey.slice(8);
