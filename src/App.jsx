@@ -78,10 +78,8 @@ export default function App() {
     if (hasDataForLatest) {
       await loadThemeByDate(t, latestDateKey);
       refreshData();
-      setTab(t); setDate(latestDay); setPlat('todas');
-    } else {
-      setTab(t); setDate('todas'); setPlat('todas');
     }
+    setTab(t); setDate(latestDay); setPlat('todas');
     window.scrollTo(0, 0);
   }
   async function handleGoFromCalendar(themeKey, dateKey) {
@@ -148,7 +146,8 @@ export default function App() {
           )}
           {isTheme && (
             <motion.div key={tab} initial={{ opacity:0, x:24 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-24 }} transition={{ duration:0.22 }}>
-              <ThemeView tab={tab} date={date} plat={plat} data={data} isDesktop={isDesktop} />
+              <ThemeView tab={tab} date={date} plat={plat} data={data} isDesktop={isDesktop}
+                noData={date !== 'todas' && !!window.SUPABASE_KEYS && !window.SUPABASE_KEYS.has(`${tab}:2026-06-${date}`)} />
             </motion.div>
           )}
           {tab==='historico' && (

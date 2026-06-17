@@ -46,10 +46,27 @@ function SentBar({ pos, neu, neg }) {
   );
 }
 
-export default function ThemeView({ tab, date, plat, data, isDesktop }) {
+export default function ThemeView({ tab, date, plat, data, isDesktop, noData }) {
   const T = data.themes;
   const t = T[tab];
   if (!t) return null;
+
+  if (noData) {
+    const dayInt = parseInt(date, 10);
+    return (
+      <div style={{ padding:'40px 24px', textAlign:'center' }}>
+        <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, letterSpacing:'0.18em',
+          textTransform:'uppercase', color:'#B0822F', fontWeight:600, marginBottom:12 }}>
+          {dayInt} jun 2026
+        </div>
+        <div style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:22,
+          color:'#211C17', marginBottom:8 }}>Sin datos para esta fecha.</div>
+        <p style={{ fontSize:13, color:'#6B6253' }}>
+          No se subió un reporte de <strong>{t.label}</strong> para el {dayInt} de junio.
+        </p>
+      </div>
+    );
+  }
 
   const s = t.sentiment || { pos:0, neu:0, neg:0 };
   const rm = riskMeta(t.risk?.level);
