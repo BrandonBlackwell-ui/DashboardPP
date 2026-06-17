@@ -940,7 +940,7 @@ const ACTIVIDADES_SECTIONS = [
 
 /* ─── Main ReporteView ───────────────────────────────────────── */
 export default function ReporteView({ isDesktop }) {
-  const [activeReport, setActiveReport] = useState('periodo');
+  const [activeReport, setActiveReport] = useState('actividades');
   const [sectionIdx, setSectionIdx] = useState(0);
 
   const sections = activeReport === 'periodo' ? PERIODO_SECTIONS : activeReport === 'entrevistas' ? ENTREV_SECTIONS : activeReport === 'actividades' ? ACTIVIDADES_SECTIONS : activeReport === 'album' ? ALBUM_SECTIONS : ENTREVISTAS_PDF_SECTIONS;
@@ -969,8 +969,6 @@ export default function ReporteView({ isDesktop }) {
         {/* Report selector */}
         <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
           {[
-            { key:'periodo', label:'Período · Jun 1–16', sub:'resumen general' },
-            { key:'entrevistas', label:'Entrevistas · Jun 8–13', sub:'ciclo de promo álbum' },
             { key:'actividades', label:'Actividades · May–Jun', sub:'entregables y hallazgos' },
             { key:'album', label:'Álbum · QVAA', sub:'BW-26-06-PA-RAPA-001' },
             { key:'qvda', label:'Entrevistas · QVDA', sub:'PPA · 3–10 Jun 2026' },
