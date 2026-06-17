@@ -169,7 +169,7 @@ export default function CalendarView({ calData, onGoTheme, isDesktop, supabaseKe
                       </div>
                     )}
                   </div>
-                  {td && (!supabaseKeys || supabaseKeys.has(`${t.key}:${selected}`)) && (
+                  {td && (!supabaseKeys || supabaseKeys.has(`${t.key}:${selected}`) || !!td) && (
                     <motion.button whileTap={{ scale:0.9 }}
                       onClick={() => onGoTheme(t.key, selected)}
                       style={{ flex:'none', fontFamily:"'Geist Mono',monospace", fontSize:9.5, fontWeight:600,

@@ -74,6 +74,34 @@ export default function App() {
 
   if (!authed) return <LoginGate onAuth={() => setAuthed(true)} />;
 
+  // Build a minimal themeData from CALENDAR_DATA when no Supabase record exists
+  // (e.g. weekend consolidated reports that weren't uploaded per-day)
+  function buildThemeFromCalendar(themeKey, dateKey) {
+    const calDay = calData?.days?.[dateKey]?.[themeKey];
+    if (!calDay) return false;
+    const LABELS = { musica:'Música', entrevistas:'Entrevistas', empresas:'Empresas', familia:'Familia' };
+    const ES = { musica:'Su obra musical, conciertos y legado artístico', entrevistas:'Apariciones en medios, entrevistas y declaraciones públicas', empresas:'Sus negocios, marca y proyectos empresariales', familia:'La dinastía Aguilar y la vida familiar pública' };
+    const minimal = {
+      label: LABELS[themeKey] || themeKey,
+      es: ES[themeKey] || '',
+      sentiment: { pos: calDay.pos||0, neu: Math.max(0,100-(calDay.pos||0)-(calDay.neg||0)), neg: calDay.neg||0 },
+      risk: { level: calDay.risk || 'bajo', negPct: calDay.neg||0, attention: (calDay.neg||0) > 20 },
+      totals: { posts: calDay.posts || 0 },
+      platforms: [], alerts: { total:0, posts:[] }, opps: { total:0, posts:[] },
+      complaints: { total:0, categories:[] }, news: null, trending: [],
+      influencers: { total:0, top:[] },
+      timeline: { events: (calDay.topEvents||[]).map(e => ({ main: e, date: dateKey })) },
+      pros_cons: { positive:[], negative:[], neutral:[] },
+      reconocimientos: [], keywords: [], emojis: [],
+      comments_topics: { total:0, topics:[] },
+      voices: { segmentos:[], alertas:[] },
+      narrative_gap: {},
+      _calendarSummary: true,
+    };
+    if (window.PA_DATA?.themes) window.PA_DATA.themes[themeKey] = minimal;
+    return true;
+  }
+
   async function handleTabChange(t) {
     if (t === 'panorama' || t === 'historico' || t === 'reporte') {
       setTab(t); setDate('todas'); setPlat('todas');
@@ -92,7 +120,8 @@ export default function App() {
   }
   async function handleGoFromCalendar(themeKey, dateKey) {
     const dayNum = dateKey.slice(8);
-    await loadThemeByDate(themeKey, dateKey);
+    const loaded = await loadThemeByDate(themeKey, dateKey);
+    if (!loaded) buildThemeFromCalendar(themeKey, dateKey);
     refreshData();
     setTab(themeKey);
     setDate(dayNum);
@@ -104,7 +133,8 @@ export default function App() {
     setDate(newDate);
     if (isTheme && newDate !== 'todas') {
       const dateKey = `2026-06-${newDate}`;
-      await loadThemeByDate(tab, dateKey);
+      const loaded = await loadThemeByDate(tab, dateKey);
+      if (!loaded) buildThemeFromCalendar(tab, dateKey);
       refreshData();
     }
   }
@@ -146,7 +176,8 @@ export default function App() {
           {isTheme && (
             <motion.div key={tab} initial={{ opacity:0, x:24 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-24 }} transition={{ duration:0.22 }}>
               <ThemeView tab={tab} date={date} plat={plat} data={data} isDesktop={isDesktop}
-                noData={date !== 'todas' && !!window.SUPABASE_KEYS && !window.SUPABASE_KEYS.has(`${tab}:2026-06-${date}`)} />
+                noData={date !== 'todas' && !!window.SUPABASE_KEYS && !window.SUPABASE_KEYS.has(`${tab}:2026-06-${date}`) && !calData?.days?.[`2026-06-${date}`]?.[tab]}
+                calendarSummary={date !== 'todas' && !!window.SUPABASE_KEYS && !window.SUPABASE_KEYS.has(`${tab}:2026-06-${date}`) && !!calData?.days?.[`2026-06-${date}`]?.[tab]} />
             </motion.div>
           )}
           {tab==='historico' && (

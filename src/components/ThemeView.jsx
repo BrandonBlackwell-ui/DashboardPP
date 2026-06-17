@@ -46,7 +46,7 @@ function SentBar({ pos, neu, neg }) {
   );
 }
 
-export default function ThemeView({ tab, date, plat, data, isDesktop, noData }) {
+export default function ThemeView({ tab, date, plat, data, isDesktop, noData, calendarSummary }) {
   const T = data.themes;
   const t = T[tab];
   if (!t) return null;
@@ -184,6 +184,23 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData }) 
 
   return (
     <motion.div key={tab} variants={stagger} initial="hidden" animate="visible">
+
+      {/* Calendar summary banner */}
+      {calendarSummary && (
+        <motion.div variants={item} style={{ margin: isDesktop ? '16px 28px 0' : '14px 18px 0',
+          background:'rgba(176,130,47,0.10)', border:'1px solid rgba(176,130,47,0.35)',
+          borderRadius:3, padding:'10px 14px', display:'flex', alignItems:'center', gap:10 }}>
+          <span style={{ fontSize:14, flex:'none' }}>📅</span>
+          <div>
+            <div style={{ fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:12, color:'#7A5A1A' }}>
+              Reporte consolidado de fin de semana
+            </div>
+            <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', marginTop:2 }}>
+              Datos parciales del histórico · sin desglose completo disponible
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Header */}
       <motion.div variants={item} style={{ padding: isDesktop ? '24px 28px 4px' : '19px 18px 4px' }}>
