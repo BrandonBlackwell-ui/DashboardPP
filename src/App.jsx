@@ -60,6 +60,7 @@ export default function App() {
   const [showExport, setShowExport] = useState(false);
   const [dataVersion, setDataVersion] = useState(0);
   const initialLoadDone = useRef(false);
+  const todasCache = useRef({});
 
   // On startup only: apply localStorage cache, then load from Supabase (authoritative)
   // useRef guard prevents re-running when refreshData() creates a new data reference
@@ -112,6 +113,10 @@ export default function App() {
     const latestDay = latestDateKey?.slice(8) || 'todas';
     const hasDataForLatest = latestDateKey && window.SUPABASE_KEYS?.has(`${t}:${latestDateKey}`);
     if (hasDataForLatest) {
+      // Cache "todas" state before overwriting with latest date
+      if (window.PA_DATA?.themes?.[t] && !todasCache.current[t]) {
+        todasCache.current[t] = window.PA_DATA.themes[t];
+      }
       await loadThemeByDate(t, latestDateKey);
       refreshData();
     }
@@ -131,7 +136,18 @@ export default function App() {
 
   async function handleDateChange(newDate) {
     setDate(newDate);
-    if (isTheme && newDate !== 'todas') {
+    if (!isTheme) return;
+    if (newDate === 'todas') {
+      // Restore "todas" cached data if available
+      if (todasCache.current[tab] && window.PA_DATA?.themes) {
+        window.PA_DATA.themes[tab] = todasCache.current[tab];
+        refreshData();
+      }
+    } else {
+      // Cache current "todas" state before overwriting (only first time per tab)
+      if (window.PA_DATA?.themes?.[tab] && !todasCache.current[tab]) {
+        todasCache.current[tab] = window.PA_DATA.themes[tab];
+      }
       const dateKey = `2026-06-${newDate}`;
       const loaded = await loadThemeByDate(tab, dateKey);
       if (!loaded) buildThemeFromCalendar(tab, dateKey);
