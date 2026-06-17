@@ -18,7 +18,7 @@ function Chip({ label, active, onClick }) {
   );
 }
 
-export default function SubBar({ tab, pano, date, plat, data, dateOptions, onPanoChange, onDateChange, onPlatChange, isDesktop }) {
+export default function SubBar({ tab, pano, date, plat, data, dateOptions, onPanoChange, onDateChange, onPlatChange, isDesktop, panoramaDate, onPanoramaDateChange }) {
   const isPanorama = tab === 'panorama';
   const isTheme = !isPanorama && tab !== 'historico' && tab !== 'reporte';
   const isHist = tab === 'historico';
@@ -37,14 +37,28 @@ export default function SubBar({ tab, pano, date, plat, data, dateOptions, onPan
         {isPanorama && (
           <motion.div key="pano"
             initial={{ opacity:0, y:-6 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-6 }}
-            transition={{ duration:0.2 }}>
-            <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.16em',
-              textTransform:'uppercase', color:'#8A7E6A', marginBottom:8 }}>Vista del panorama</div>
-            <div style={{ display:'flex', gap:6 }}>
-              {[['editorial','Editorial'],['mosaico','Mosaico'],['resumen','Resumen']].map(([k,l]) => (
-                <Chip key={k} label={l} active={pano===k} onClick={() => onPanoChange(k)} />
-              ))}
+            transition={{ duration:0.2 }}
+            style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.14em',
+                textTransform:'uppercase', color:'#8A7E6A', width:54, flex:'none' }}>Vista</span>
+              <div style={{ display:'flex', gap:6 }}>
+                {[['editorial','Editorial'],['mosaico','Mosaico'],['resumen','Resumen']].map(([k,l]) => (
+                  <Chip key={k} label={l} active={pano===k} onClick={() => onPanoChange(k)} />
+                ))}
+              </div>
             </div>
+            {onPanoramaDateChange && dateOptions && (
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.14em',
+                  textTransform:'uppercase', color:'#8A7E6A', width:54, flex:'none' }}>Fecha</span>
+                <div style={{ display:'flex', gap:5, overflowX:'auto', scrollbarWidth:'none' }}>
+                  {dateOptions.map(([k,l]) => (
+                    <Chip key={k} label={l} active={panoramaDate===k} onClick={() => onPanoramaDateChange(k)} />
+                  ))}
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
         {isTheme && (

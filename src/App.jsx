@@ -56,6 +56,7 @@ export default function App() {
   const [pano, setPano] = useState('editorial');
   const [date, setDate] = useState('todas');
   const [plat, setPlat] = useState('todas');
+  const [panoramaDate, setPanoramaDate] = useState('todas');
   const [showUpload, setShowUpload] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [dataVersion, setDataVersion] = useState(0);
@@ -186,7 +187,7 @@ export default function App() {
         <AnimatePresence mode="wait">
           {tab==='panorama' && (
             <motion.div key="panorama" initial={{ opacity:0, x:24 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-24 }} transition={{ duration:0.22 }}>
-              <PanoramaView pano={pano} data={data} onGoTheme={handleTabChange} isDesktop={isDesktop} />
+              <PanoramaView pano={pano} data={data} onGoTheme={handleTabChange} isDesktop={isDesktop} panoramaDate={panoramaDate} calData={calData} />
             </motion.div>
           )}
           {isTheme && (
@@ -232,7 +233,8 @@ export default function App() {
             onTabChange={handleTabChange} onExport={handleExport} onUpload={handleUpload}>
             {/* SubBar as sticky strip inside content */}
             <SubBar tab={tab} pano={pano} date={date} plat={plat} data={data}
-              dateOptions={dateOptions} onPanoChange={setPano} onDateChange={handleDateChange} onPlatChange={setPlat} isDesktop />
+              dateOptions={dateOptions} onPanoChange={setPano} onDateChange={handleDateChange} onPlatChange={setPlat} isDesktop
+              panoramaDate={panoramaDate} onPanoramaDateChange={setPanoramaDate} />
             {viewContent}
           </DesktopShell>
         )}
@@ -256,7 +258,8 @@ export default function App() {
         {data && (<>
           <Header tab={tab} data={data} onExport={handleExport} onTabChange={handleTabChange} onUpload={handleUpload} />
           <SubBar tab={tab} pano={pano} date={date} plat={plat} data={data}
-            dateOptions={dateOptions} onPanoChange={setPano} onDateChange={handleDateChange} onPlatChange={setPlat} />
+            dateOptions={dateOptions} onPanoChange={setPano} onDateChange={handleDateChange} onPlatChange={setPlat}
+            panoramaDate={panoramaDate} onPanoramaDateChange={setPanoramaDate} />
           {viewContent}
         </>)}
       </div>

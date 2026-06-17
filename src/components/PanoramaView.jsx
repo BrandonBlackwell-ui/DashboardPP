@@ -41,28 +41,58 @@ function KPIs({ kpis }) {
   );
 }
 
-export default function PanoramaView({ pano, data, onGoTheme, isDesktop }) {
+export default function PanoramaView({ pano, data, onGoTheme, isDesktop, panoramaDate, calData }) {
   const T = data.themes, order = data.order;
+  const byDay = panoramaDate && panoramaDate !== 'todas' && calData?.days?.[`2026-06-${panoramaDate}`];
 
-  let p=0,n=0,g=0;
-  order.forEach(k => { const s=T[k].sentiment; if(s){p+=s.posC||0;n+=s.neuC||0;g+=s.negC||0;} });
-  const tot=p+n+g||1;
-  const aPos=Math.round(p/tot*100), aNeg=Math.round(g/tot*100), aNeu=100-aPos-aNeg;
-
-  let totPosts=0;
-  order.forEach(k => { totPosts+=T[k].totals?.posts||0; });
-
-  const kpis = [
-    { label:'Menciones', value:fmt(tot), bg:C.ink, border:C.ink, lblColor:'rgba(255,255,255,0.65)', valColor:'#FBF8F1' },
-    { label:'Posts', value:fmt(totPosts), bg:C.card, border:'rgba(33,28,23,0.13)', lblColor:'#6B6253', valColor:C.ink },
-  ];
-
+  // Build cards — per-day from calData if a date is selected, otherwise full aggregate from PA_DATA
   const cards = order.map(k => {
-    const t=T[k]; const s=t.sentiment||{pos:0,neu:0,neg:0}; const rm=riskMeta(t.risk?.level);
+    const t = T[k];
+    if (byDay) {
+      const d = byDay[k];
+      if (!d) {
+        const rm = riskMeta('muy_bajo');
+        return { key:k, label:t.label, es:t.es, accent:'#C8BBA0', pos:0, neu:0, neg:0,
+          riskLabel:'Sin datos', pillStyle:{ ink:'#8A7E6A', bg:'#EDE6D8', bd:'#C8BBA0' },
+          metaLine:'sin datos para esta fecha', noData:true, onClick:()=>onGoTheme(k) };
+      }
+      const neu = Math.round(100 - (d.pos||0) - (d.neg||0));
+      const rm = riskMeta(d.risk);
+      return { key:k, label:t.label, es:t.es, accent:rm.c, pos:d.pos||0, neu, neg:d.neg||0,
+        riskLabel:rm.label, pillStyle:rm, metaLine:fmt(d.posts||0)+' posts',
+        noData:false, onClick:()=>onGoTheme(k) };
+    }
+    const s = t.sentiment||{pos:0,neu:0,neg:0}; const rm = riskMeta(t.risk?.level);
     return { key:k, label:t.label, es:t.es, accent:rm.c, pos:s.pos, neu:s.neu, neg:s.neg,
       riskLabel:rm.label, pillStyle:rm, metaLine:fmt(t.totals?.posts||0)+' posts · '+(t.influencers?.total||0)+' influencers',
-      onClick:()=>onGoTheme(k) };
+      noData:false, onClick:()=>onGoTheme(k) };
   });
+
+  // Aggregate sentiment — only from cards that have data
+  let p=0,n=0,g=0,tot=0;
+  if (byDay) {
+    cards.filter(c=>!c.noData).forEach(c => {
+      const posts = byDay[c.key]?.posts || 0;
+      p += c.pos * posts; n += c.neu * posts; g += c.neg * posts; tot += posts;
+    });
+    if (tot > 0) { p = Math.round(p/tot); g = Math.round(g/tot); n = 100-p-g; }
+  } else {
+    order.forEach(k => { const s=T[k].sentiment; if(s){p+=s.posC||0;n+=s.neuC||0;g+=s.negC||0;} });
+    tot=p+n+g||1;
+    p=Math.round(p/tot*100); g=Math.round(g/tot*100); n=100-p-g; tot=p+n+g||1;
+  }
+  const aPos=p, aNeg=g, aNeu=n;
+  const totMenciones = byDay
+    ? cards.filter(c=>!c.noData).reduce((a,c)=>a+(byDay[c.key]?.posts||0),0)
+    : order.reduce((a,k)=>{ const s=T[k].sentiment; return a+(s?(s.posC||0)+(s.neuC||0)+(s.negC||0):0); },0);
+  let totPosts = byDay
+    ? cards.filter(c=>!c.noData).reduce((a,c)=>a+(byDay[c.key]?.posts||0),0)
+    : order.reduce((a,k)=>a+(T[k].totals?.posts||0),0);
+
+  const kpis = [
+    { label:'Menciones', value:fmt(totMenciones), bg:C.ink, border:C.ink, lblColor:'rgba(255,255,255,0.65)', valColor:'#FBF8F1' },
+    { label:'Posts', value:fmt(totPosts), bg:C.card, border:'rgba(33,28,23,0.13)', lblColor:'#6B6253', valColor:C.ink },
+  ];
 
   const attention = [...cards].sort((a,b) => b.neg - a.neg);
 
@@ -107,9 +137,11 @@ export default function PanoramaView({ pano, data, onGoTheme, isDesktop }) {
           <div style={{ display:'grid', gridTemplateColumns: isDesktop ? '1fr 1fr' : '1fr', gap:9 }}>
             {cards.map(c => (
               <TiltCard key={c.key} onClick={c.onClick}
-                style={{ display:'flex', alignItems:'center', gap:14, background:C.card,
+                style={{ display:'flex', alignItems:'center', gap:14,
+                  background: c.noData ? 'rgba(33,28,23,0.04)' : C.card,
                   border:'1px solid rgba(33,28,23,0.13)', borderLeft:`3px solid ${c.accent}`,
-                  borderRadius:3, padding:'13px 15px', width:'100%', textAlign:'left' }}>
+                  borderRadius:3, padding:'13px 15px', width:'100%', textAlign:'left',
+                  opacity: c.noData ? 0.6 : 1 }}>
                 <Donut pos={c.pos} neu={c.neu} neg={c.neg} size={52} />
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:8 }}>
