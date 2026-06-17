@@ -94,165 +94,207 @@ function HBar({ label, pct, color }) {
   );
 }
 
-function QuoteCard({ text, likes, eje }) {
+function QuoteCard({ text, source, tone }) {
+  const toneColor = tone === 'pos' ? teal : tone === 'neg' ? crim : muted;
   return (
-    <div style={{ background:paper, border:`1px solid ${border}`, borderRadius:3, padding:'11px 13px',
-      display:'flex', gap:12, alignItems:'flex-start' }}>
+    <div style={{ background:paper, border:`1px solid ${border}`, borderLeft:`2px solid ${toneColor}`,
+      borderRadius:3, padding:'11px 13px', display:'flex', gap:12, alignItems:'flex-start' }}>
       <div style={{ flex:1 }}>
         <p style={{ fontFamily:SANS, fontSize:12.5, color:ink, lineHeight:1.5, margin:0, fontStyle:'italic' }}>«{text}»</p>
-        {eje && <span style={{ fontFamily:MONO, fontSize:9, letterSpacing:'0.08em', color:gold, textTransform:'uppercase', marginTop:4, display:'block' }}>{eje}</span>}
+        {source && <span style={{ fontFamily:MONO, fontSize:9, letterSpacing:'0.08em', color:muted, textTransform:'uppercase', marginTop:4, display:'block' }}>{source}</span>}
       </div>
-      {likes && <span style={{ fontFamily:MONO, fontSize:10, color:muted, flex:'none', paddingTop:2 }}>♥ {likes}</span>}
     </div>
   );
 }
 
-/* ─── REPORTE 1: Álbum ───────────────────────────────────────── */
-const ALBUM_SECTIONS = [
+/* ─── REPORTE 1: Período General Jun 1–16 ───────────────────── */
+const PERIODO_SECTIONS = [
   {
-    id:'01', tag:'01 · Qué se midió — Alcance y método',
-    title:'Cuánto pesó el álbum en el periodo.',
-    acento:'pesó',
+    id:'01', tag:'01 · Alcance del análisis',
+    title:'Qué se monitoreó y cuánto.',
+    acento:'monitoreó',
     render: () => (
       <>
         <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:16 }}>
-          Este reporte mide el <strong style={{color:ink}}>peso y el impacto</strong> del disco homenaje «¡Que Viva Antonio Aguilar!» dentro del total de la conversación pública sobre Pepe Aguilar, entre el <strong style={{color:ink}}>1 y el 15 de junio de 2026</strong>.
+          Análisis de la conversación pública sobre Pepe Aguilar entre el <strong style={{color:ink}}>1 y el 16 de junio de 2026</strong>, clasificada en cuatro temas: Familia, Empresas, Música y Entrevistas. Las plataformas monitoreadas incluyen TikTok, Instagram, Facebook, Twitter y Google News.
         </p>
         <Table
-          headers={['Insumo','Qué aportó','Volumen']}
+          headers={['Tema','Posts capturados','Plataformas principales','Riesgo predominante']}
           rows={[
-            ['Conversación total sobre Pepe','Universo base de publicaciones y comentarios en la ventana','293 publicaciones · 376 comentarios'],
-            ['Menciones del álbum','Huella del disco dentro de esa conversación','71 publicaciones · 88 comentarios'],
-            ['Engagement confirmado','Reproducciones del sencillo «China de los Ojos Negros» en YouTube','1.3 M de reproducciones'],
+            ['Familia','3,596','TikTok · Instagram · Facebook · Google News','Medio'],
+            ['Empresas','472','Facebook · Google News · TikTok','Muy bajo'],
+            ['Entrevistas','414','TikTok · Instagram · Facebook','Bajo–Alto'],
+            ['Música','350','TikTok · Facebook · Google News','Muy bajo–Bajo'],
           ]}
         />
-        <Callout label="Cómo leer las cifras">
-          Los porcentajes son participación de la conversación (share of voice) calculada sobre la clasificación cualitativa de las publicaciones. Indican proporción y peso relativo, no la salida directa de una herramienta de social listening.
+        <Callout label="Universo total">
+          El período arrojó <strong>4,832 publicaciones</strong> clasificadas. La conversación estuvo activa los 16 días, con picos claros los fines de semana y en torno a dos eventos: el lanzamiento del álbum tributo (1–10 jun) y la inauguración del Mundial FIFA 2026 (11–13 jun).
         </Callout>
       </>
     )
   },
   {
-    id:'02', tag:'02 · El peso del álbum en cifras',
-    title:'Mucha huella, peso acotado.',
-    acento:'acotado',
+    id:'02', tag:'02 · Distribución del volumen',
+    title:'Familia concentra tres cuartas partes de la conversación.',
+    acento:'Familia',
     render: () => (
       <>
         <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:16 }}>
-          El álbum tuvo visibilidad, pero su peso como tema propio fue limitado. Aparece en cerca de una de cada cuatro publicaciones, mientras que como conversación estrictamente musical ocupa apenas la mitad de esa huella.
-        </p>
-        <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:16 }}>
-          <BigStat num="24%" label="Huella en la conversación" sub="1 de cada 4 publicaciones" color={goldDeep} />
-          <BigStat num="13%" label="Peso como tema musical" sub="eje música / álbum" color={ink} />
-          <BigStat num="1.3 M" label="Engagement del sencillo" sub="«China de los Ojos Negros»" color={teal} />
-          <BigStat num="Parcial" label="¿Movió la aguja?" sub="visibilidad alta, peso bajo" color={muted} />
-        </div>
-        <Callout>
-          La distancia entre el <strong>24% de huella</strong> y el <strong>13% de peso musical</strong> es el dato central: casi la mitad de las menciones del álbum no hablan de la música, sino que lo usan como gancho para la conversación familiar —sobre todo las ausencias del tributo.
-        </Callout>
-      </>
-    )
-  },
-  {
-    id:'03', tag:'03 · El álbum frente al resto de la conversación',
-    title:'La familia domina; el álbum compite por el segundo lugar.',
-    acento:'familia',
-    render: () => (
-      <>
-        <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:16 }}>
-          Repartida toda la conversación sobre Pepe por eje temático, la participación de cada tema quedó así:
+          El tema Familia —que agrupa todo lo relacionado con Ángela, Leonardo, Emiliano, la dinastía y los escándalos asociados— domina de forma abrumadora el volumen de la ventana.
         </p>
         <div style={{ marginBottom:16 }}>
           {[
-            { label:'Familia y dinastía', pct:60, color:crim },
-            { label:'Álbum y música', pct:13, color:gold },
-            { label:'Identidad nacional', pct:12, color:teal },
-            { label:'Otros', pct:13, color:'#A9997B' },
-            { label:'Figura pública / empresario', pct:2, color:muted },
+            { label:'Familia', pct:74, color:crim },
+            { label:'Empresas', pct:10, color:'#A9997B' },
+            { label:'Entrevistas', pct:9, color:gold },
+            { label:'Música', pct:7, color:teal },
           ].map(r => <HBar key={r.label} {...r} />)}
         </div>
         <Table
-          headers={['Eje','Peso','Qué lo compone']}
+          headers={['Tema','Posts','Share','Promedio diario']}
           rows={[
-            ['Familia y dinastía','60%','Conflictos y exclusiones de la dinastía; eje dominante de la ventana'],
-            ['Álbum y música','13%','El homenaje «¡Que Viva Antonio Aguilar!» y las canciones clásicas'],
-            ['Identidad nacional','12%','Orgullo mexicano y defensa de la cultura ranchera'],
-            ['Otros','13%','Nostalgia, rumores varios y contenido misceláneo'],
-            ['Figura pública / empresario','2%','Sello, rancho y decisiones de negocio'],
+            ['Familia','3,596','74%','~327 posts/día'],
+            ['Empresas','472','10%','~39 posts/día'],
+            ['Entrevistas','414','9%','~69 posts/día (solo Jun 8–13)'],
+            ['Música','350','7%','~35 posts/día'],
           ]}
         />
+        <Callout>
+          La proporción 74% / 26% entre Familia y el resto se mantuvo estable a lo largo de todo el período. No hubo ningún día en que la conversación musical superara al tema familiar como driver principal.
+        </Callout>
       </>
     )
   },
   {
-    id:'04', tag:'04 · Dónde pesó realmente el álbum',
-    title:'Dentro de sus menciones, la música no fue mayoría.',
+    id:'03', tag:'03 · Sentimiento por tema',
+    title:'La música, el terreno más seguro.',
     acento:'música',
     render: () => (
       <>
         <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:16 }}>
-          Al abrir solo las publicaciones que mencionan el disco, se ve por qué su peso musical es menor que su huella: buena parte de esas menciones giran hacia las ausencias y la lectura de oportunismo.
+          Sentimiento promedio ponderado por volumen de posts en la ventana completa. Música es el único tema con riesgo predominantemente muy bajo; Entrevistas registró el único día de riesgo <strong style={{color:crim}}>alto</strong> (Jun 12).
         </p>
         <Table
-          headers={['Eje dentro del álbum','Peso','Qué lo compone']}
+          headers={['Tema','Positivo','Neutral','Negativo','Riesgo pico']}
           rows={[
-            ['Recepción musical y legado','38%','Las 16 versiones, las voces invitadas y la preservación de la ranchera de Antonio'],
-            ['Ausencias del tributo','30%','Majo, Christian Nodal y Emiliano fuera del disco'],
-            ['Lectura de oportunismo','18%','El homenaje leído como maniobra comercial'],
-            ['Cobertura informativa','14%','Entrevistas y notas de lanzamiento'],
+            ['Familia','36%','30%','30%','Medio'],
+            ['Entrevistas','27%','39%','35%','Alto (Jun 12)'],
+            ['Música','26%','59%','15%','Bajo'],
+            ['Empresas','4%','94%','2%','Muy bajo'],
           ]}
         />
-        <Callout>
-          Solo cerca del <strong>38%</strong> de las menciones del álbum tratan de la música; el resto lo usa como punto de partida para el drama familiar y la figura de Pepe. El corazón musical existe —«La cama de piedra», «Triste Recuerdo», «Un Puño de Tierra»— pero convive con un peso similar de conversación no musical.
-        </Callout>
+        <div style={{ marginTop:16, display:'flex', gap:8, flexWrap:'wrap' }}>
+          <BigStat num="36%" label="Familia · positivo" sub="alto volumen, riesgo constante" color={crim} />
+          <BigStat num="26%" label="Música · positivo" sub="terreno más estable" color={teal} />
+          <BigStat num="35%" label="Entrevistas · negativo" sub="pico 51% el Jun 12" color={gold} />
+          <BigStat num="94%" label="Empresas · neutral" sub="tema latente, sin activación" color={muted} />
+        </div>
       </>
     )
   },
   {
-    id:'05', tag:'05 · Impacto en la percepción',
-    title:'Visibilidad positiva, crítica en las decisiones.',
-    acento:'positiva',
+    id:'04', tag:'04 · Días de riesgo',
+    title:'Jun 12 marcó el pico de exposición negativa.',
+    acento:'pico',
     render: () => (
       <>
         <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:16 }}>
-          Medido el tono de la conversación del álbum, el impacto sobre la imagen de Pepe es favorable en lo musical y crítico en lo familiar.
+          El riesgo fue acumulativo durante la semana de entrevistas (Jun 8–13). Familia se mantuvo en riesgo medio de forma estable, pero Entrevistas escaló de bajo a alto en cuatro días.
         </p>
-        <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:16 }}>
-          <BigStat num="22%" label="Positivo" sub="música y legado" color={teal} />
-          <BigStat num="53%" label="Neutral" sub="informativo" color={'#6B8C7A'} />
-          <BigStat num="25%" label="Negativo" sub="decisiones y ausencias" color={crim} />
-          <BigStat num="Medio" label="Riesgo reputacional" sub="casi todo doméstico" color={gold} />
-        </div>
-        <Callout label="Lectura por plataforma">
-          <strong>Instagram</strong> fue el más positivo —emoción por las versiones y los intérpretes—. <strong>Facebook</strong> concentró la crítica por las ausencias y el oportunismo. <strong>TikTok</strong> se mantuvo neutral con picos de rechazo. <strong>YouTube</strong> fue el terreno más limpio, encabezado por los 1.3 M de reproducciones de «China de los Ojos Negros».
+        <Table
+          headers={['Fecha','Tema más crítico','Riesgo','Detonante principal']}
+          rows={[
+            ['Jun 3','Familia / Música','Bajo–Medio','Acusación de copia al tributo de Vicente Fernández; cancelaciones gira'],
+            ['Jun 4','Familia','Medio','Cancelaciones gira; corista denuncia; quejas de artistas'],
+            ['Jun 9','Entrevistas','Medio','Declaraciones sobre Dua Lipa; hipocresía en entrevistas'],
+            ['Jun 10','Entrevistas','Medio','Favoritismo familiar expuesto; Majo forzada a disculparse'],
+            ['Jun 12','Entrevistas','ALTO','Comentarios en avión sobre Cazzu; polémica himno Mundial; 51% negativo'],
+            ['Jun 13','Familia / Entrevistas','Medio','Declaraciones clasistas; Ángela borra post mundialista; video filtrado'],
+            ['Jun 16','Familia','Medio','Contenido sensacionalista sobre rancho El Soyate; demandas Emiliano'],
+          ]}
+        />
+        <Callout label="Jun 12 · riesgo alto" color={crim}>
+          Único día con riesgo <strong>alto</strong> en toda la ventana. El 51.2% negativo en Entrevistas fue impulsado por la percepción de que Pepe se burló de Cazzu en entrevista y reaccionó negativamente a que Alejandro Fernández cantara el himno en el Mundial. El contexto del torneo amplificó el alcance.
         </Callout>
       </>
     )
   },
   {
-    id:'06', tag:'06 · Conclusión',
-    title:'Se vio mucho; pesó poco como tema propio.',
-    acento:'poco',
+    id:'05', tag:'05 · Quejas recurrentes',
+    title:'Los mismos ejes aparecen semana a semana.',
+    acento:'ejes',
+    render: () => (
+      <>
+        <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:16 }}>
+          Clasificando las categorías de queja más frecuentes a lo largo del período, cinco ejes se repiten de forma constante independientemente de la fecha:
+        </p>
+        <Table
+          headers={['Eje de queja','Tema(s) afectados','Frecuencia','Peso promedio']}
+          rows={[
+            ['Talento cuestionado / calidad artística','Familia · Música','11 de 16 días','22–32%'],
+            ['Soberbia, arrogancia, actitud','Familia · Entrevistas','10 de 16 días','14–31%'],
+            ['Escándalo Angela–Nodal–Cazzu','Familia','9 de 16 días','9–27%'],
+            ['Cancelaciones de gira / fracaso comercial','Familia','5 de 16 días','16–17%'],
+            ['Explotación / oportunismo del legado familiar','Música · Empresas','5 de 16 días','23–38%'],
+          ]}
+        />
+        <div style={{ marginTop:14, display:'flex', flexDirection:'column', gap:7 }}>
+          <QuoteCard text="¡Cancelaciones en la gira de Pepe Aguilar! ¿Crisis en la Dinastía Aguilar?" source="TikTok · Jun 4" tone="neg" />
+          <QuoteCard text="Pepe Aguilar vuelve a causar polémica porque a solo días que el disco póstumo de Vicente Fernández fuese lanzado, él hizo lo mismo con su padre Antonio Aguilar." source="TikTok · Jun 3" tone="neg" />
+          <QuoteCard text="Angela Aguilar usa las influencias de Pepe para arruinar la carrera de Majo." source="TikTok · Jun 9" tone="neg" />
+        </div>
+      </>
+    )
+  },
+  {
+    id:'06', tag:'06 · Oportunidades detectadas',
+    title:'El álbum y el Mundial abrieron espacios favorables.',
+    acento:'Mundial',
+    render: () => (
+      <>
+        <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:16 }}>
+          A pesar del peso negativo en Familia y Entrevistas, la ventana generó oportunidades reales de posicionamiento que se pueden consolidar en la siguiente etapa de comunicación.
+        </p>
+        <Table
+          headers={['Oportunidad','Tema','Fecha','Por qué importa']}
+          rows={[
+            ['Álbum "¡Que Viva Antonio Aguilar!" · lanzamiento','Música / Empresas','Jun 1–10','Recepción musical positiva; sencillo «China de los Ojos Negros» suma tracción orgánica'],
+            ['Press junket y creadores de contenido','Entrevistas','Jun 8','Cobertura favorable de legado y disciplina; entrevistas de Javibi, POSTA y Casa POSTA dominaron la narrativa positiva'],
+            ['"Mi Suerte Es Ser Mexicano Vol. 2" · lanzamiento','Música','Jun 1–3','Proyecto de raíces con recepción limpia; refuerza identidad artística sin polémicas'],
+            ['Presencia en inauguración del Mundial','Familia','Jun 11','Leonardo Aguilar como figura aspiracional; múltiples fans pidiendo a Pepe para el himno'],
+            ['Majo Aguilar · concierto a capella bajo la lluvia','Familia','Jun 15','Momento humano que contrarresta narrativa de arrogancia familiar; sin respuesta de crisis'],
+          ]}
+        />
+        <Callout label="Oportunidad subexplotada">
+          La presencia de <strong>Leonardo y Pepe Aguilar</strong> como aficionados en la inauguración del Mundial generó contenido positivo natural (el tipo de momento que ocurre sin PR). No se amplificó desde los canales propios, lo que dejó espacio en la conversación que llenaron los críticos con la narrativa del himno.
+        </Callout>
+      </>
+    )
+  },
+  {
+    id:'07', tag:'07 · Síntesis ejecutiva',
+    title:'La música es el activo; la familia sigue siendo el riesgo.',
+    acento:'activo',
     render: () => (
       <>
         <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:12 }}>
-          El álbum dejó huella en la ventana: tocó cerca de una de cada cuatro publicaciones y su sencillo principal sumó 1.3 M de reproducciones. Pero como conversación autónoma su peso fue acotado —13% del total— y quedó muy por detrás del eje familiar (60%), que siguió siendo el centro de gravedad de todo lo que se habla de Pepe.
+          El período 1–16 de junio confirma un patrón estructural: Pepe Aguilar genera conversación positiva cuando el eje es musical o de legado, y conversación negativa cuando el eje es familiar o de carácter. Los dos lanzamientos discográficos (álbum tributo y Vol. 2 de «Mi Suerte Es Ser Mexicano») tuvieron una recepción limpia, pero quedaron opacados por el volumen del tema Familia, que cuadriplicó en posts a cualquier otro eje.
         </p>
         <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:20 }}>
-          El impacto real del disco fue más de <strong style={{color:ink}}>visibilidad que de instalación de tema</strong>: funcionó como detonante de la conversación sobre la dinastía —sobre todo por las ausencias— más que como un asunto musical capaz de mover por sí solo el centro de la conversación.
+          El único día de riesgo <strong style={{color:crim}}>alto</strong> fue Jun 12, impulsado por declaraciones asociadas al Mundial y a Cazzu. El patrón no es nuevo, pero el contexto mundialista amplificó el alcance más de lo habitual.
         </p>
         <div style={{ border:`1px solid ${border}`, borderRadius:3, padding:'20px 24px', textAlign:'center',
           background:paper, margin:'8px 0 16px' }}>
           <p style={{ fontFamily:SANS, fontWeight:400, fontSize:16, fontStyle:'italic', color:ink,
             lineHeight:1.5, margin:0, letterSpacing:'-0.01em' }}>
-            «El álbum se vio mucho, pero pesó poco: encendió la conversación familiar más de lo que instaló la suya propia.»
+            «La música es el terreno más seguro; la familia sigue siendo el centro de gravedad de todo lo que se dice de Pepe.»
           </p>
           <div style={{ fontFamily:MONO, fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase',
-            color:muted, marginTop:12 }}>Síntesis de la ventana 1 – 15 Jun 2026</div>
+            color:muted, marginTop:12 }}>Síntesis de la ventana 1–16 Jun 2026</div>
         </div>
         <div style={{ fontFamily:MONO, fontSize:9, letterSpacing:'0.10em', textTransform:'uppercase',
           color:muted, display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:6 }}>
-          <span>Folio · BW-26-06-PA-RAPA-001</span>
+          <span>Folio · BW-26-06-PA-PERIODO-001</span>
           <span>Preparado por Blackwell Strategy</span>
           <span style={{ color:crim, fontWeight:600 }}>Confidencial · uso interno</span>
         </div>
@@ -261,83 +303,95 @@ const ALBUM_SECTIONS = [
   },
 ];
 
-/* ─── REPORTE 2: Entrevistas ─────────────────────────────────── */
+/* ─── REPORTE 2: Entrevistas Jun 8–13 ───────────────────────── */
 const ENTREV_SECTIONS = [
   {
-    id:'01', tag:'01 · Qué se midió — Fuentes y alcance',
-    title:'La conversación que dejaron las entrevistas.',
+    id:'01', tag:'01 · Alcance · fuentes y método',
+    title:'La semana de entrevistas en cifras.',
     acento:'entrevistas',
     render: () => (
       <>
         <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:12 }}>
-          Este reporte mide cómo reaccionó el público a las actividades de promoción del álbum <em>Que Viva Antonio Aguilar</em> durante la ventana del <strong style={{color:ink}}>3 al 10 de junio de 2026</strong>. La base analizada es de <strong style={{color:ink}}>1,388 reacciones públicas</strong> únicas.
+          Este reporte analiza la reacción pública a las actividades de promoción del álbum «¡Que Viva Antonio Aguilar!» durante la ventana del <strong style={{color:ink}}>8 al 13 de junio de 2026</strong>. La base es de <strong style={{color:ink}}>414 publicaciones clasificadas</strong> en el eje Entrevistas.
         </p>
         <Table
-          headers={['Evento','Asistentes','Tono general']}
+          headers={['Fecha','Posts','Sentimiento','Riesgo','Evento principal']}
           rows={[
-            ['Press junket, 3 de junio','EFE, Imagen Noticias, N+, ADN 40, Univisión, La Mejor FM y La Ke Buena','Favorable'],
-            ['Entrevistas «banqueteras», 3 de junio','Televisa Espectáculos, Venga la Alegría, El Junket, El Gordo y la Flaca','Favorable · Inclinación familiar'],
-            ['Encuentro con creadores de contenido, 8 de junio','Christian Mart, David Peralta, Javibi, BYMA Media, Posta','Favorable'],
+            ['Jun 8','84','36% pos · 25% neg','Bajo','Press junket álbum tributo; encuentro con creadores de contenido'],
+            ['Jun 9','65','28% pos · 39% neg','Medio','Polémicas declaraciones sobre Dua Lipa; cobertura mezclada legado/familia'],
+            ['Jun 10','67','22% pos · 40% neg','Medio','Favoritismo familiar; acusaciones cobertura pagada'],
+            ['Jun 11','69','45% pos · 22% neg','Bajo','Homenaje Antonio Aguilar; encuentro Chicharito; inauguración Mundial'],
+            ['Jun 12','65','9.5% pos · 51% neg','ALTO','Burla a Cazzu en avión; polémica himno Mundial; reacción vs Alejandro Fdz'],
+            ['Jun 13','64','17% pos · 35% neg','Medio','Declaraciones clasistas amplificadas; tono cae tras pico del Jun 12'],
           ]}
         />
-        <Callout label="Qué disparó la conversación">
-          El público reaccionó más hacia el <strong>personaje vs. las canciones del álbum</strong>: el homenaje al padre, el lugar de la familia y la dinastía, y frases sueltas de las propias entrevistas. La música funcionó como punto de partida; la discusión derivó casi siempre hacia la figura pública.
+        <Callout label="Patrón de la semana">
+          El período abre bien (Jun 8, riesgo bajo, cobertura de legado), escala en tensión del Jun 9 al 10, recupera brevemente el Jun 11 por el Mundial, y colapsa el Jun 12 con el único día de riesgo alto de toda la ventana.
         </Callout>
       </>
     )
   },
   {
-    id:'02', tag:'02 · El saldo del periodo',
-    title:'Más cálido de lo habitual.',
-    acento:'cálido',
+    id:'02', tag:'02 · El saldo global de la semana',
+    title:'La semana cerró en rojo.',
+    acento:'rojo',
     render: () => (
       <>
         <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:16 }}>
-          En esta ventana de entrevistas el saldo es <strong style={{color:ink}}>netamente más positivo</strong> que la percepción general de Pepe como figura pública. El homenaje a Antonio Aguilar y el marco de orgullo mexicano elevaron el tono; la crítica no desapareció, pero quedó concentrada y en minoría.
+          En términos acumulados, la semana de entrevistas no favoreció la imagen de Pepe Aguilar. El peso del Jun 12 arrastra el saldo hacia terreno negativo.
         </p>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:16 }}>
-          <BigStat num="36%" label="Positivo" sub="Talento y homenaje" color={teal} />
-          <BigStat num="54%" label="Neutral" sub="informativo" color={'#6B8C7A'} />
-          <BigStat num="10%" label="Negativo" sub="carácter y familia" color={crim} />
-          <BigStat num="+14" label="vs. base" sub="pts. positivo" color={goldDeep} />
+          <BigStat num="27%" label="Positivo acumulado" sub="talento y legado" color={teal} />
+          <BigStat num="38%" label="Neutral acumulado" sub="informativo" color={'#6B8C7A'} />
+          <BigStat num="35%" label="Negativo acumulado" sub="carácter y familia" color={crim} />
+          <BigStat num="Jun 12" label="Día más crítico" sub="riesgo alto · 51% neg" color={goldDeep} />
         </div>
-        <Callout>
-          Como referencia, la percepción general de Pepe como figura pública se reparte en <strong>36% positivo / 53% neutral / 10% negativo</strong>. La ventana de entrevistas casi <strong>duplica</strong> el sentimiento positivo y reduce el negativo a menos de la mitad: el formato entrevista, anclado en el disco y el padre, lo favorece.
-        </Callout>
-      </>
-    )
-  },
-  {
-    id:'03', tag:'03 · De qué habló el público',
-    title:'Los ejes de la reacción.',
-    acento:'ejes',
-    render: () => (
-      <>
-        <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:16 }}>
-          Clasificando las reacciones por tema, así se repartió la conversación sobre las entrevistas y su tono dentro de cada eje:
-        </p>
         <Table
-          headers={['Eje de la conversación','Peso','Tono dentro del eje']}
+          headers={['Eje de reacción','Peso','Tono']}
           rows={[
-            ['Talento y música','21%','59% positivo · reconocimiento a la voz y el oficio'],
-            ['Familia y dinastía','11%','Mixto · 37% pos / 14% neg (Majo, Ángela, hijos)'],
-            ['Homenaje y legado de Antonio','11%','54% positivo · «que viva Antonio Aguilar»'],
+            ['Talento y oficio artístico','21%','59% positivo'],
+            ['Homenaje a Antonio Aguilar y legado','11%','54% positivo'],
             ['México y orgullo cultural','8%','72% positivo · el eje más cálido'],
-            ['Soberbia / arrogancia','4%','84% negativo · el foco más duro'],
-            ['Oportunismo / interés comercial','2%','68% negativo · «lucra con el legado»'],
-            ['Hartazgo / saturación','1%','75% negativo · «ya aburre esa familia»'],
+            ['Familia y dinastía (Majo, Ángela, hijos)','11%','Mixto · 37% pos / 14% neg'],
+            ['Soberbia y arrogancia','4%','84% negativo'],
+            ['Oportunismo / cobertura pagada','2%','68% negativo'],
           ]}
         />
-        <Callout>
-          El <strong>volumen</strong> está del lado del talento, el homenaje y México; la <strong>negatividad</strong> es poca en cantidad pero muy concentrada en carácter y comercialización. Es exactamente el patrón de una figura «respetada en lo artístico y vulnerable en lo personal».
+      </>
+    )
+  },
+  {
+    id:'03', tag:'03 · Jun 12 · el día de riesgo alto',
+    title:'Tres detonantes en menos de 24 horas.',
+    acento:'detonantes',
+    render: () => (
+      <>
+        <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:14 }}>
+          El Jun 12 concentró el peor saldo del período (9.5% positivo / 51.2% negativo). Los tres detonantes se encadenaron y se retroalimentaron durante el día:
+        </p>
+        <Table
+          headers={['Detonante','Queja dominante','% dentro de las quejas del día']}
+          rows={[
+            ['Comentarios de Pepe y Ángela en avión, aparente burla a persona en situación vulnerable','Declaraciones polémicas en medios','25%'],
+            ['Declaración de Pepe sobre Cazzu en entrevista («llegó siendo señorita hasta el altar»)','Presencia no invitada en conversación del Mundial','26%'],
+            ['Reacción de Pepe ante Alejandro Fernández cantando el himno en el Mundial','Actitud arrogante y defensa cuestionada de Ángela','22%'],
+          ]}
+        />
+        <div style={{ marginTop:14, display:'flex', flexDirection:'column', gap:7 }}>
+          <QuoteCard text="Ciertos comentarios de Pepe Aguilar junto a Ángela en un avión han generado indignación tras burlarse de una persona y de una situación muy delicada." source="Jun 12 · publicación de alto alcance" tone="neg" />
+          <QuoteCard text="¡ÚLTIMA HORA! Pepe Aguilar ESTALLA Contra Alejandro Fernández tras QUITARLE el LUGAR a Ángela Aguilar en el Mundial." source="Jun 12 · TikTok viral" tone="neg" />
+          <QuoteCard text="Pepe Aguilar y Leonardo Aguilar fueron captados disfrutando de la inauguración del Mundial 2026 desde las gradas, padre e hijo vivieron como aficionados una noche llena de emoción." source="Jun 12 · contenido positivo" tone="pos" />
+        </div>
+        <Callout label="Contexto mundialista" color={crim}>
+          El Mundial amplificó el alcance de cada declaración. Cualquier contenido sobre Pepe en esos días compitió por atención con la inauguración, lo que elevó el escrutinio sobre cada gesto y comentario público.
         </Callout>
       </>
     )
   },
   {
-    id:'04', tag:'04 · Las dos caras',
-    title:'Lo que sumó y lo que restó.',
-    acento:'sumó',
+    id:'04', tag:'04 · Lo que sumó y lo que restó',
+    title:'Legado abre crédito; carácter lo gasta.',
+    acento:'crédito',
     render: () => (
       <>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:4 }}>
@@ -345,10 +399,10 @@ const ENTREV_SECTIONS = [
             <div style={{ fontFamily:MONO, fontSize:9.5, letterSpacing:'0.12em', textTransform:'uppercase',
               color:teal, fontWeight:600, marginBottom:10 }}>Lo que sumó</div>
             {[
-              { bold:'El homenaje al padre.', text:'El disco tributo a Antonio Aguilar fue leído como acto de amor y de preservación del legado.' },
-              { bold:'Talento y oficio.', text:'La voz, la trayectoria y el rol de maestro del regional mexicano se reconocen casi sin disputa.' },
-              { bold:'Orgullo mexicano.', text:'El marco de cultura, tradición y ranchera es el más cálido: «Pepe Aguilar es México, tradición y cultura».' },
-              { bold:'Resiliencia frente a la crítica.', text:'Un sector lo defiende activamente: «los haters hablando pestes y ellos no paran de trabajar».' },
+              { bold:'El homenaje a Antonio Aguilar.', text:'El disco tributo fue leído como acto de amor y preservación del legado. El formato entrevista, anclado en el padre, funcionó bien.' },
+              { bold:'Talento y trayectoria.', text:'La voz, el oficio y el rol de guardián del regional mexicano se reconocen sin disputa.' },
+              { bold:'Orgullo mexicano.', text:'El eje cultural fue el más cálido de la semana: «Pepe Aguilar es México, tradición y cultura».' },
+              { bold:'Encuentro con creadores (Jun 8).', text:'Javibi, POSTA y BYMA Media generaron cobertura centrada en legado y disciplina, sin polémicas.' },
             ].map((it,i) => (
               <div key={i} style={{ marginBottom:9, paddingLeft:8, borderLeft:`2px solid ${teal}` }}>
                 <span style={{ fontFamily:SANS, fontWeight:600, fontSize:12, color:ink }}>{it.bold} </span>
@@ -360,11 +414,10 @@ const ENTREV_SECTIONS = [
             <div style={{ fontFamily:MONO, fontSize:9.5, letterSpacing:'0.12em', textTransform:'uppercase',
               color:crim, fontWeight:600, marginBottom:10 }}>Lo que restó</div>
             {[
-              { bold:'Percepción de soberbia.', text:'El foco más duro (84% negativo): lo tachan de prepotente y de «hacerse el humilde» en cámara.' },
-              { bold:'Sospecha de oportunismo.', text:'Acusaciones de «lucrar con el legado del padre» y de promoción interesada.' },
-              { bold:'La familia como peso.', text:'Majo, Ángela, los hijos y el contexto Cazzu se cuelan incluso cuando la entrevista es sobre el disco.' },
-              { bold:'Saturación.', text:'«Ya aburre esa familia».' },
-              { bold:'La sombra del padre.', text:'«Es bueno, pero no se compara a su papá, el gran Don Antonio».' },
+              { bold:'Declaraciones sobre Cazzu.', text:'La frase del Jun 12 se convirtió en el soundbite negativo más citado de la semana; retroalimentó la narrativa de soberbia.' },
+              { bold:'Reacción al himno del Mundial.', text:'El contexto Alejandro Fernández activó narrativas de celos y de pugna con otros artistas.' },
+              { bold:'La familia como ruido de fondo.', text:'Majo, Ángela, los hijos y Emiliano se cuelan incluso cuando la entrevista es sobre el disco.' },
+              { bold:'Soberbia estructural.', text:'«Y no me llega» y el video en el avión son ejemplos de frases o gestos sueltos que definen la lectura de toda una aparición mediática.' },
             ].map((it,i) => (
               <div key={i} style={{ marginBottom:9, paddingLeft:8, borderLeft:`2px solid ${crim}` }}>
                 <span style={{ fontFamily:SANS, fontWeight:600, fontSize:12, color:ink }}>{it.bold} </span>
@@ -377,79 +430,49 @@ const ENTREV_SECTIONS = [
     )
   },
   {
-    id:'05', tag:'05 · La entrevista como objeto',
-    title:'Cuando el reclamo es la entrevista misma.',
-    acento:'entrevista',
-    render: () => (
-      <>
-        <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:14 }}>
-          Parte de la crítica no apuntó a Pepe sino al <strong style={{color:ink}}>acto de entrevistarlo</strong>. Un sector del público reprochó a los conductores —sobre todo a Paola Rojas— haberle dado espacio, y anunció que no vería el contenido.
-        </p>
-        <Table
-          headers={['Reacción representativa','♥','Lectura']}
-          rows={[
-            ['«Me caes de 10 Paola, pero por esta vez no veré esa entrevista…»','907','Rechazo a la entrevista, al entrevistado'],
-            ['«Llevar a ese soberbio no… Paola, la cagaste.»','60','Reproche al medio'],
-            ['«El compra premios.»','277','Sospecha de cobertura pagada'],
-            ['«Les compra para que hablen bien de la hija, jajaja.»','83','Cobertura ligada a defender a Ángela'],
-            ['«Pésimo comentario de Pepe… "y no me llega".»','168','Frase de la entrevista leída como prepotente'],
-          ]}
-        />
-        <Callout label="Punto de fricción" color={crim}>
-          La frase <strong>«y no me llega»</strong>, dicha por Pepe en la entrevista, se volvió el soundbite negativo más citado: se interpretó como «el inalcanzable» y alimentó la narrativa de soberbia. Es el tipo de declaración suelta que define la lectura de toda una entrevista.
-        </Callout>
-      </>
-    )
-  },
-  {
-    id:'06', tag:'06 · Voces del público',
+    id:'05', tag:'05 · Voces del público',
     title:'En sus propias palabras.',
     acento:'palabras',
     render: () => (
       <>
         <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:14 }}>
-          Reacciones representativas ordenadas por resonancia, de la admiración al reclamo:
+          Reacciones representativas de la semana, ordenadas del reconocimiento al reclamo:
         </p>
         <div style={{ display:'flex', flexDirection:'column', gap:7 }}>
-          {[
-            { text:'Pepe… mi más profunda admiración. Tu voz es un referente de nuestra música regional.', likes:'145', eje:'Talento' },
-            { text:'Pepe Aguilar es México, tradición y cultura.', likes:'81', eje:'Orgullo' },
-            { text:'Es una joya este álbum y que viva Antonio Aguilar.', likes:'72', eje:'Homenaje' },
-            { text:'Los haters hablando pestes de los Aguilar y ellos no paran de trabajar.', likes:'56', eje:'Defensa' },
-            { text:'Es bueno, pero no se compara a su papá, el gran Don Antonio.', likes:'930', eje:'La sombra del padre' },
-            { text:'Qué hueva con los Aguilar.', likes:'609', eje:'Hartazgo' },
-            { text:'De esa "dinastía" a muchos mexicanos ya no nos interesa saber nada.', likes:'562', eje:'Saturación' },
-            { text:'Las críticas que le hace a Cazzu no son de gratis.', likes:'177', eje:'Familia' },
-            { text:'Ya aburre esa familia, ¿no habrá más cantantes que entrevistar?', likes:'148', eje:'Saturación' },
-          ].map((q,i) => <QuoteCard key={i} {...q} />)}
+          <QuoteCard text="No entrevisté a Pepe Aguilar para hablar de polémicas. Lo entrevisté para hablar de legado. En esta conversación hablamos de Antonio Aguilar, de la disciplina que construyó una de las dinastías más importantes de la música mexicana." source="Javibi · Jun 8 · creador de contenido" tone="pos" />
+          <QuoteCard text="Pepe Aguilar habló sobre la relación que mantiene con sus hijos y dejó claro el enorme amor que siente por cada uno: 'Todos aquí venimos a aprender. Los amo.'" source="Instagram · Jun 9 · tono favorable" tone="pos" />
+          <QuoteCard text="Las redes sociales se encendieron luego de que Pepe Aguilar apareciera junto a Chicharito Hernández. Ver el carisma de la música de mariachi y la pasión del fútbol juntos." source="Facebook · Jun 11 · momento positivo" tone="pos" />
+          <QuoteCard text="Pepe Aguilar hablando despectivamente de Dua Lipa y otras mujeres." source="TikTok · Jun 9 · alto alcance" tone="neg" />
+          <QuoteCard text="¡No quieren prensa, quieren defensores! La acusación que sacude a los Aguilar." source="TikTok · Jun 10 · Jomari Goyso referenciado" tone="neg" />
+          <QuoteCard text="Bajo presión: Pepe Aguilar obliga a Majo a disculparse con Ángela en público." source="TikTok · Jun 10 · publicación viral recurrente" tone="neg" />
         </div>
       </>
     )
   },
   {
-    id:'07', tag:'07 · Conclusión',
-    title:'El homenaje abre crédito; el carácter lo gasta.',
-    acento:'crédito',
+    id:'06', tag:'06 · Conclusión',
+    title:'El formato entrevista funciona con el guión correcto.',
+    acento:'guión',
     render: () => (
       <>
         <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:12 }}>
-          Las entrevistas funcionaron a favor de Pepe, pues se anclaron en el disco y en la figura de su padre, movieron la percepción a terreno más cálido que su imagen pública habitual. El talento, el legado y el orgullo mexicano dominaron en volumen y en tono.
+          Jun 8 y Jun 11 demuestran que la entrevista como formato es favorable para Pepe cuando está anclada en legado, disciplina y música. El problema no es el formato, es la exposición a preguntas o contextos que activan las narrativas de familia, soberbia o competencia con otros artistas.
         </p>
         <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:20 }}>
-          El riesgo no es musical, es <strong style={{color:ink}}>de carácter y de saturación</strong>: la minoría crítica es pequeña pero intensa. Cuidar el tono en cámara y dosificar la exposición de la familia es lo que protege la conversación.
+          Jun 12 fue un caso de tres detonantes simultáneos en un contexto de alta atención (Mundial). Una sola declaración fuera de guión en ese contexto es suficiente para anular tres días de cobertura positiva.
         </p>
         <div style={{ border:`1px solid ${border}`, borderRadius:3, padding:'20px 24px', textAlign:'center',
           background:paper, margin:'8px 0 16px' }}>
           <p style={{ fontFamily:SANS, fontWeight:400, fontSize:16, fontStyle:'italic', color:ink,
             lineHeight:1.5, margin:0, letterSpacing:'-0.01em' }}>
-            «El homenaje abre crédito; el carácter lo gasta.»
+            «El legado abre crédito; el carácter lo gasta. Tres días positivos se borraron en uno.»
           </p>
           <div style={{ fontFamily:MONO, fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase',
-            color:muted, marginTop:12 }}>Síntesis de la ventana 3 – 10 Jun 2026</div>
+            color:muted, marginTop:12 }}>Síntesis de la ventana 8–13 Jun 2026</div>
         </div>
         <div style={{ fontFamily:MONO, fontSize:9, letterSpacing:'0.10em', textTransform:'uppercase',
           color:muted, display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:6 }}>
-          <span>Folio · BW-26-06-PPA-ENTREV-001</span>
+          <span>Folio · BW-26-06-PA-ENTREV-002</span>
           <span>Preparado por Blackwell Strategy</span>
           <span style={{ color:crim, fontWeight:600 }}>Confidencial · uso interno</span>
         </div>
@@ -460,10 +483,10 @@ const ENTREV_SECTIONS = [
 
 /* ─── Main ReporteView ───────────────────────────────────────── */
 export default function ReporteView({ isDesktop }) {
-  const [activeReport, setActiveReport] = useState('album');
+  const [activeReport, setActiveReport] = useState('periodo');
   const [sectionIdx, setSectionIdx] = useState(0);
 
-  const sections = activeReport === 'album' ? ALBUM_SECTIONS : ENTREV_SECTIONS;
+  const sections = activeReport === 'periodo' ? PERIODO_SECTIONS : ENTREV_SECTIONS;
   const section = sections[sectionIdx];
 
   function switchReport(key) {
@@ -482,13 +505,15 @@ export default function ReporteView({ isDesktop }) {
           color:ink, margin:'8px 0 4px', lineHeight:1.05 }}>
           Análisis de <em style={{ fontStyle:'normal', color:goldDeep }}>conversación</em>.
         </h1>
-        <p style={{ fontSize:12, color:muted, margin:'0 0 16px' }}>Reportes de percepción sobre el álbum y las actividades de promoción.</p>
+        <p style={{ fontSize:12, color:muted, margin:'0 0 16px' }}>
+          Jun 1–16 · 4,832 publicaciones · cuatro temas monitoreados.
+        </p>
 
         {/* Report selector */}
         <div style={{ display:'flex', gap:6 }}>
           {[
-            { key:'album', label:'Álbum · QVAA', sub:'1–15 Jun 2026' },
-            { key:'entrevistas', label:'Entrevistas · QVDA', sub:'3–10 Jun 2026' },
+            { key:'periodo', label:'Período · Jun 1–16', sub:'resumen general' },
+            { key:'entrevistas', label:'Entrevistas · Jun 8–13', sub:'ciclo de promo álbum' },
           ].map(r => (
             <button key={r.key} onClick={() => switchReport(r.key)}
               style={{ padding:'9px 14px', borderRadius:3, cursor:'pointer',
