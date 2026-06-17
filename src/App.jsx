@@ -67,7 +67,12 @@ export default function App() {
 
   if (!authed) return <LoginGate onAuth={() => setAuthed(true)} />;
 
-  function handleTabChange(t) { setTab(t); setDate('todas'); setPlat('todas'); window.scrollTo(0,0); }
+  function handleTabChange(t) {
+    const latestDay = calData
+      ? Object.keys(calData.days).sort().pop()?.slice(8) || 'todas'
+      : 'todas';
+    setTab(t); setDate(latestDay); setPlat('todas'); window.scrollTo(0,0);
+  }
   function handleGoFromCalendar(themeKey, dateKey) {
     const dayNum = dateKey.slice(8); // "2026-06-09" → "09"
     setTab(themeKey);
