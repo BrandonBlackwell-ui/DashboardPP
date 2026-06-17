@@ -28,11 +28,11 @@ export async function loadFromSupabase() {
 
     if (error || !reports?.length) return;
 
-    // For PA_DATA.themes: use the most recently inserted record per theme (created_at wins)
-    // This prevents stale records with wrong dates from overwriting fresh uploads
+    // For PA_DATA.themes: use the record with the latest date_key per theme
+    // date_key is the report's content date, not upload time — ensures June 15 data wins over historical imports
     const latestByTheme = {};
     for (const rep of reports) {
-      if (!latestByTheme[rep.theme_key] || rep.created_at > latestByTheme[rep.theme_key].created_at) {
+      if (!latestByTheme[rep.theme_key] || rep.date_key > latestByTheme[rep.theme_key].date_key) {
         latestByTheme[rep.theme_key] = rep;
       }
     }
