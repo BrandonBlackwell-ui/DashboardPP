@@ -289,9 +289,9 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                     letterSpacing:'-0.015em', color:C.ink, margin:0 }}>Oportunidades</h2>
                   <span style={{ ...pill(C.teal,C.tealBg,C.tealBd) }}>Nivel {cap(op.nivel||'—')}</span>
                 </div>
-                <Card accentColor={C.teal}>
+                {op.recomendacion && <Card accentColor={C.teal}>
                   <div style={{ fontSize:14, lineHeight:1.5, color:'#2A241C' }}>{op.recomendacion}</div>
-                </Card>
+                </Card>}
                 {opPosts.map((p,i) => (
                   <TiltCard key={i} style={{ marginBottom:8, borderRadius:3 }}>
                     <a href={p.url} target="_blank" rel="noopener" style={{ display:'block', textDecoration:'none',
@@ -414,9 +414,9 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       {/* Oportunidades */}
       {(op.recomendacion||opPosts.length>0) && (
         <Section title="Oportunidades" right={<span style={{ ...pill(C.teal,C.tealBg,C.tealBd) }}>Nivel {cap(op.nivel||'—')}</span>}>
-          <Card accentColor={C.teal}>
+          {op.recomendacion && <Card accentColor={C.teal}>
             <div style={{ fontSize:14, lineHeight:1.5, color:'#2A241C' }}>{op.recomendacion}</div>
-          </Card>
+          </Card>}
           {opPosts.map((p,i) => (
             <TiltCard key={i} style={{ marginBottom:8, borderRadius:3 }}>
               <a href={p.url} target="_blank" rel="noopener" style={{ display:'block', textDecoration:'none',
