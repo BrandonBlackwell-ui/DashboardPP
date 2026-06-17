@@ -58,7 +58,7 @@ export default function CalendarView({ calData, onGoTheme, isDesktop, supabaseKe
 
       {/* Header */}
       <motion.div variants={item}>
-        <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, letterSpacing:'0.18em',
+        <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, letterSpacing:'0.18em',
           textTransform:'uppercase', color:C.gold, fontWeight:600 }}>Histórico · 1 – 15 jun 2026</div>
         <h1 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:28, lineHeight:1.05,
           letterSpacing:'-0.025em', color:C.ink, margin:'8px 0 4px' }}>
@@ -72,7 +72,7 @@ export default function CalendarView({ calData, onGoTheme, isDesktop, supabaseKe
         {TOPICS.map(t => (
           <div key={t.key} style={{ display:'flex', alignItems:'center', gap:5 }}>
             <span style={{ width:8, height:8, borderRadius:2, background:t.color, flex:'none' }} />
-            <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, color:'#6B6253',
+            <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:'#6B6253',
               letterSpacing:'0.08em', textTransform:'uppercase' }}>{t.label}</span>
           </div>
         ))}
@@ -100,7 +100,7 @@ export default function CalendarView({ calData, onGoTheme, isDesktop, supabaseKe
                 transition:'all 0.15s' }}>
               <div style={{ fontFamily:"'Geist Mono',monospace", fontWeight:700, fontSize:15,
                 color: isActive ? '#FBF8F1' : hasAny ? C.ink : '#C4B89A', lineHeight:1 }}>{dayNum}</div>
-              <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:8, letterSpacing:'0.08em',
+              <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, letterSpacing:'0.08em',
                 textTransform:'uppercase', color: isActive ? 'rgba(255,255,255,0.5)' : '#8A7E6A',
                 marginTop:3, marginBottom:6 }}>{dayName}</div>
               <div style={{ display:'flex', justifyContent:'center', gap:3, flexWrap:'wrap' }}>
@@ -123,7 +123,7 @@ export default function CalendarView({ calData, onGoTheme, isDesktop, supabaseKe
           initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-8 }}
           transition={{ duration:0.25 }}>
 
-          <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, letterSpacing:'0.16em',
+          <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, letterSpacing:'0.16em',
             textTransform:'uppercase', color:C.gold, fontWeight:600, marginBottom:12 }}>
             {(() => { const d=new Date(selected+'T12:00:00'); return d.getDate()+' '+MONTHS_ES[d.getMonth()]+' 2026'; })()}
           </div>
@@ -152,18 +152,18 @@ export default function CalendarView({ calData, onGoTheme, isDesktop, supabaseKe
                       <span style={{ fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:14,
                         color: td ? C.ink : '#A9997B' }}>{t.label}</span>
                       {rm && (td.pos > 0 || td.neg > 0) && <span style={{ display:'inline-flex', alignItems:'center', padding:'1px 6px',
-                        borderRadius:999, fontFamily:"'Geist Mono',monospace", fontSize:8.5, fontWeight:500,
+                        borderRadius:999, fontFamily:"'Geist Mono',monospace", fontSize:11, fontWeight:500,
                         letterSpacing:'0.06em', textTransform:'uppercase', color:rm.ink,
                         background:rm.bg, border:`1px solid ${rm.bd}` }}>{rm.label}</span>}
                     </div>
                     {td && (td.pos > 0 || td.neg > 0) ? (
                       <SentBar pos={td.pos} neu={Math.max(0,100-td.pos-td.neg)} neg={td.neg} />
                     ) : (
-                      <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, color:'#A9997B',
+                      <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:'#A9997B',
                         marginTop:4, letterSpacing:'0.06em' }}>{td ? 'SIN ANÁLISIS DE SENTIMIENTO' : 'SIN DATOS PARA ESTA FECHA'}</div>
                     )}
                     {td && (td.pos > 0 || td.neg > 0) && (
-                      <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, color:'#6B6253',
+                      <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:'#6B6253',
                         letterSpacing:'0.04em' }}>
                         {(Math.round((td.pos||0)*10)/10).toFixed(1)}% fav · {(Math.round((td.neg||0)*10)/10).toFixed(1)}% crítica · {td.posts||0} posts
                       </div>
@@ -172,7 +172,7 @@ export default function CalendarView({ calData, onGoTheme, isDesktop, supabaseKe
                   {td && (!supabaseKeys || supabaseKeys.has(`${t.key}:${selected}`) || !!td) && (
                     <motion.button whileTap={{ scale:0.9 }}
                       onClick={() => onGoTheme(t.key, selected)}
-                      style={{ flex:'none', fontFamily:"'Geist Mono',monospace", fontSize:9.5, fontWeight:600,
+                      style={{ flex:'none', fontFamily:"'Geist Mono',monospace", fontSize:11, fontWeight:600,
                         color:C.goldDeep, background:'transparent', border:'none', cursor:'pointer',
                         letterSpacing:'0.06em', padding:'4px 6px' }}>
                       VER →

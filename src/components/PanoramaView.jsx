@@ -18,7 +18,7 @@ function SentLegend({ pos, neu, neg }) {
     <div key={l.label} style={{ display:'flex', alignItems:'center', gap:9, marginBottom:9 }}>
       <span style={{ width:8,height:8,borderRadius:'50%',flex:'none',background:l.color }} />
       <span style={{ fontSize:12.5, color:'#2A241C', flex:1 }}>{l.label}</span>
-      <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:600, fontSize:13, color:C.ink }}>{l.pct}</span>
+      <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:600, fontSize:14, color:C.ink }}>{l.pct}</span>
     </div>
   ));
 }
@@ -30,7 +30,7 @@ function KPIs({ kpis }) {
         <motion.div key={k.label} variants={item}
           style={{ flex:1, background:k.bg, border:`1px solid ${k.border}`, borderRadius:2,
             padding:'13px 13px 11px', position:'relative', overflow:'hidden' }}>
-          <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, letterSpacing:'0.12em',
+          <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, letterSpacing:'0.12em',
             textTransform:'uppercase', color:k.lblColor }}>{k.label}</div>
           <AnimatedNumber value={k.value}
             style={{ display:'block', fontSize:27, fontWeight:600, lineHeight:1.05,
@@ -91,7 +91,7 @@ export default function PanoramaView({ pano, data, onGoTheme, isDesktop }) {
             border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:18 }}>
           <Donut pos={aPos} neu={aNeu} neg={aNeg} size={104} showLabel />
           <div style={{ flex:1 }}>
-            <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, letterSpacing:'0.14em',
+            <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, letterSpacing:'0.14em',
               textTransform:'uppercase', color:'#6B6253', marginBottom:10 }}>Sentimiento agregado</div>
             <SentLegend pos={aPos} neu={aNeu} neg={aNeg} />
           </div>
@@ -117,8 +117,8 @@ export default function PanoramaView({ pano, data, onGoTheme, isDesktop }) {
                       letterSpacing:'-0.01em', color:C.ink }}>{c.label}</span>
                     <span style={{ ...pill(c.pillStyle.ink,c.pillStyle.bg,c.pillStyle.bd) }}>{c.riskLabel}</span>
                   </div>
-                  <div style={{ fontSize:11.5, color:'#6B6253', marginTop:4, lineHeight:1.4 }}>{c.es}</div>
-                  <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, letterSpacing:'0.05em',
+                  <div style={{ fontSize:13, color:'#6B6253', marginTop:4, lineHeight:1.4 }}>{c.es}</div>
+                  <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, letterSpacing:'0.05em',
                     color:'#8A7E6A', marginTop:6, textTransform:'uppercase' }}>{c.metaLine}</div>
                 </div>
                 <span style={{ fontFamily:"'Geist Mono',monospace", color:C.gold, fontSize:13 }}>→</span>
@@ -148,7 +148,7 @@ export default function PanoramaView({ pano, data, onGoTheme, isDesktop }) {
               <div style={{ fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:17,
                 letterSpacing:'-0.01em', color:C.ink, marginTop:12 }}>{c.label}</div>
               <span style={{ ...pill(c.pillStyle.ink,c.pillStyle.bg,c.pillStyle.bd), marginTop:7 }}>{c.riskLabel}</span>
-              <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.05em',
+              <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, letterSpacing:'0.05em',
                 color:'#8A7E6A', marginTop:9, textAlign:'center', textTransform:'uppercase' }}>{c.metaLine}</div>
             </TiltCard>
           ))}
@@ -182,10 +182,10 @@ export default function PanoramaView({ pano, data, onGoTheme, isDesktop }) {
                 <span style={{ ...pill(a.pillStyle.ink,a.pillStyle.bg,a.pillStyle.bd) }}>{a.riskLabel}</span>
               </div>
               <div style={{ display:'flex', gap:8, marginTop:9, alignItems:'center' }}>
-                <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, fontWeight:500,
+                <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, fontWeight:500,
                   color:C.teal, letterSpacing:'0.04em' }}>{Math.round(a.pos)}% FAVORABLE</span>
                 <span style={{ width:3,height:3,borderRadius:'50%',background:'#A9997B' }} />
-                <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, fontWeight:500,
+                <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, fontWeight:500,
                   color:C.crim, letterSpacing:'0.04em' }}>{Math.round(a.neg)}% CRÍTICA</span>
               </div>
             </div>
