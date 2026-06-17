@@ -146,7 +146,7 @@ export default function App() {
           )}
           {tab==='historico' && (
             <motion.div key="historico" initial={{ opacity:0, x:24 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-24 }} transition={{ duration:0.22 }}>
-              <CalendarView calData={calData} onGoTheme={handleGoFromCalendar} isDesktop={isDesktop} />
+              <CalendarView calData={calData} onGoTheme={handleGoFromCalendar} isDesktop={isDesktop} supabaseKeys={window.SUPABASE_KEYS} />
             </motion.div>
           )}
         </AnimatePresence>

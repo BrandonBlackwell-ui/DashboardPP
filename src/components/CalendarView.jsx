@@ -31,7 +31,7 @@ function SentBar({ pos, neu, neg }) {
   );
 }
 
-export default function CalendarView({ calData, onGoTheme, isDesktop }) {
+export default function CalendarView({ calData, onGoTheme, isDesktop, supabaseKeys }) {
   const CD = calData;
   const days = CD?.days || {};
 
@@ -169,7 +169,7 @@ export default function CalendarView({ calData, onGoTheme, isDesktop }) {
                       </div>
                     )}
                   </div>
-                  {td && (
+                  {td && (!supabaseKeys || supabaseKeys.has(`${t.key}:${selected}`)) && (
                     <motion.button whileTap={{ scale:0.9 }}
                       onClick={() => onGoTheme(t.key, selected)}
                       style={{ flex:'none', fontFamily:"'Geist Mono',monospace", fontSize:9.5, fontWeight:600,

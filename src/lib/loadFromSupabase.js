@@ -28,6 +28,9 @@ export async function loadFromSupabase() {
 
     if (error || !reports?.length) return;
 
+    // Build a set of "theme_key:date_key" strings for calendar VER button gating
+    window.SUPABASE_KEYS = new Set(reports.map(r => `${r.theme_key}:${r.date_key}`));
+
     // For PA_DATA.themes: use the record with the latest date_key per theme
     // date_key is the report's content date, not upload time — ensures June 15 data wins over historical imports
     const latestByTheme = {};
