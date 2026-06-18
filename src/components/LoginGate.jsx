@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 
-const CORRECT_PW = 'pp2026';
+const PASSWORDS = { 'pp2026': 'viewer', 'admin2026': 'admin' };
 
 const GRID_BG = {
   backgroundImage: 'linear-gradient(rgba(33,28,23,0.07) 1px,transparent 1px),linear-gradient(90deg,rgba(33,28,23,0.07) 1px,transparent 1px)',
@@ -15,8 +15,10 @@ export default function LoginGate({ onAuth }) {
   const [showPw, setShowPw] = useState(false);
 
   function submit() {
-    if (pw === CORRECT_PW) {
+    const role = PASSWORDS[pw];
+    if (role) {
       sessionStorage.setItem('bw_auth', '1');
+      sessionStorage.setItem('bw_role', role);
       onAuth();
     } else {
       setError('Contraseña incorrecta');

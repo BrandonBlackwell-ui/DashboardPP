@@ -57,14 +57,16 @@ export default function Header({ tab, data, onExport, onTabChange, onUpload }) {
                 color:C.ink, cursor:'pointer', transition:'all 0.15s', whiteSpace:'nowrap' }}>
               {tab==='panorama'||tab==='historico' ? 'Exportar' : 'Exportar'} ↓
             </motion.button>
-            <motion.button whileHover={{ background:C.gold, color:'#FBF8F1', borderColor:C.gold }} whileTap={{ scale:0.95 }}
-              onClick={onUpload}
-              style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'7px 11px', borderRadius:2,
-                fontFamily:"'Geist Mono',monospace", fontSize:10, fontWeight:600, letterSpacing:'0.08em',
-                textTransform:'uppercase', border:`1px solid ${C.gold}`, background:'transparent',
-                color:C.gold, cursor:'pointer', transition:'all 0.15s', whiteSpace:'nowrap' }}>
-              + Subir CSV
-            </motion.button>
+            {onUpload && (
+              <motion.button whileHover={{ background:C.gold, color:'#FBF8F1', borderColor:C.gold }} whileTap={{ scale:0.95 }}
+                onClick={onUpload}
+                style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'7px 11px', borderRadius:2,
+                  fontFamily:"'Geist Mono',monospace", fontSize:10, fontWeight:600, letterSpacing:'0.08em',
+                  textTransform:'uppercase', border:`1px solid ${C.gold}`, background:'transparent',
+                  color:C.gold, cursor:'pointer', transition:'all 0.15s', whiteSpace:'nowrap' }}>
+                + Subir CSV
+              </motion.button>
+            )}
           </div>
         </div>
 

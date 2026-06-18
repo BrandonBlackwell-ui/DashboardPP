@@ -50,6 +50,7 @@ function Loading() {
 
 export default function App() {
   const [authed, setAuthed] = useState(() => sessionStorage.getItem('bw_auth') === '1');
+  const isAdmin = sessionStorage.getItem('bw_role') === 'admin';
   const { data, calData, refreshData } = useData();
   const isDesktop = useBreakpoint();
   const [tab, setTab] = useState('panorama');
@@ -230,7 +231,7 @@ export default function App() {
         {data && (
           <DesktopShell
             tab={tab} data={data} pano={pano}
-            onTabChange={handleTabChange} onExport={handleExport} onUpload={handleUpload}>
+            onTabChange={handleTabChange} onExport={handleExport} onUpload={isAdmin ? handleUpload : null}>
             {/* SubBar as sticky strip inside content */}
             <SubBar tab={tab} pano={pano} date={date} plat={plat} data={data}
               dateOptions={dateOptions} onPanoChange={setPano} onDateChange={handleDateChange} onPlatChange={setPlat} isDesktop
@@ -256,7 +257,7 @@ export default function App() {
         {!data && <Loading />}
 
         {data && (<>
-          <Header tab={tab} data={data} onExport={handleExport} onTabChange={handleTabChange} onUpload={handleUpload} />
+          <Header tab={tab} data={data} onExport={handleExport} onTabChange={handleTabChange} onUpload={isAdmin ? handleUpload : null} />
           <SubBar tab={tab} pano={pano} date={date} plat={plat} data={data}
             dateOptions={dateOptions} onPanoChange={setPano} onDateChange={handleDateChange} onPlatChange={setPlat}
             panoramaDate={panoramaDate} onPanoramaDateChange={setPanoramaDate} />
