@@ -13,6 +13,8 @@ import UploadModal, { applyStoredExtra } from './components/UploadModal';
 import ExportModal from './components/ExportModal';
 import LoginGate from './components/LoginGate';
 import { loadFromSupabase, loadThemeByDate } from './lib/loadFromSupabase';
+import { getFridayDateKey } from './utils/helpers';
+
 
 const INK_SVG = `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><filter id="bw-ink" x="-3%" y="-15%" width="106%" height="130%" filterUnits="objectBoundingBox" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="3" seed="4" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/></filter><filter id="bw-ink-rough" x="-3%" y="-80%" width="106%" height="260%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.04 0.5" numOctaves="2" seed="7" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="2.5" xChannelSelector="R" yChannelSelector="G"/></filter></defs></svg>`;
 
@@ -112,23 +114,25 @@ export default function App() {
       return;
     }
     const latestDateKey = calData ? Object.keys(calData.days).sort().pop() : null;
-    const latestDay = latestDateKey?.slice(8) || 'todas';
-    const hasDataForLatest = latestDateKey && window.SUPABASE_KEYS?.has(`${t}:${latestDateKey}`);
+    const targetDateKey = latestDateKey ? getFridayDateKey(latestDateKey) : null;
+    const latestDay = targetDateKey?.slice(8) || 'todas';
+    const hasDataForLatest = targetDateKey && window.SUPABASE_KEYS?.has(`${t}:${targetDateKey}`);
     if (hasDataForLatest) {
       // Cache "todas" state before overwriting with latest date
       if (window.PA_DATA?.themes?.[t] && !todasCache.current[t]) {
         todasCache.current[t] = window.PA_DATA.themes[t];
       }
-      await loadThemeByDate(t, latestDateKey);
+      await loadThemeByDate(t, targetDateKey);
       refreshData();
     }
     setTab(t); setDate(latestDay); setPlat('todas');
     window.scrollTo(0, 0);
   }
   async function handleGoFromCalendar(themeKey, dateKey) {
-    const dayNum = dateKey.slice(8);
-    const loaded = await loadThemeByDate(themeKey, dateKey);
-    if (!loaded) buildThemeFromCalendar(themeKey, dateKey);
+    const targetDateKey = getFridayDateKey(dateKey);
+    const dayNum = targetDateKey.slice(8);
+    const loaded = await loadThemeByDate(themeKey, targetDateKey);
+    if (!loaded) buildThemeFromCalendar(themeKey, targetDateKey);
     refreshData();
     setTab(themeKey);
     setDate(dayNum);
@@ -167,13 +171,35 @@ export default function App() {
 
   // Build date options dynamically from calData (last 7 days with any data, most recent first)
   const dateOptions = (() => {
-    const dayKeys = calData ? Object.keys(calData.days).sort().reverse().slice(0, 7).reverse() : [];
-    const opts = [['todas', 'Todas']];
+    if (!calData) return [['todas', 'Todas']];
+    const dayKeys = Object.keys(calData.days).sort(); // Sort chronological
+    const optsMap = new Map(); // key -> label
+    
     dayKeys.forEach(dk => {
-      const day = dk.slice(8); // "09"
-      const dayInt = parseInt(day, 10);
-      opts.push([day, `${dayInt} jun`]);
+      const dateObj = new Date(dk + 'T12:00:00');
+      const dayOfWeek = dateObj.getDay();
+      const dayInt = parseInt(dk.slice(8), 10);
+      
+      if (dayOfWeek === 5) { // Friday
+        const key = String(dayInt).padStart(2, '0');
+        optsMap.set(key, `${dayInt}-${dayInt + 2} jun`);
+      } else if (dayOfWeek === 6) { // Saturday
+        const key = String(dayInt - 1).padStart(2, '0');
+        optsMap.set(key, `${dayInt - 1}-${dayInt + 1} jun`);
+      } else if (dayOfWeek === 0) { // Sunday
+        const key = String(dayInt - 2).padStart(2, '0');
+        optsMap.set(key, `${dayInt - 2}-${dayInt} jun`);
+      } else {
+        const key = String(dayInt).padStart(2, '0');
+        optsMap.set(key, `${dayInt} jun`);
+      }
     });
+
+    const allOpts = Array.from(optsMap.entries()); // array of [key, label]
+    // Get last 7 options
+    const sliced = allOpts.slice(-7);
+    const opts = [['todas', 'Todas'], ...sliced];
+
     // Ensure current date is included if not already
     if (date !== 'todas' && !opts.find(([k]) => k === date)) {
       const dayInt = parseInt(date, 10);

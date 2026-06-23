@@ -63,7 +63,28 @@ function checkAndIngest() {
         if (!filename.toLowerCase().endsWith('.csv')) return;
 
         try {
-          const csvContent = att.getDataAsString('UTF-8');
+          let csvContent = att.getDataAsString('UTF-8');
+
+          // Limpiar columna pesada e inutilizada "all_platforms_data" para evitar superar el límite de Vercel (4.5MB)
+          try {
+            const parsedCsv = Utilities.parseCsv(csvContent);
+            if (parsedCsv.length >= 2) {
+              const headers = parsedCsv[0];
+              const targetIdx = headers.indexOf('all_platforms_data');
+              if (targetIdx !== -1) {
+                for (let r = 1; r < parsedCsv.length; r++) {
+                  parsedCsv[r][targetIdx] = '{}';
+                }
+                csvContent = parsedCsv.map(row => 
+                  row.map(cell => '"' + cell.replace(/"/g, '""') + '"').join(',')
+                ).join('\n');
+                Logger.log(`🧹 Removido all_platforms_data de ${filename} para reducir tamaño.`);
+              }
+            }
+          } catch (csvErr) {
+            Logger.log(`⚠ No se pudo limpiar CSV: ${csvErr.message}. Enviando original.`);
+          }
+
           const result = postToIngest(filename, csvContent);
 
           if (result.ok) {

@@ -1,4 +1,6 @@
 import { supabase } from './supabase';
+import { getWeekendDates, getFridayDateKey } from '../utils/helpers';
+
 
 // Fetch all uploaded reports from Supabase and apply them to window.PA_DATA / CALENDAR_DATA
 export async function loadFromSupabase() {
@@ -29,7 +31,18 @@ export async function loadFromSupabase() {
     if (error || !reports?.length) return;
 
     // Build a set of "theme_key:date_key" strings for calendar VER button gating
-    window.SUPABASE_KEYS = new Set(reports.map(r => `${r.theme_key}:${r.date_key}`));
+    const keys = new Set();
+    for (const r of reports) {
+      keys.add(`${r.theme_key}:${r.date_key}`);
+      const weekend = getWeekendDates(r.date_key);
+      if (weekend) {
+        for (const wd of weekend) {
+          keys.add(`${r.theme_key}:${wd}`);
+        }
+      }
+    }
+    window.SUPABASE_KEYS = keys;
+
 
     // For PA_DATA.themes: use the record with the latest date_key per theme
     // date_key is the report's content date, not upload time — ensures June 15 data wins over historical imports
@@ -132,15 +145,21 @@ export async function loadFromSupabase() {
 
       // CALENDAR_DATA: apply every record by its actual date_key (full history)
       if (window.CALENDAR_DATA) {
-        if (!window.CALENDAR_DATA.days[rep.date_key]) window.CALENDAR_DATA.days[rep.date_key] = {};
-        const s = themeData.sentiment || {};
-        window.CALENDAR_DATA.days[rep.date_key][rep.theme_key] = {
-          pos: s.pos||0, neg: s.neg||0,
-          risk: themeData.risk?.level || 'bajo',
-          posts: themeData.totals?.posts || 0,
-          topEvents: (themeData.timeline?.events||[]).slice(0,3).map(e=>e.main).filter(Boolean),
-          headlines: [],
-        };
+        const targetDates = [rep.date_key];
+        const weekend = getWeekendDates(rep.date_key);
+        if (weekend) targetDates.push(...weekend);
+
+        for (const dk of targetDates) {
+          if (!window.CALENDAR_DATA.days[dk]) window.CALENDAR_DATA.days[dk] = {};
+          const s = themeData.sentiment || {};
+          window.CALENDAR_DATA.days[dk][rep.theme_key] = {
+            pos: s.pos||0, neg: s.neg||0,
+            risk: themeData.risk?.level || 'bajo',
+            posts: themeData.totals?.posts || 0,
+            topEvents: (themeData.timeline?.events||[]).slice(0,3).map(e=>e.main).filter(Boolean),
+            headlines: [],
+          };
+        }
       }
     }
 
@@ -148,8 +167,15 @@ export async function loadFromSupabase() {
     if (window.PA_DATA?.meta) {
       const latestDateKey = Object.values(latestByTheme).map(r => r.date_key).sort().pop();
       if (latestDateKey) {
-        window.PA_DATA.meta.period.end = latestDateKey;
-        const d = new Date(latestDateKey + 'T12:00:00');
+        let endKey = latestDateKey;
+        const dateObj = new Date(latestDateKey + 'T12:00:00');
+        if (dateObj.getDay() === 5) { // Friday
+          const sun = new Date(dateObj);
+          sun.setDate(dateObj.getDate() + 2);
+          endKey = sun.toISOString().slice(0, 10);
+        }
+        window.PA_DATA.meta.period.end = endKey;
+        const d = new Date(endKey + 'T12:00:00');
         const ms = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
         window.PA_DATA.meta.range_label = `${d.getDate()} ${ms[d.getMonth()]} ${d.getFullYear()}`;
       }
@@ -162,6 +188,7 @@ export async function loadFromSupabase() {
 // Load a single theme's data for a specific date_key and apply it to PA_DATA.themes
 // Used when navigating from the calendar to a specific historical day
 export async function loadThemeByDate(themeKey, dateKey) {
+  const targetDateKey = getFridayDateKey(dateKey);
   try {
     const { data: reports, error } = await supabase
       .from('reports')
@@ -173,8 +200,9 @@ export async function loadThemeByDate(themeKey, dateKey) {
         emojis(*), comments_topics(*), voice_segments(*), narrative_gap(*)
       `)
       .eq('theme_key', themeKey)
-      .eq('date_key', dateKey)
+      .eq('date_key', targetDateKey)
       .limit(1);
+
 
     if (error || !reports?.length) return false;
     const rep = reports[0];

@@ -49,3 +49,35 @@ export function pill(ink,bg,bd) {
     fontFamily:"'Geist Mono',monospace",fontSize:'9px',fontWeight:500,letterSpacing:'0.06em',
     textTransform:'uppercase',whiteSpace:'nowrap',color:ink,background:bg,border:`1px solid ${bd}` };
 }
+
+export function getWeekendDates(dateStr) {
+  const dateObj = new Date(dateStr + 'T12:00:00');
+  if (dateObj.getDay() === 5) { // 5 is Friday
+    const sat = new Date(dateObj);
+    sat.setDate(dateObj.getDate() + 1);
+    const sun = new Date(dateObj);
+    sun.setDate(dateObj.getDate() + 2);
+    return [
+      sat.toISOString().slice(0, 10),
+      sun.toISOString().slice(0, 10)
+    ];
+  }
+  return null;
+}
+
+export function getFridayDateKey(dateKey) {
+  const dateObj = new Date(dateKey + 'T12:00:00');
+  const day = dateObj.getDay();
+  if (day === 6) { // Saturday
+    const fri = new Date(dateObj);
+    fri.setDate(dateObj.getDate() - 1);
+    return fri.toISOString().slice(0, 10);
+  }
+  if (day === 0) { // Sunday
+    const fri = new Date(dateObj);
+    fri.setDate(dateObj.getDate() - 2);
+    return fri.toISOString().slice(0, 10);
+  }
+  return dateKey;
+}
+

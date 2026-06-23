@@ -71,9 +71,19 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
   const s = t.sentiment || { pos:0, neu:0, neg:0 };
   const rm = riskMeta(t.risk?.level);
 
+  const targetDays = [date];
+  if (date !== 'todas') {
+    const dateObj = new Date(`2026-06-${date}T12:00:00`);
+    if (dateObj.getDay() === 5) { // 5 is Friday
+      const d1 = parseInt(date, 10);
+      targetDays.push(String(d1 + 1).padStart(2, '0'));
+      targetDays.push(String(d1 + 2).padStart(2, '0'));
+    }
+  }
+
   const platMatch = pl => plat==='todas' || pl===plat;
-  const dateMatchTs = ts => { if(date==='todas') return true; const m=/\d{4}-\d{2}-(\d{2})/.exec(ts||''); return m && m[1]===date; };
-  const dateMatchSlash = f => { if(date==='todas') return true; const m=/^(\d{2})\//.exec(f||''); return m && m[1]===date; };
+  const dateMatchTs = ts => { if(date==='todas') return true; const m=/\d{4}-\d{2}-(\d{2})/.exec(ts||''); return m && targetDays.includes(m[1]); };
+  const dateMatchSlash = f => { if(date==='todas') return true; const m=/^(\d{2})\//.exec(f||''); return m && targetDays.includes(m[1]); };
 
   const mapPost = p => ({
     url:p.url, text:p.text, razon:p.razon,
@@ -150,7 +160,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
 
   // Timeline
   const tl = t.timeline||{};
-  const events = (tl.events||[]).filter(e=>date==='todas'||(e.date||'').endsWith('-'+date)).map(e => {
+  const events = (tl.events||[]).filter(e=>date==='todas'||targetDays.some(d => (e.date||'').endsWith('-'+d))).map(e => {
     const m=sentMeta(e.sentiment);
     const dd=(e.date||'').slice(8,10), mm=(e.date||'').slice(5,7);
     return { dateLabel:dd+'/'+mm, main:e.main, sentiment:cap(e.sentiment), engagement:cap(e.engagement),

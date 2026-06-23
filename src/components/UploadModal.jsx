@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { parseDailyCSV } from '../utils/csvParser';
-import { C } from '../utils/helpers';
+import { C, getWeekendDates } from '../utils/helpers';
 import { saveReport } from '../lib/saveReport';
 
 const STORAGE_KEY = 'bw_pa_extra_data';
@@ -24,34 +24,47 @@ export function mergeNewData(dateKey, themeKey, themeData) {
   if (window.PA_DATA?.themes) {
     window.PA_DATA.themes[themeKey] = themeData;
     // Update range label if new date is later
-    const newDate = new Date(dateKey);
+    let targetEndKey = dateKey;
+    const dateObj = new Date(dateKey + 'T12:00:00');
+    if (dateObj.getDay() === 5) { // Friday
+      const sun = new Date(dateObj);
+      sun.setDate(dateObj.getDate() + 2);
+      targetEndKey = sun.toISOString().slice(0, 10);
+    }
+    const newDate = new Date(targetEndKey);
     const curEnd = new Date(window.PA_DATA.meta?.period?.end || '2026-06-15');
     if (newDate > curEnd) {
-      window.PA_DATA.meta.period.end = dateKey;
+      window.PA_DATA.meta.period.end = targetEndKey;
       const start = window.PA_DATA.meta.period.start;
-      window.PA_DATA.meta.range_label = formatRange(start, dateKey);
+      window.PA_DATA.meta.range_label = formatRange(start, targetEndKey);
     }
   }
 
   // 2. Update CALENDAR_DATA
   if (window.CALENDAR_DATA) {
-    if (!window.CALENDAR_DATA.days[dateKey]) window.CALENDAR_DATA.days[dateKey] = {};
-    const s = themeData.sentiment || {};
-    window.CALENDAR_DATA.days[dateKey][themeKey] = {
-      pos: s.pos || 0, neg: s.neg || 0,
-      risk: themeData.risk?.level || 'bajo',
-      posts: themeData.totals?.posts || 0,
-      topEvents: (themeData.timeline?.events || []).slice(0,3).map(e => e.main).filter(Boolean),
-      headlines: [],
-      alerts: themeData.alerts?.total || 0,
-      opps: themeData.opps?.total || 0,
-    };
-    // Extend range
-    if (dateKey > (window.CALENDAR_DATA.dateRange?.end || '')) {
-      window.CALENDAR_DATA.dateRange.end = dateKey;
-    }
-    if (dateKey < (window.CALENDAR_DATA.dateRange?.start || '9999')) {
-      window.CALENDAR_DATA.dateRange.start = dateKey;
+    const targetDates = [dateKey];
+    const weekend = getWeekendDates(dateKey);
+    if (weekend) targetDates.push(...weekend);
+
+    for (const dk of targetDates) {
+      if (!window.CALENDAR_DATA.days[dk]) window.CALENDAR_DATA.days[dk] = {};
+      const s = themeData.sentiment || {};
+      window.CALENDAR_DATA.days[dk][themeKey] = {
+        pos: s.pos || 0, neg: s.neg || 0,
+        risk: themeData.risk?.level || 'bajo',
+        posts: themeData.totals?.posts || 0,
+        topEvents: (themeData.timeline?.events || []).slice(0,3).map(e => e.main).filter(Boolean),
+        headlines: [],
+        alerts: themeData.alerts?.total || 0,
+        opps: themeData.opps?.total || 0,
+      };
+      // Extend range
+      if (dk > (window.CALENDAR_DATA.dateRange?.end || '')) {
+        window.CALENDAR_DATA.dateRange.end = dk;
+      }
+      if (dk < (window.CALENDAR_DATA.dateRange?.start || '9999')) {
+        window.CALENDAR_DATA.dateRange.start = dk;
+      }
     }
   }
 
