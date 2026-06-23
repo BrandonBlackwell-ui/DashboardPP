@@ -13,7 +13,7 @@
  */
 
 // ─── Configuración ────────────────────────────────────────────
-const INGEST_URL    = 'https://dashboard-pp.vercel.app/api/ingest';  // ← URL de tu Vercel
+const INGEST_URL    = 'https://pp.blackwellstrategy.com/api/ingest';  // ← URL de tu Vercel
 const INGEST_SECRET = 'bw-ingest-secret-2026';                       // ← Debe coincidir con INGEST_SECRET en Vercel
 const SENDER_EMAIL  = 'emiliano@quienopina.mx';
 const PROCESSED_LABEL = 'bw-procesado';   // Se crea automáticamente si no existe
