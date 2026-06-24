@@ -938,12 +938,289 @@ const ACTIVIDADES_SECTIONS = [
   },
 ];
 
+/* ─── REPORTE 6: Briefs Medios · Neiva Colombia ──────────────── */
+const NEIVA_SECTIONS = [
+  {
+    id:'01', tag:'01 · Clasificación de Medios',
+    title:'Categorías de cobertura para el concierto.',
+    acento:'cobertura',
+    render: () => (
+      <>
+        <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:16 }}>
+          Se realizó una clasificación de los medios potenciales a dar cobertura al concierto en Neiva considerando la cobertura previa que han realizado acerca de Pepe Aguilar y la familia Aguilar para determinar su posible ángulo de publicación.
+        </p>
+        <Table
+          headers={['Categoría','Criterio de clasificación y protocolo']}
+          rows={[
+            ['VERDE', 'Cobertura previa favorable o estrictamente musical. Alineado a los pilares del plan.'],
+            ['AMARILLO', 'Cobertura mixta o que puede pedir ángulo familiar o personal. Manejable con brief firme y redirección a música.'],
+            ['ROJO', 'Línea editorial sensacionalista o cobertura previa con tono adverso. Acceso solo bajo protocolo de contención.'],
+          ]}
+        />
+        <Callout label="Objetivo de la clasificación">
+          Determinar de manera anticipada el posible ángulo de los medios acreditados para mitigar riesgos reputacionales y asegurar que la cobertura se mantenga lo más cercana posible al ámbito artístico.
+        </Callout>
+      </>
+    )
+  },
+  {
+    id:'02', tag:'02 · Estrategia',
+    title:'Estrategia de comunicación individual para Pepe.',
+    acento:'individual',
+    render: () => (
+      <>
+        <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:16 }}>
+          Pepe y Ángela se presentan en el mismo festival. Es crucial reforzar una estrategia de comunicación en la que se separen marcas y se blinden los frentes abiertos:
+        </p>
+        {[
+          { num:'01', titulo:'Centrarnos totalmente en Pepe', desc:'Toda la comunicación se realiza exclusivamente alrededor de Pepe. Las entrevistas se realizarán previas al concierto, en un espacio alterno para fortalecer el enfoque en Pepe, su show y sus mensajes clave.' },
+          { num:'02', titulo:'Mexicanidad como fortaleza', desc:'Generar una narrativa con foco en la mexicanidad de Pepe, con su trayectoria, su historia y su raíz cultural, elementos que son respetados y valorados en Colombia.' },
+          { num:'03', titulo:'Cariño colombiano', desc:'Generar contenido capitalizando el partido de Colombia en el Mundial. La narrativa debe enfocarse en la hermandad y la solidaridad de la comunidad latina y servir como puente para anunciar su llegada a Neiva.' },
+          { num:'04', titulo:'Filtrado de medios', desc:'Se revisará minuciosamente la lista de medios acreditados para seleccionar y controlar a quiénes se les concede entrevista.' },
+          { num:'05', titulo:'Protocolo de preguntas familiares', desc:'Ante preguntas del entorno familiar, redirigir la conversación al tema musical mediante pivotes al orgullo mexicano, el cariño por Colombia y su público. No defender, no aclarar.' },
+        ].map(e => (
+          <div key={e.num} style={{ display:'flex', gap:12, alignItems:'flex-start', padding:'10px 0',
+            borderBottom:`1px solid ${border}` }}>
+            <span style={{ fontFamily:MONO, fontSize:10, color:gold, fontWeight:600, flex:'none', width:24, paddingTop:2 }}>{e.num}</span>
+            <div>
+              <div style={{ fontFamily:SANS, fontWeight:600, fontSize:13, color:ink, marginBottom:3 }}>{e.titulo}</div>
+              <div style={{ fontFamily:SANS, fontSize:12, color:muted, lineHeight:1.5 }}>{e.desc}</div>
+            </div>
+          </div>
+        ))}
+      </>
+    )
+  },
+  {
+    id:'03', tag:'03 · Objetivos de Comunicación',
+    title:'Blindar y maximizar la voz de Pepe.',
+    acento:'maximizar',
+    render: () => (
+      <>
+        <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:16 }}>
+          La estrategia en Neiva se compone de dos objetivos centrales diseñados para mitigar el ruido y potenciar el posicionamiento artístico:
+        </p>
+        <div style={{ display:'flex', gap:12, flexWrap:'wrap', marginBottom:16 }}>
+          <div style={{ flex:'1 1 280px', background:paper, border:`1px solid ${border}`, borderRadius:3, padding:'14px 16px' }}>
+            <div style={{ fontFamily:MONO, fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:crim, fontWeight:600, marginBottom:6 }}>OBJ 01 · BLINDAR</div>
+            <div style={{ fontFamily:SANS, fontWeight:600, fontSize:14, color:ink, marginBottom:6 }}>Cerrar los frentes abiertos</div>
+            <p style={{ fontFamily:SANS, fontSize:12.5, color:muted, lineHeight:1.5, margin:0 }}>
+              Asegurar que la conversación mediática se mantenga alineada con el posicionamiento artístico de Pepe, priorizando espacios enfocados en trayectoria, vigencia, legado musical y propuesta actual. Establecer un marco de comunicación claro.
+            </p>
+          </div>
+          <div style={{ flex:'1 1 280px', background:paper, border:`1px solid ${border}`, borderRadius:3, padding:'14px 16px' }}>
+            <div style={{ fontFamily:MONO, fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:teal, fontWeight:600, marginBottom:6 }}>OBJ 02 · MAXIMIZAR</div>
+            <div style={{ fontFamily:SANS, fontWeight:600, fontSize:14, color:ink, marginBottom:6 }}>Capitalizar la voz propia</div>
+            <p style={{ fontFamily:SANS, fontSize:12.5, color:muted, lineHeight:1.5, margin:0 }}>
+              Capitalizar la voz propia de Pepe en un público que lo quiere. Consolidar una narrativa propia centrada en Pepe como figura principal. Capitalizar la conexión sólida y afectiva con el público colombiano, destacando catálogo, relación histórica, vínculo cultural México–Colombia y su rol de exponente de la mexicanidad.
+            </p>
+          </div>
+        </div>
+      </>
+    )
+  },
+  {
+    id:'04', tag:'04 · Mensajes Clave',
+    title:'Cuatro anclas para el show.',
+    acento:'anclas',
+    render: () => (
+      <>
+        <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:16 }}>
+          Mensajes diseñados como anclas narrativas para el show de Neiva. Incluye respuestas sugeridas para temas sensibles:
+        </p>
+        <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:16 }}>
+          {[
+            { num:'01', label:'EL SHOW · "Vine a cantar para mi gente"', quote:'"Vine a Neiva a cantar para mi público. Colombia me ha acompañado por años y vengo a dar un show propio, con mi banda, mi catálogo y la energía que siempre me han pedido."' },
+            { num:'02', label:'COLOMBIA · "Una relación de años"', quote:'"Colombia me ha tratado con un cariño que no he encontrado en muchos lados. Lo que canto esta noche está hecho con respeto a esa gente que me espera desde hace tanto."' },
+            { num:'03', label:'ÁNGELA · "Cada artista, su propio escenario"', quote:'"Tuve el honor de ser su coach, su manager y su maestro en el camino. Hoy Ángela ya es una mujer, que lleva el entrenamiento de dos generaciones que con mucho orgullo le compartí. Ahora el camino es completamente suyo y de su público."' },
+            { num:'04', label:'MÉXICO · "Representar a México es mi mayor orgullo"', quote:'"Para mí es un orgullo representar a México. Es la identidad que vive en mi sangre charra, en más de 30 discos de mariachi, en el legado que honro cada día. Es una fortuna que asumo con la responsabilidad que merece."' }
+          ].map(m => (
+            <div key={m.num} style={{ background:paper, border:`1px solid ${border}`, borderRadius:3, padding:'12px 14px' }}>
+              <div style={{ fontFamily:MONO, fontSize:9, letterSpacing:'0.15em', color:gold, fontWeight:600, marginBottom:4 }}>{m.label}</div>
+              <p style={{ fontFamily:SANS, fontSize:12.5, color:ink, lineHeight:1.5, margin:0, fontStyle:'italic' }}>{m.quote}</p>
+            </div>
+          ))}
+        </div>
+        <Callout label="Sobre Nodal, Cazzu, Emiliano" color={crim}>
+          <strong>Respuesta unificada:</strong> "Cada quien habla por sí mismo. Hoy vine a cantar." Y regresar inmediatamente a la conversación sobre la música.
+        </Callout>
+      </>
+    )
+  },
+  {
+    id:'05', tag:'05 · Brief de Medios (01 de 03)',
+    title:'Caracol Colombia · Categoría Amarillo',
+    acento:'Amarillo',
+    render: () => (
+      <>
+        <div style={{ background:paper, border:`1px solid ${border}`, borderRadius:3, padding:'14px 16px', marginBottom:16 }}>
+          <div style={{ fontFamily:MONO, fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:muted, marginBottom:4 }}>Contexto del medio</div>
+          <p style={{ fontFamily:SANS, fontSize:12.5, color:ink, lineHeight:1.5, margin:0 }}>
+            Es la cadena de televisión privada más grande de Colombia. Opera Noticias Caracol (noticiero nacional con franjas matutina y nocturna), Caracol TV (canal de entretenimiento y novelas) y portales digitales.
+          </p>
+          <div style={{ fontFamily:MONO, fontSize:9, color:muted, marginTop:8, letterSpacing:'0.06em' }}>
+            <strong>Audiencia:</strong> Cobertura nacional en Colombia más la diáspora colombiana en EE. UU. vía Caracol Internacional.
+          </div>
+        </div>
+
+        <div style={{ marginBottom:16 }}>
+          <div style={{ fontFamily:MONO, fontSize:10, color:gold, fontWeight:600, marginBottom:8 }}>Cinco cosas que saber:</div>
+          {[
+            'Medio tradicional masivo de Colombia.',
+            'Línea editorial profesional pero amplia: cubre tanto música como controversia familiar.',
+            'Pepe ya dio entrevista a Caracol TV en visitas anteriores. Hay antecedente de pregunta familiar.',
+            'Caracol cubrió el show de los Aguilar en Movistar Arena Bogotá (oct 2024) con cobertura mixta.',
+            'Acceso a programa estelar de noticias y a programa de entretenimiento del canal.'
+          ].map((item, i) => (
+            <div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start', padding:'6px 0', borderBottom:`1px solid ${border}` }}>
+              <span style={{ color:gold, fontSize:12 }}>–</span>
+              <span style={{ fontFamily:SANS, fontSize:12.5, color:muted, lineHeight:1.4 }}>{item}</span>
+            </div>
+          ))}
+        </div>
+
+        <div>
+          <div style={{ fontFamily:MONO, fontSize:10, color:gold, fontWeight:600, marginBottom:8 }}>Cobertura previa relevante:</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            <QuoteCard text="¿Quién pagó la boda de Nodal y Ángela Aguilar? Pepe Aguilar respondió." source="Noticias Caracol · Entrevista a Pepe (Tono profesional pero pregunta directa familiar)" tone="neg" />
+            <QuoteCard text="Cobertura del primer show de Los Aguilar en Bogotá con la sorpresa de Nodal subiendo al escenario." source="Caracol TV · Cobertura Movistar Arena 2024 (Cobertura mixta)" tone="neutral" />
+            <QuoteCard text="Sección dedicada con videos, fotos y notas. Cubre con frecuencia tanto música como contexto familiar." source="Caracol TV · Sección Ángela Aguilar" tone="neutral" />
+          </div>
+        </div>
+      </>
+    )
+  },
+  {
+    id:'06', tag:'06 · Brief de Medios (02 de 03)',
+    title:'Publimetro Colombia · Categoría Amarillo',
+    acento:'Amarillo',
+    render: () => (
+      <>
+        <div style={{ background:paper, border:`1px solid ${border}`, borderRadius:3, padding:'14px 16px', marginBottom:16 }}>
+          <div style={{ fontFamily:MONO, fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:muted, marginBottom:4 }}>Contexto del medio</div>
+          <p style={{ fontFamily:SANS, fontSize:12.5, color:ink, lineHeight:1.5, margin:0 }}>
+            Grupo editorial con ediciones en varios países hispanohablantes (México, Chile, Colombia). Su sección de entretenimiento tiende al sensacionalismo y clickbait con titulares enfáticos en su portal y redes. Comparte marca con Publimetro México pero con redacción independiente.
+          </p>
+        </div>
+
+        <div style={{ marginBottom:16 }}>
+          <div style={{ fontFamily:MONO, fontSize:10, color:gold, fontWeight:600, marginBottom:8 }}>Cinco cosas que saber:</div>
+          {[
+            'Cobertura editorial centrada en figuras locales (Karol G, Jessi Uribe, Cepeda, etc.) y reality shows colombianos.',
+            'No se localizaron piezas previas de Publimetro Colombia sobre Pepe Aguilar.',
+            'Comparte marca con Publimetro México pero opera con redacción independiente (tono más informativo y menos clickbait que la edición nacional mexicana).',
+            'Secciones de entretenimiento, cultura, estilo de vida y Publimetro TV. Su presencia en el festival se lee como ángulo cultural urbano.',
+            'Posibilidad: cualquier declaración/soundbite de Pepe en Neiva puede ser editada o sacada de contexto en los titulares.'
+          ].map((item, i) => (
+            <div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start', padding:'6px 0', borderBottom:`1px solid ${border}` }}>
+              <span style={{ color:gold, fontSize:12 }}>–</span>
+              <span style={{ fontFamily:SANS, fontSize:12.5, color:muted, lineHeight:1.4 }}>{item}</span>
+            </div>
+          ))}
+        </div>
+
+        <div>
+          <div style={{ fontFamily:MONO, fontSize:10, color:gold, fontWeight:600, marginBottom:8 }}>Cobertura previa relevante:</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            <QuoteCard text="Pepe Aguilar revela bochornoso detalle de la boda de Ángela." source="Publimetro Colombia · 2024" tone="neg" />
+            <QuoteCard text="Pepe Aguilar le hizo emotiva promesa a Javier Acosta." source="Publimetro Colombia · 2024" tone="pos" />
+          </div>
+        </div>
+      </>
+    )
+  },
+  {
+    id:'07', tag:'07 · Brief de Medios (03 de 03)',
+    title:'Billboard Colombia · Categoría Verde',
+    acento:'Verde',
+    render: () => (
+      <>
+        <div style={{ background:paper, border:`1px solid ${border}`, borderRadius:3, padding:'14px 16px', marginBottom:16 }}>
+          <div style={{ fontFamily:MONO, fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:muted, marginBottom:4 }}>Contexto del medio</div>
+          <p style={{ fontFamily:SANS, fontSize:12.5, color:ink, lineHeight:1.5, margin:0 }}>
+            Publicación de referencia para la industria musical hispana y global. Opera bajo la línea de Billboard Español, enfocándose en la obra, charts, premios y entrevistas en profundidad sin sesgo personal ni enfoque en controversias familiares.
+          </p>
+        </div>
+
+        <div style={{ marginBottom:16 }}>
+          <div style={{ fontFamily:MONO, fontSize:10, color:gold, fontWeight:600, marginBottom:8 }}>Cinco cosas que saber:</div>
+          {[
+            'Billboard otorgó a Pepe Aguilar el Hall of Fame Award en los Billboard Latin Music Awards 2024 (relación institucional sólida y favorable).',
+            'Cobertura previa amplia de la trayectoria de Pepe en español e inglés. Excelente para hablar de su show, catálogo en vivo y relación histórica con Colombia.',
+            'Tono editorial de análisis musical puro, sin entrar en controversia familiar.',
+            'Cobertura previa de Ángela en Women in Music 2025 (Breakthrough Award) enfocada en su trabajo como productora.',
+            'Es calificado como uno de los mejores medios para accionar durante el festival.'
+          ].map((item, i) => (
+            <div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start', padding:'6px 0', borderBottom:`1px solid ${border}` }}>
+              <span style={{ color:gold, fontSize:12 }}>–</span>
+              <span style={{ fontFamily:SANS, fontSize:12.5, color:muted, lineHeight:1.4 }}>{item}</span>
+            </div>
+          ))}
+        </div>
+
+        <div>
+          <div style={{ fontFamily:MONO, fontSize:10, color:gold, fontWeight:600, marginBottom:8 }}>Cobertura previa relevante:</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            <QuoteCard text="Pepe Aguilar to Receive the Billboard Hall of Fame Award at the 2024 Billboard Latin Music Awards." source="Billboard · 2024 (Reconocimiento institucional al catálogo)" tone="pos" />
+            <QuoteCard text="¡Que Viva Antonio Aguilar! Pieza extensa con cobertura editorial del proyecto y la relación histórica de Don Antonio con Colombia." source="Billboard · 2026 (Buen anclaje para hablar del show)" tone="pos" />
+            <QuoteCard text="Ángela Aguilar on Family, Producing Her Music & Supporting Women." source="Billboard · 2025 (Enfoque en producción musical)" tone="pos" />
+          </div>
+        </div>
+      </>
+    )
+  },
+  {
+    id:'08', tag:'08 · Anexo · Filtrado de Medios',
+    title:'Westwood · Lista de medios acreditados del festival.',
+    acento:'Westwood',
+    render: () => (
+      <>
+        <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:16 }}>
+          Se revisará minuciosamente la lista de acreditados con acceso a la zona de prensa con el objetivo de filtrar a qué medios se les concede entrevista con Pepe antes de su llegada a Neiva.
+        </p>
+
+        <div style={{ background:paper, border:`1px solid ${border}`, borderRadius:3, padding:'14px 16px', marginBottom:16 }}>
+          <div style={{ fontFamily:MONO, fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:crim, fontWeight:600, marginBottom:4 }}>Situación Identificada</div>
+          <p style={{ fontFamily:SANS, fontSize:12.5, color:ink, lineHeight:1.5, margin:0 }}>
+            Reporteros colombianos operando como corresponsales encubiertos de medios de espectáculos mexicanos (venden la nota al mejor postor).
+          </p>
+        </div>
+
+        <Callout label="Antecedente Verificado" color={crim}>
+          En el tour anterior, un medio colombiano entrevistó a Pepe y luego mostró el cubo de <strong>Ventaneando</strong>. La nota llegó a México como "exclusiva de Ventaneando con Pepe Aguilar" cuando nunca se concedió tal entrevista.
+        </Callout>
+
+        <div style={{ marginTop:16 }}>
+          <div style={{ fontFamily:MONO, fontSize:10, color:gold, fontWeight:600, marginBottom:8 }}>Reglas Operativas:</div>
+          {[
+            'Patrón conocido: hay reporteros colombianos que fungen como corresponsales de Imagen Televisión (Gustavo Adolfo Infante), Ventaneando y otros medios mexicanos.',
+            'Regla de oro: si un medio colombiano no está explícitamente en la lista autorizada, NO se le concede entrevista.',
+            'Cruces accidentales: si Pepe se cruza en zona común con un reportero no filtrado, debe usar una frase única de salida y continuar avanzando.'
+          ].map((item, i) => (
+            <div key={i} style={{ display:'flex', gap:8, alignItems:'flex-start', padding:'6px 0', borderBottom:`1px solid ${border}` }}>
+              <span style={{ color:gold, fontSize:12 }}>–</span>
+              <span style={{ fontFamily:SANS, fontSize:12.5, color:muted, lineHeight:1.4 }}>{item}</span>
+            </div>
+          ))}
+        </div>
+      </>
+    )
+  }
+];
+
 /* ─── Main ReporteView ───────────────────────────────────────── */
 export default function ReporteView({ isDesktop }) {
   const [activeReport, setActiveReport] = useState('actividades');
   const [sectionIdx, setSectionIdx] = useState(0);
 
-  const sections = activeReport === 'periodo' ? PERIODO_SECTIONS : activeReport === 'entrevistas' ? ENTREV_SECTIONS : activeReport === 'actividades' ? ACTIVIDADES_SECTIONS : activeReport === 'album' ? ALBUM_SECTIONS : ENTREVISTAS_PDF_SECTIONS;
+  const sections =
+    activeReport === 'periodo' ? PERIODO_SECTIONS :
+    activeReport === 'entrevistas' ? ENTREV_SECTIONS :
+    activeReport === 'actividades' ? ACTIVIDADES_SECTIONS :
+    activeReport === 'album' ? ALBUM_SECTIONS :
+    activeReport === 'neiva' ? NEIVA_SECTIONS :
+    ENTREVISTAS_PDF_SECTIONS;
+  
   const section = sections[sectionIdx];
 
   function switchReport(key) {
@@ -972,6 +1249,7 @@ export default function ReporteView({ isDesktop }) {
             { key:'actividades', label:'Actividades · May–Jun', sub:'entregables y hallazgos' },
             { key:'album', label:'Álbum · QVAA', sub:'BW-26-06-PA-RAPA-001' },
             { key:'qvda', label:'Entrevistas · QVDA', sub:'PPA · 3–10 Jun 2026' },
+            { key:'neiva', label:'Briefs Medios · Neiva', sub:'Colombia · 19 Jun 2026' },
           ].map(r => (
             <button key={r.key} onClick={() => switchReport(r.key)}
               style={{ padding:'9px 14px', borderRadius:3, cursor:'pointer',
