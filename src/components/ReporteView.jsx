@@ -1210,7 +1210,7 @@ const NEIVA_SECTIONS = [
 
 /* ─── Main ReporteView ───────────────────────────────────────── */
 export default function ReporteView({ isDesktop }) {
-  const [activeReport, setActiveReport] = useState('actividades');
+  const [activeReport, setActiveReport] = useState('neiva');
   const [sectionIdx, setSectionIdx] = useState(0);
 
   const sections =
@@ -1246,10 +1246,10 @@ export default function ReporteView({ isDesktop }) {
         {/* Report selector */}
         <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
           {[
+            { key:'neiva', label:'Briefs Medios · Neiva', sub:'Colombia · 19 Jun 2026' },
             { key:'actividades', label:'Actividades · May–Jun', sub:'entregables y hallazgos' },
             { key:'album', label:'Álbum · QVAA', sub:'BW-26-06-PA-RAPA-001' },
             { key:'qvda', label:'Entrevistas · QVDA', sub:'PPA · 3–10 Jun 2026' },
-            { key:'neiva', label:'Briefs Medios · Neiva', sub:'Colombia · 19 Jun 2026' },
           ].map(r => (
             <button key={r.key} onClick={() => switchReport(r.key)}
               style={{ padding:'9px 14px', borderRadius:3, cursor:'pointer',
