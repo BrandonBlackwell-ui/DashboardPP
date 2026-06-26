@@ -117,6 +117,7 @@ export function parseDailyCSV(csvText, filename) {
   const commentsTopics = parseJsonField(row, 'comments_topics_analysis') || {};
   const deepSent = parseJsonField(row, 'deep_sentiment_analysis') || {};
   const agentsSummary = parseJsonField(row, 'agents_summary') || {};
+  const allPlatforms = parseJsonField(row, 'all_platforms_data') || {};
 
   // Extract sentiment — handles both number values and {count,percentage} objects
   function pct(v) { return parseFloat(typeof v === 'object' && v !== null ? v.percentage ?? v.porcentaje ?? 0 : v ?? 0) || 0; }
@@ -177,6 +178,136 @@ export function parseDailyCSV(csvText, filename) {
       }
     };
   });
+
+  function cleanTerm(s) {
+    return String(s || '')
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/^#/, '')
+      .replace(/[^a-z0-9_ ]/g, '')
+      .trim();
+  }
+
+  const stopTerms = new Set(['pepe','aguilar','angela','angelita','familia','dinastia','los','las','una','uno','del','con','para','por','que','como','este','esta','sus','mas','mexico','mexicano','mexicana']);
+  const strategicTerms = {
+    musica:['musica','cancion','album','disco','mariachi','concierto','gira','show','cantante','homenaje','antonio','vicente','regional','vivo'],
+    familia:['familia','dinastia','angela','emiliano','leonardo','majo','nodal','cazzu','hija','hijo','boda','escandalo','relacion'],
+    legado:['legado','antonio','vicente','tradicion','mexicanidad','raices','mariachi','homenaje','historia'],
+    polemica:['polemica','critica','cancelacion','cancelaciones','burla','fracaso','demanda','infidelidad','clasista','arrogante','escandalo'],
+    negocios:['empresa','marca','rancho','soyate','negocio','proyecto','produccion','industria'],
+    mundial:['mundial','fifa','himno','seleccion','futbol','inauguracion'],
+  };
+
+  function buildNetworkStrategy(source) {
+    const networks = [];
+    const totalPosts = Object.values(source || {}).reduce((sum, profiles) => (
+      sum + arr(profiles).reduce((n, profile) => n + arr(profile.posts).filter(p => p?.url).length, 0)
+    ), 0);
+    if (!totalPosts) return { totalPosts:0, networks:[], allies:[] };
+
+    Object.entries(source || {}).forEach(([key, profiles]) => {
+      const stats = {
+        key,
+        label: platLabel(key),
+        posts:0, comments:0, views:0, likes:0, shares:0,
+        pos:0, neu:0, neg:0,
+        terms:{}, themes:{}, candidates:{},
+      };
+
+      arr(profiles).forEach(profile => {
+        const username = profile.username || profile.full_name || profile.platform || '';
+        const followers = Number(profile.followers || 0);
+        arr(profile.posts).forEach(post => {
+          if (!post?.url) return;
+          stats.posts += 1;
+          stats.comments += Number(post.comments_count || arr(post.comments).length || 0);
+          stats.views += Number(post.views || 0);
+          stats.likes += Number(post.likes || 0);
+          stats.shares += Number(post.shares || 0);
+
+          const sent = String(post.sentiment_analysis?.sentiment || post.sentiment || 'neutral').toLowerCase();
+          if (sent.includes('posit')) stats.pos += 1;
+          else if (sent.includes('negat')) stats.neg += 1;
+          else stats.neu += 1;
+
+          const text = `${post.text || ''} ${arr(post.hashtags).join(' ')}`;
+          const words = text.match(/#?[\p{L}\p{N}_]{4,}/gu) || [];
+          words.forEach(raw => {
+            const term = cleanTerm(raw);
+            if (!term || stopTerms.has(term) || term.length < 4) return;
+            stats.terms[term] = (stats.terms[term] || 0) + 1;
+            Object.entries(strategicTerms).forEach(([themeKey, list]) => {
+              if (list.includes(term)) stats.themes[themeKey] = (stats.themes[themeKey] || 0) + 1;
+            });
+          });
+
+          if (followers > 0 && !sent.includes('negat')) {
+            const id = `${key}:${username}`;
+            const current = stats.candidates[id] || {
+              username,
+              platform:key,
+              followers,
+              url:profile.url || post.url,
+              posts:0,
+              views:0,
+              likes:0,
+              positive:0,
+              neutral:0,
+            };
+            current.posts += 1;
+            current.views += Number(post.views || 0);
+            current.likes += Number(post.likes || 0);
+            if (sent.includes('posit')) current.positive += 1;
+            else current.neutral += 1;
+            current.followers = Math.max(current.followers, followers);
+            stats.candidates[id] = current;
+          }
+        });
+      });
+
+      const sentTotal = stats.pos + stats.neu + stats.neg || 1;
+      const sortedTerms = Object.entries(stats.terms).sort((a,b) => b[1] - a[1]).slice(0, 5).map(([term]) => term);
+      const sortedThemes = Object.entries(stats.themes).sort((a,b) => b[1] - a[1]).slice(0, 3).map(([themeKey, count]) => ({
+        key:themeKey,
+        label:cap(themeKey),
+        pct:Math.round(count / Math.max(1, Object.values(stats.themes).reduce((a,b)=>a+b,0)) * 100),
+      }));
+      const candidateList = Object.values(stats.candidates)
+        .map(c => ({
+          ...c,
+          tier:c.followers >= 500000 ? 'macro' : c.followers >= 50000 ? 'medio' : 'micro',
+          score:c.followers * 0.35 + c.views * 0.45 + c.likes * 20 + c.positive * 1200 + c.posts * 300,
+        }))
+        .sort((a,b) => b.score - a.score)
+        .slice(0, 4);
+
+      networks.push({
+        key,
+        label:stats.label,
+        share:Math.round(stats.posts / totalPosts * 100),
+        posts:stats.posts,
+        comments:stats.comments,
+        views:stats.views,
+        likes:stats.likes,
+        tone: stats.neg > stats.pos && stats.neg >= stats.neu ? 'critica' : stats.pos >= stats.neg && stats.pos >= stats.neu ? 'favorable' : 'neutral',
+        sent:{
+          positivo:Math.round(stats.pos / sentTotal * 100),
+          neutral:Math.round(stats.neu / sentTotal * 100),
+          negativo:Math.round(stats.neg / sentTotal * 100),
+        },
+        topTerms:sortedTerms,
+        themes:sortedThemes,
+        allies:candidateList,
+      });
+    });
+
+    const allies = networks.flatMap(n => n.allies.map(a => ({ ...a, platformLabel:n.label })))
+      .sort((a,b) => b.score - a.score)
+      .slice(0, 9);
+    return { totalPosts, networks:networks.sort((a,b) => b.posts - a.posts), allies };
+  }
+
+  const networkStrategy = buildNetworkStrategy(allPlatforms);
 
   // Alerts — supports nested resumen_alertas structure
   const alertResumen = alerts.resumen_alertas || alerts;
@@ -345,6 +476,7 @@ export function parseDailyCSV(csvText, filename) {
     risk: { level: riskLevel, urgency: ra.urgency || '', negPct: neg, attention: neg > 20 },
     health: Math.round(100 - neg),
     totals, platforms,
+    networkStrategy,
     alerts: alertData,
     opps: oppData,
     proscons: pc,
