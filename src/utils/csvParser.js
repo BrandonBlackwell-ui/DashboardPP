@@ -211,7 +211,7 @@ export function parseDailyCSV(csvText, filename) {
         label: platLabel(key),
         posts:0, comments:0, views:0, likes:0, shares:0,
         pos:0, neu:0, neg:0,
-        terms:{}, themes:{}, candidates:{},
+        terms:{}, themes:{}, candidates:{}, postsList:[],
       };
 
       arr(profiles).forEach(profile => {
@@ -224,6 +224,15 @@ export function parseDailyCSV(csvText, filename) {
           stats.views += Number(post.views || 0);
           stats.likes += Number(post.likes || 0);
           stats.shares += Number(post.shares || 0);
+          stats.postsList.push({
+            url:post.url,
+            text:post.text || '',
+            username,
+            platform:key,
+            time:post.time_posted || '',
+            views:Number(post.views || 0),
+            likes:Number(post.likes || 0),
+          });
 
           const sent = String(post.sentiment_analysis?.sentiment || post.sentiment || 'neutral').toLowerCase();
           if (sent.includes('posit')) stats.pos += 1;
@@ -297,6 +306,7 @@ export function parseDailyCSV(csvText, filename) {
         },
         topTerms:sortedTerms,
         themes:sortedThemes,
+        postsList:stats.postsList.slice(0, 24),
         allies:candidateList,
       });
     });

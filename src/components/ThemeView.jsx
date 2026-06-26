@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Donut from './Donut';
 import TiltCard from './TiltCard';
@@ -176,9 +177,57 @@ function deriveNetworkStrategy(themeData) {
   return { totalPosts, networks, allies, fallback:true };
 }
 
+function deriveNetworkPosts(themeData) {
+  const buckets = {};
+  const add = (platform, post) => {
+    const key = (platform || post.platform || '').toLowerCase();
+    if (!key || !post.url) return;
+    if (!buckets[key]) buckets[key] = [];
+    if (buckets[key].some(p => p.url === post.url)) return;
+    buckets[key].push({
+      url:post.url,
+      text:post.text || post.titulo || post.title || '',
+      username:post.username || post.user || post.fuente || '',
+      platform:key,
+      date:post.time || post.fecha || '',
+      metric:post.views ? `${fmtK(post.views)} views` : post.engagement ? `${fmtK(post.engagement)} interacc.` : '',
+    });
+  };
+
+  (themeData.networkStrategy?.networks || []).forEach(n => {
+    (n.postsList || n.posts_list || []).forEach(p => add(n.key, p));
+  });
+  (themeData.alerts?.posts || themeData.alertometro?.posts || []).forEach(p => add(p.platform, p));
+  (themeData.opps?.posts || themeData.oportunometro?.posts || []).forEach(p => add(p.platform, p));
+  (themeData.influencers?.top || []).forEach(p => add(p.platform, {
+    url:p.url,
+    text:p.categoria || p.sentiment || 'Perfil con alcance',
+    username:p.username,
+    platform:p.platform,
+    views:0,
+  }));
+  if (themeData.news?.grupos) {
+    ['positivo','neutral','negativo'].forEach(rating => {
+      (themeData.news.grupos[rating] || []).forEach(group => {
+        (group.noticias || []).forEach(n => add('google_news', { ...n, username:n.fuente, text:n.titulo }));
+      });
+    });
+  } else if (themeData.news) {
+    ['positivo','neutral','negativo'].forEach(rating => {
+      (themeData.news[rating] || []).forEach(group => {
+        (group.noticias || []).forEach(n => add('google_news', { ...n, username:n.fuente, text:n.titulo }));
+      });
+    });
+  }
+
+  Object.keys(buckets).forEach(k => { buckets[k] = buckets[k].slice(0, 12); });
+  return buckets;
+}
+
 export default function ThemeView({ tab, date, plat, data, isDesktop, noData, calendarSummary }) {
   const T = data.themes;
   const t = T[tab];
+  const [activeNetwork, setActiveNetwork] = useState(null);
   if (!t) return null;
 
   if (noData) {
@@ -307,6 +356,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
   });
 
   const networkStrategy = deriveNetworkStrategy(t);
+  const networkPostsByKey = deriveNetworkPosts(t);
   const strategyNetworks = (networkStrategy.networks||[]).map(n => {
     const toneMeta = n.tone === 'favorable' ? sentMeta('positivo') : n.tone === 'critica' ? sentMeta('negativo') : sentMeta('neutral');
     return {
@@ -318,6 +368,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       commentsLabel:fmt(n.comments),
       topTerms:(n.topTerms||[]).slice(0,4),
       themes:(n.themes||[]).slice(0,3),
+      postsList:networkPostsByKey[n.key] || n.postsList || [],
     };
   });
   const strategyAllies = (networkStrategy.allies||[]).map(a => ({
@@ -346,16 +397,13 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
   const renderNetworkMap = (compact = false) => strategyNetworks.length > 0 && (
     <Section title="Mapa por red y aliados" px={compact ? '16px 0 6px' : sectionPx}
       right={<span style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, color:'#8A7E6A' }}>{fmt(networkStrategy.totalPosts||0)} MENCIONES</span>}>
-      {networkStrategy.fallback && (
-        <div style={{ background:'rgba(176,130,47,0.08)', border:'1px solid rgba(176,130,47,0.22)', borderRadius:3,
-          padding: compact ? '8px 10px' : '9px 12px', marginBottom:9, fontFamily:"'Geist Mono',monospace",
-          fontSize:compact ? 9.5 : 10.5, color:'#8A7E6A', letterSpacing:'0.04em', textTransform:'uppercase' }}>
-          Histórico reconstruido con desglose guardado · para temas/hashtags y views exactos se necesita `all_platforms_data`
-        </div>
-      )}
       <div style={{ display:'grid', gridTemplateColumns: compact ? 'repeat(2, minmax(0, 1fr))' : isDesktop ? 'repeat(2, minmax(0, 1fr))' : '1fr', gap:8 }}>
         {strategyNetworks.map(n => (
-          <div key={n.key} style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:compact ? 12 : 16 }}>
+          <button key={n.key} onClick={() => setActiveNetwork(activeNetwork === n.key ? null : n.key)}
+            style={{ textAlign:'left', cursor:'pointer', background:C.card,
+              border:activeNetwork === n.key ? `1px solid ${C.gold}` : '1px solid rgba(33,28,23,0.13)',
+              boxShadow:activeNetwork === n.key ? '0 0 0 1px rgba(176,130,47,0.18)' : 'none',
+              borderRadius:3, padding:compact ? 12 : 16, font:'inherit' }}>
             <div style={{ display:'flex', alignItems:'center', gap:9, marginBottom:compact ? 8 : 10 }}>
               <PlatformIcon platform={n.key} size={compact ? 22 : 24} />
               <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:700, fontSize:compact ? 20 : 22, color:C.ink, lineHeight:1 }}>{n.share}%</span>
@@ -389,9 +437,44 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                 ))}
               </div>
             )}
-          </div>
+          </button>
         ))}
       </div>
+
+      {activeNetwork && (
+        <div style={{ marginTop:10, background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, overflow:'hidden' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', background:'rgba(33,28,23,0.04)', borderBottom:'1px solid rgba(33,28,23,0.10)' }}>
+            <PlatformIcon platform={activeNetwork} size={16} />
+            <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:600, fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.ink }}>
+              Menciones de {platLabel(activeNetwork)}
+            </span>
+            <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginLeft:'auto' }}>
+              {(networkPostsByKey[activeNetwork] || []).length} LINKS
+            </span>
+          </div>
+          {(networkPostsByKey[activeNetwork] || []).length > 0 ? (
+            (networkPostsByKey[activeNetwork] || []).map((p, i) => (
+              <a key={`${p.url}-${i}`} href={p.url} target="_blank" rel="noopener"
+                style={{ display:'grid', gridTemplateColumns:compact ? '1fr auto' : '1fr 72px', gap:10, padding:'10px 12px',
+                  textDecoration:'none', borderBottom:i<(networkPostsByKey[activeNetwork] || []).length-1?'1px solid rgba(33,28,23,0.08)':'none' }}>
+                <span style={{ minWidth:0 }}>
+                  <span style={{ display:'block', fontSize:12.5, lineHeight:1.35, color:C.ink, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                    {p.text || p.username || p.url}
+                  </span>
+                  <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:3, textTransform:'uppercase' }}>
+                    {[p.username, p.metric, (p.date || '').slice(0,10)].filter(Boolean).join(' · ')}
+                  </span>
+                </span>
+                <span style={{ alignSelf:'center', justifySelf:'end', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:C.goldDeep, fontWeight:600 }}>ABRIR</span>
+              </a>
+            ))
+          ) : (
+            <div style={{ padding:'12px', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', textTransform:'uppercase' }}>
+              Este histórico no guardó links individuales para esta red.
+            </div>
+          )}
+        </div>
+      )}
 
       {strategyAllies.length>0 && (
         <div style={{ marginTop:10, background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, overflow:'hidden' }}>

@@ -74,7 +74,11 @@ export default function App() {
     initialLoadDone.current = true;
     applyStoredExtra();
     setDataVersion(v => v+1);
-    loadFromSupabase().then(() => { refreshData(); setDataVersion(v => v+1); });
+    loadFromSupabase().then(() => {
+      applyStoredExtra();
+      refreshData();
+      setDataVersion(v => v+1);
+    });
   }, [authed, data, calData]);
 
   if (!authed) return <LoginGate onAuth={() => setAuthed(true)} />;
