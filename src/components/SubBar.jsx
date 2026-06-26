@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { C, platLabel } from '../utils/helpers';
+import { C } from '../utils/helpers';
 
 function Chip({ label, active, onClick }) {
   return (
@@ -18,17 +18,10 @@ function Chip({ label, active, onClick }) {
   );
 }
 
-export default function SubBar({ tab, pano, date, plat, data, dateOptions, onPanoChange, onDateChange, onPlatChange, isDesktop, panoramaDate, onPanoramaDateChange }) {
+export default function SubBar({ tab, pano, date, data, dateOptions, onPanoChange, onDateChange, isDesktop, panoramaDate, onPanoramaDateChange }) {
   const isPanorama = tab === 'panorama';
   const isTheme = !isPanorama && tab !== 'historico' && tab !== 'reporte';
   const isHist = tab === 'historico';
-
-  const T = data?.themes || {};
-  const order = data?.order || [];
-  const platSet = new Set();
-  (isTheme ? [T[tab]] : order.map(k=>T[k])).forEach(t =>
-    (t?.platforms||[]).forEach(p => platSet.add(p.name)));
-  const platOpts = [['todas','Todas'], ...Array.from(platSet).map(p => [p, platLabel(p)])];
 
   return (
     <div style={{ position:'sticky', top:0, zIndex:30, background:C.sub,
@@ -72,15 +65,6 @@ export default function SubBar({ tab, pano, date, plat, data, dateOptions, onPan
               <div style={{ display:'flex', gap:5, overflowX:'auto', scrollbarWidth:'none' }}>
                 {(dateOptions || [['todas','Todas'],['13','13 jun'],['14','14 jun'],['15','15 jun']]).map(([k,l]) => (
                   <Chip key={k} label={l} active={date===k} onClick={() => onDateChange(k)} />
-                ))}
-              </div>
-            </div>
-            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-              <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.14em',
-                textTransform:'uppercase', color:'#8A7E6A', width:54, flex:'none' }}>Red</span>
-              <div style={{ display:'flex', gap:5, overflowX:'auto', scrollbarWidth:'none' }}>
-                {platOpts.map(([k,l]) => (
-                  <Chip key={k} label={l} active={plat===k} onClick={() => onPlatChange(k)} />
                 ))}
               </div>
             </div>

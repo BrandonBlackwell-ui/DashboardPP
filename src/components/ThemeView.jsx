@@ -120,6 +120,62 @@ function SentBar({ pos, neu, neg }) {
   );
 }
 
+function deriveNetworkStrategy(themeData) {
+  const existing = themeData.networkStrategy;
+  if (existing?.networks?.length) return existing;
+
+  const platforms = themeData.platforms || [];
+  const totalPosts = platforms.reduce((sum, p) => sum + (Number(p.posts) || 0), 0);
+  if (!totalPosts) return { totalPosts:0, networks:[], allies:[] };
+
+  const influencers = themeData.influencers?.top || [];
+  const networks = platforms.map(p => {
+    const sd = p.sentiment || p.sent || {};
+    const pos = Number(sd.positivo || sd.positive || 0);
+    const neu = Number(sd.neutral || 0);
+    const neg = Number(sd.negativo || sd.negative || 0);
+    const tone = neg > pos && neg >= neu ? 'critica' : pos >= neg && pos >= neu ? 'favorable' : 'neutral';
+    const allies = influencers
+      .filter(i => (i.platform || '').toLowerCase() === (p.name || p.platform || '').toLowerCase())
+      .filter(i => !String(i.sentiment || '').toLowerCase().includes('negat'))
+      .map(i => ({
+        username:i.username,
+        platform:i.platform,
+        followers:Number(i.followers || 0),
+        url:i.url,
+        posts:0,
+        views:0,
+        likes:0,
+        tier:Number(i.followers || 0) >= 500000 ? 'macro' : Number(i.followers || 0) >= 50000 ? 'medio' : 'micro',
+        score:Number(i.followers || 0),
+      }))
+      .sort((a,b) => b.score - a.score)
+      .slice(0, 4);
+
+    return {
+      key:p.name || p.platform,
+      label:platLabel(p.name || p.platform),
+      share:Math.round((Number(p.posts) || 0) / totalPosts * 100),
+      posts:Number(p.posts) || 0,
+      comments:Number(p.comments) || 0,
+      views:0,
+      likes:0,
+      tone,
+      sent:{ positivo:Math.round(pos), neutral:Math.round(neu), negativo:Math.round(neg) },
+      topTerms:[],
+      themes:[],
+      allies,
+      fallback:true,
+    };
+  }).sort((a,b) => b.posts - a.posts);
+
+  const allies = networks.flatMap(n => n.allies.map(a => ({ ...a, platformLabel:n.label })))
+    .sort((a,b) => b.score - a.score)
+    .slice(0, 9);
+
+  return { totalPosts, networks, allies, fallback:true };
+}
+
 export default function ThemeView({ tab, date, plat, data, isDesktop, noData, calendarSummary }) {
   const T = data.themes;
   const t = T[tab];
@@ -250,8 +306,8 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
     return { nameLabel:platLabel(p.name), postsLabel:fmt(p.posts), commentsLabel:fmt(p.comments), pp, pu, pn };
   });
 
-  const networkStrategy = t.networkStrategy || {};
-  const strategyNetworks = (networkStrategy.networks||[]).filter(n=>platMatch(n.key)).map(n => {
+  const networkStrategy = deriveNetworkStrategy(t);
+  const strategyNetworks = (networkStrategy.networks||[]).map(n => {
     const toneMeta = n.tone === 'favorable' ? sentMeta('positivo') : n.tone === 'critica' ? sentMeta('negativo') : sentMeta('neutral');
     return {
       ...n,
@@ -264,9 +320,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       themes:(n.themes||[]).slice(0,3),
     };
   });
-  const strategyAllies = (networkStrategy.allies||[])
-    .filter(a=>platMatch(a.platform))
-    .map(a => ({
+  const strategyAllies = (networkStrategy.allies||[]).map(a => ({
       ...a,
       tierLabel:a.tier === 'macro' ? 'Macro' : a.tier === 'medio' ? 'Medio' : 'Micro',
       followersLabel:fmtK(a.followers),
@@ -782,6 +836,13 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       {/* Desglose por red */}
       {strategyNetworks.length>0 && (
         <Section title="Mapa por red y aliados" px={sectionPx} right={<span style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, color:'#8A7E6A' }}>{fmt(networkStrategy.totalPosts||0)} MENCIONES</span>}>
+          {networkStrategy.fallback && (
+            <div style={{ background:'rgba(176,130,47,0.08)', border:'1px solid rgba(176,130,47,0.22)', borderRadius:3,
+              padding:'9px 12px', marginBottom:9, fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A',
+              letterSpacing:'0.04em', textTransform:'uppercase' }}>
+              Histórico reconstruido con desglose guardado · para temas/hashtags y views exactos se necesita `all_platforms_data`
+            </div>
+          )}
           <div style={{ display:'grid', gridTemplateColumns: isDesktop ? 'repeat(2, minmax(0, 1fr))' : '1fr', gap:8 }}>
             {strategyNetworks.map(n => (
               <div key={n.key} style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:16 }}>
