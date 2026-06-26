@@ -343,6 +343,85 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
 
   const px = isDesktop ? '24px 28px' : '19px 18px';
   const sectionPx = isDesktop ? '14px 28px 6px' : '14px 18px 6px';
+  const renderNetworkMap = (compact = false) => strategyNetworks.length > 0 && (
+    <Section title="Mapa por red y aliados" px={compact ? '16px 0 6px' : sectionPx}
+      right={<span style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, color:'#8A7E6A' }}>{fmt(networkStrategy.totalPosts||0)} MENCIONES</span>}>
+      {networkStrategy.fallback && (
+        <div style={{ background:'rgba(176,130,47,0.08)', border:'1px solid rgba(176,130,47,0.22)', borderRadius:3,
+          padding: compact ? '8px 10px' : '9px 12px', marginBottom:9, fontFamily:"'Geist Mono',monospace",
+          fontSize:compact ? 9.5 : 10.5, color:'#8A7E6A', letterSpacing:'0.04em', textTransform:'uppercase' }}>
+          Histórico reconstruido con desglose guardado · para temas/hashtags y views exactos se necesita `all_platforms_data`
+        </div>
+      )}
+      <div style={{ display:'grid', gridTemplateColumns: compact ? 'repeat(2, minmax(0, 1fr))' : isDesktop ? 'repeat(2, minmax(0, 1fr))' : '1fr', gap:8 }}>
+        {strategyNetworks.map(n => (
+          <div key={n.key} style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:compact ? 12 : 16 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:9, marginBottom:compact ? 8 : 10 }}>
+              <PlatformIcon platform={n.key} size={compact ? 22 : 24} />
+              <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:700, fontSize:compact ? 20 : 22, color:C.ink, lineHeight:1 }}>{n.share}%</span>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontFamily:"'Geist Mono',monospace", fontWeight:600, fontSize:10.5, color:C.ink, letterSpacing:'0.08em', textTransform:'uppercase', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{n.label}</div>
+                <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:compact ? 9.5 : 10.5, color:'#8A7E6A', marginTop:2 }}>{n.postsLabel} POSTS{!compact && ` · ${n.viewsLabel} VIEWS · ${n.commentsLabel} COM.`}</div>
+              </div>
+            </div>
+            <SentBar pos={n.sent?.positivo||0} neu={n.sent?.neutral||0} neg={n.sent?.negativo||0} />
+            <div style={{ display:'flex', gap:10, marginTop:7, fontFamily:"'Geist Mono',monospace" }}>
+              <span style={{ fontSize:10.5, color:C.teal }}>{n.sent?.positivo||0}%+</span>
+              <span style={{ fontSize:10.5, color:'#8A7E6A' }}>{n.sent?.neutral||0}% NEU</span>
+              <span style={{ fontSize:10.5, color:C.crim }}>{n.sent?.negativo||0}%-</span>
+            </div>
+
+            {!compact && n.themes.length>0 && (
+              <div style={{ marginTop:12, paddingTop:11, borderTop:'1px solid rgba(33,28,23,0.10)' }}>
+                <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:'#8A7E6A', marginBottom:7 }}>Temas que prende</div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                  {n.themes.map(th => (
+                    <span key={th.key} style={{ ...pill(C.goldDeep,'rgba(176,130,47,0.10)','rgba(176,130,47,0.30)') }}>{th.label} {th.pct}%</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!compact && n.topTerms.length>0 && (
+              <div style={{ marginTop:10, display:'flex', flexWrap:'wrap', gap:'6px 9px' }}>
+                {n.topTerms.map(term => (
+                  <span key={term} style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:'#6B6253' }}>#{term}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {strategyAllies.length>0 && (
+        <div style={{ marginTop:10, background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, overflow:'hidden' }}>
+          <div style={{ display:'grid', gridTemplateColumns: compact ? '1.1fr 0.8fr 0.6fr' : isDesktop ? '1.2fr 0.8fr 0.7fr 0.7fr 0.55fr' : '1.1fr 0.8fr 0.6fr', gap:8,
+            padding:'9px 12px', background:'rgba(33,28,23,0.04)', borderBottom:'1px solid rgba(33,28,23,0.10)' }}>
+            {['Voz posible','Red','Tamaño', ...(!compact && isDesktop ? ['Views','Tipo'] : [])].map(h => (
+              <span key={h} style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, letterSpacing:'0.12em', textTransform:'uppercase', color:'#8A7E6A' }}>{h}</span>
+            ))}
+          </div>
+          {strategyAllies.slice(0, compact ? 4 : strategyAllies.length).map((a,i) => (
+            <a key={`${a.platform}-${a.username}-${i}`} href={a.url} target="_blank" rel="noopener"
+              style={{ display:'grid', gridTemplateColumns: compact ? '1.1fr 0.8fr 0.6fr' : isDesktop ? '1.2fr 0.8fr 0.7fr 0.7fr 0.55fr' : '1.1fr 0.8fr 0.6fr', gap:8,
+                alignItems:'center', padding:'10px 12px', textDecoration:'none', borderBottom:i<Math.min(strategyAllies.length, compact ? 4 : strategyAllies.length)-1?'1px solid rgba(33,28,23,0.08)':'none' }}>
+              <span style={{ minWidth:0 }}>
+                <span style={{ display:'block', fontWeight:600, fontSize:13, color:C.ink, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{a.username}</span>
+                <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:2 }}>{a.followersLabel} seguidores</span>
+              </span>
+              <span style={{ display:'flex', alignItems:'center', gap:7, fontFamily:"'Geist Mono',monospace", fontSize:11, color:'#6B6253', textTransform:'uppercase' }}>
+                <PlatformIcon platform={a.platform} size={16} />
+                {a.platformLabel}
+              </span>
+              <span style={{ ...pill(a.tier === 'macro' ? C.crim : a.tier === 'medio' ? C.goldDeep : C.teal, a.tier === 'macro' ? C.crimBg : a.tier === 'medio' ? C.amberBg : C.tealBg, a.tier === 'macro' ? C.crimBd : a.tier === 'medio' ? C.amberBd : C.tealBd) }}>{a.tierLabel}</span>
+              {!compact && isDesktop && <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:'#6B6253' }}>{a.viewsLabel}</span>}
+              {!compact && isDesktop && <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.goldDeep, fontWeight:600 }}>ABRIR</span>}
+            </a>
+          ))}
+        </div>
+      )}
+    </Section>
+  );
 
   return (
     <motion.div key={tab} variants={stagger} initial="hidden" animate="visible">
@@ -443,6 +522,8 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
           </div>
           {/* Right col */}
           <div style={{ paddingLeft:14 }}>
+            {renderNetworkMap(true)}
+
             {/* Oportunidades */}
             {(op.recomendacion||opPosts.length>0) && (
               <motion.div variants={item} style={{ paddingTop:16, paddingBottom:6 }}>
@@ -834,7 +915,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       )}
 
       {/* Desglose por red */}
-      {strategyNetworks.length>0 && (
+      {!isDesktop && strategyNetworks.length>0 && (
         <Section title="Mapa por red y aliados" px={sectionPx} right={<span style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, color:'#8A7E6A' }}>{fmt(networkStrategy.totalPosts||0)} MENCIONES</span>}>
           {networkStrategy.fallback && (
             <div style={{ background:'rgba(176,130,47,0.08)', border:'1px solid rgba(176,130,47,0.22)', borderRadius:3,
