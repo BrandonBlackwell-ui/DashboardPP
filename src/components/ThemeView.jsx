@@ -810,7 +810,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       {t.rawOnly ? (
         <div style={{ paddingBottom:24 }}>
           {renderNetworkMap(false)}
-          {(voices.allies.length > 0 || voices.critics.length > 0) && (() => {
+          {tab !== 'redes_propias' && (voices.allies.length > 0 || voices.critics.length > 0) && (() => {
             const VoiceCard = ({ v, side }) => {
               const isAlly = side === 'ally';
               const accentColor = isAlly ? C.teal : C.crim;
@@ -945,7 +945,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
             {renderNetworkMap(true)}
 
             {/* Aliados y contrarios */}
-            {(voices.allies.length > 0 || voices.critics.length > 0) && (() => {
+            {tab !== 'redes_propias' && (voices.allies.length > 0 || voices.critics.length > 0) && (() => {
               const VoiceCard = ({ v, side }) => {
                 const isAlly = side === 'ally';
                 const accentColor = isAlly ? C.teal : C.crim;
@@ -1011,36 +1011,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
               );
             })()}
 
-            {/* Oportunidades */}
-            {(op.recomendacion||opPosts.length>0) && (
-              <motion.div variants={item} style={{ paddingTop:16, paddingBottom:6 }}>
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:11 }}>
-                  <h2 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:22,
-                    letterSpacing:'-0.015em', color:C.ink, margin:0 }}>Oportunidades</h2>
-                  <span style={{ ...pill(C.teal,C.tealBg,C.tealBd) }}>Nivel {cap(op.nivel||'-')}</span>
-                </div>
-                {op.recomendacion && <Card accentColor={C.teal}>
-                  <div style={{ fontSize:14, lineHeight:1.5, color:'#2A241C' }}>{op.recomendacion}</div>
-                </Card>}
-                {opPosts.map((p,i) => (
-                  <TiltCard key={i} style={{ marginBottom:8, borderRadius:3 }}>
-                    <a href={p.url} target="_blank" rel="noopener" style={{ display:'block', textDecoration:'none',
-                      background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderLeft:`3px solid ${C.teal}`,
-                      borderRadius:3, padding:16 }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:7 }}>
-                        <span style={{ ...pill(C.teal,C.tealBg,C.tealBd) }}>Impacto {p.impacto}</span>
-                        <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:'#8A7E6A', marginLeft:'auto', textTransform:'uppercase' }}>{p.platformLabel} · {p.dateLabel}</span>
-                      </div>
-                      <div style={{ fontSize:14, lineHeight:1.45, color:'#2A241C' }}>{p.text}</div>
-                      <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:9, paddingTop:8, borderTop:'1px dotted rgba(33,28,23,0.10)' }}>
-                        <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.teal }}>OPORTUNIDAD {p.score}</span>
-                        <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.goldDeep, fontWeight:600, marginLeft:'auto' }}>ABRIR</span>
-                      </div>
-                    </a>
-                  </TiltCard>
-                ))}
-              </motion.div>
-            )}
+
             {/* Pros y contras */}
             {((pc.positive||[]).length>0||(pc.negative||[]).length>0) && (
             <motion.div variants={item} style={{ paddingTop:14, paddingBottom:6 }}>
@@ -1141,31 +1112,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
         ))}
       </Section>
 
-      {/* Oportunidades */}
-      {(op.recomendacion||opPosts.length>0) && (
-        <Section title="Oportunidades" right={<span style={{ ...pill(C.teal,C.tealBg,C.tealBd) }}>Nivel {cap(op.nivel||'-')}</span>}>
-          {op.recomendacion && <Card accentColor={C.teal}>
-            <div style={{ fontSize:14, lineHeight:1.5, color:'#2A241C' }}>{op.recomendacion}</div>
-          </Card>}
-          {opPosts.map((p,i) => (
-            <TiltCard key={i} style={{ marginBottom:8, borderRadius:3 }}>
-              <a href={p.url} target="_blank" rel="noopener" style={{ display:'block', textDecoration:'none',
-                background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderLeft:`3px solid ${C.teal}`,
-                borderRadius:3, padding:16 }}>
-                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:7 }}>
-                  <span style={{ ...pill(C.teal,C.tealBg,C.tealBd) }}>Impacto {p.impacto}</span>
-                  <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:'#8A7E6A', marginLeft:'auto', textTransform:'uppercase' }}>{p.platformLabel} · {p.dateLabel}</span>
-                </div>
-                <div style={{ fontSize:14, lineHeight:1.45, color:'#2A241C' }}>{p.text}</div>
-                <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:9, paddingTop:8, borderTop:'1px dotted rgba(33,28,23,0.10)' }}>
-                  <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.teal }}>OPORTUNIDAD {p.score}</span>
-                  <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.goldDeep, fontWeight:600, marginLeft:'auto' }}>ABRIR</span>
-                </div>
-              </a>
-            </TiltCard>
-          ))}
-        </Section>
-      )}
+
 
       {/* Pros y contras */}
       {((pc.positive||[]).length>0||(pc.negative||[]).length>0) && (
@@ -1206,7 +1153,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       )}
 
       {/* Aliados y contrarios (mobile / non-rawOnly) */}
-      {!t.rawOnly && (voices.allies.length > 0 || voices.critics.length > 0) && (() => {
+      {!t.rawOnly && tab !== 'redes_propias' && (voices.allies.length > 0 || voices.critics.length > 0) && (() => {
         const VoiceCard = ({ v, side }) => {
           const isAlly = side === 'ally';
           const accentColor = isAlly ? C.teal : C.crim;
