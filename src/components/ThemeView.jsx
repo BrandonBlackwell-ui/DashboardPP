@@ -509,42 +509,46 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
 
           <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, overflow:'hidden' }}>
             {selectedPost ? (
-              <>
-                <div style={{ display:'grid', gridTemplateColumns:selectedPost.thumbnail && !compact ? '104px 1fr auto' : '1fr auto', gap:12, padding:12, borderBottom:'1px solid rgba(33,28,23,0.10)', alignItems:'center' }}>
-                  {selectedPost.thumbnail && !compact && (
-                    <span style={{ width:104, height:64, borderRadius:3, overflow:'hidden', background:'rgba(33,28,23,0.08)', display:'block' }}>
-                      <img src={selectedPost.thumbnail} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} loading="lazy" />
-                    </span>
-                  )}
-                  <span style={{ minWidth:0 }}>
-                    <span style={{ display:'block', fontSize:14.5, lineHeight:1.35, color:C.ink }}>{selectedPost.text || selectedPost.url}</span>
-                    <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:6, textTransform:'uppercase' }}>
-                      {[selectedPost.username, selectedPost.metric, selectedPost.likes ? `${fmt(selectedPost.likes)} likes` : '', selectedPost.comments ? `${fmt(selectedPost.comments)} com.` : '', selectedPost.commentsExtracted ? `${fmt(selectedPost.commentsExtracted)} extraidos` : '', selectedPost.shares ? `${fmt(selectedPost.shares)} shares` : '', selectedPost.bookmarks ? `${fmt(selectedPost.bookmarks)} saved` : '', (selectedPost.date || '').slice(0,10)].filter(Boolean).join(' - ')}
-                    </span>
-                  </span>
-                  {selectedPost.url && <a href={selectedPost.url} target="_blank" rel="noopener" style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:C.goldDeep, fontWeight:700, textDecoration:'none' }}>ABRIR</a>}
-                </div>
-                {(selectedComments.length > 0 || t.networkStrategy?.title !== 'Redes monitoreadas') && (
-                <div style={{ padding:12 }}>
-                  <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.goldDeep, marginBottom:8 }}>
-                    {selectedComments.length ? `${selectedComments.length} comentarios extraidos` : 'Sin comentarios extraidos'}
-                  </div>
-                  {selectedComments.length ? selectedComments.slice(0, 12).map(comment => (
-                    <a key={comment.id} href={comment.url || undefined} target={comment.url ? '_blank' : undefined} rel={comment.url ? 'noopener' : undefined}
-                      style={{ display:'block', marginBottom:8, padding:'9px 10px', background:'rgba(33,28,23,0.035)', border:'1px solid rgba(33,28,23,0.07)', borderRadius:3, textDecoration:'none' }}>
-                      <span style={{ display:'block', fontSize:12.8, lineHeight:1.38, color:'#2A241C' }}>{comment.text || '[Sin texto]'}</span>
-                      <span style={{ display:'block', marginTop:5, fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', textTransform:'uppercase' }}>
-                        {[comment.author, comment.publishedTime, comment.likes ? `${comment.likes} likes` : '', comment.replies ? `${comment.replies} replies` : '', comment.views ? `${comment.views} views` : '', comment.url ? 'abrir comentario' : ''].filter(Boolean).join(' - ')}
+              t.networkStrategy?.title === 'Redes monitoreadas' || tab !== 'redes_propias' ? (
+                <SocialPostPreview post={selectedPost} platform={selectedNetwork} isDesktop={isDesktop} />
+              ) : (
+                <>
+                  <div style={{ display:'grid', gridTemplateColumns:selectedPost.thumbnail && !compact ? '104px 1fr auto' : '1fr auto', gap:12, padding:12, borderBottom:'1px solid rgba(33,28,23,0.10)', alignItems:'center' }}>
+                    {selectedPost.thumbnail && !compact && (
+                      <span style={{ width:104, height:64, borderRadius:3, overflow:'hidden', background:'rgba(33,28,23,0.08)', display:'block' }}>
+                        <img src={selectedPost.thumbnail} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} loading="lazy" />
                       </span>
-                    </a>
-                  )) : (
-                    <div style={{ padding:'16px 0 4px', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', textTransform:'uppercase' }}>
-                      Esta publicacion aun no tiene comentarios raspados en la muestra local.
+                    )}
+                    <span style={{ minWidth:0 }}>
+                      <span style={{ display:'block', fontSize:14.5, lineHeight:1.35, color:C.ink }}>{selectedPost.text || selectedPost.url}</span>
+                      <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:6, textTransform:'uppercase' }}>
+                        {[selectedPost.username, selectedPost.metric, selectedPost.likes ? `${fmt(selectedPost.likes)} likes` : '', selectedPost.comments ? `${fmt(selectedPost.comments)} com.` : '', selectedPost.commentsExtracted ? `${fmt(selectedPost.commentsExtracted)} extraidos` : '', selectedPost.shares ? `${fmt(selectedPost.shares)} shares` : '', selectedPost.bookmarks ? `${fmt(selectedPost.bookmarks)} saved` : '', (selectedPost.date || '').slice(0,10)].filter(Boolean).join(' - ')}
+                      </span>
+                    </span>
+                    {selectedPost.url && <a href={selectedPost.url} target="_blank" rel="noopener" style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:C.goldDeep, fontWeight:700, textDecoration:'none' }}>ABRIR</a>}
+                  </div>
+                  {(selectedComments.length > 0 || t.networkStrategy?.title !== 'Redes monitoreadas') && (
+                  <div style={{ padding:12 }}>
+                    <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.goldDeep, marginBottom:8 }}>
+                      {selectedComments.length ? `${selectedComments.length} comentarios extraidos` : 'Sin comentarios extraidos'}
                     </div>
+                    {selectedComments.length ? selectedComments.slice(0, 12).map(comment => (
+                      <a key={comment.id} href={comment.url || undefined} target={comment.url ? '_blank' : undefined} rel={comment.url ? 'noopener' : undefined}
+                        style={{ display:'block', marginBottom:8, padding:'9px 10px', background:'rgba(33,28,23,0.035)', border:'1px solid rgba(33,28,23,0.07)', borderRadius:3, textDecoration:'none' }}>
+                        <span style={{ display:'block', fontSize:12.8, lineHeight:1.38, color:'#2A241C' }}>{comment.text || '[Sin texto]'}</span>
+                        <span style={{ display:'block', marginTop:5, fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', textTransform:'uppercase' }}>
+                          {[comment.author, comment.publishedTime, comment.likes ? `${comment.likes} likes` : '', comment.replies ? `${comment.replies} replies` : '', comment.views ? `${comment.views} views` : '', comment.url ? 'abrir comentario' : ''].filter(Boolean).join(' - ')}
+                        </span>
+                      </a>
+                    )) : (
+                      <div style={{ padding:'16px 0 4px', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', textTransform:'uppercase' }}>
+                        Esta publicacion aun no tiene comentarios raspados en la muestra local.
+                      </div>
+                    )}
+                  </div>
                   )}
-                </div>
-                )}
-              </>
+                </>
+              )
             ) : (
               <div style={{ padding:12, fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', textTransform:'uppercase' }}>Selecciona una publicacion.</div>
             )}
@@ -1521,4 +1525,456 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
     </motion.div>
   );
 }
+
+function SocialPostPreview({ post, platform, isDesktop }) {
+  if (!post) return null;
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr.slice(0, 10);
+      return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch (e) {
+      return dateStr.slice(0, 10);
+    }
+  };
+
+  const getInitials = (username) => {
+    return String(username || 'U').slice(0, 2).toUpperCase();
+  };
+
+  const renderContent = () => {
+    switch (platform) {
+      case 'instagram':
+        return (
+          <div style={{
+            background: '#FFFFFF',
+            border: '1px solid #DBDBDB',
+            borderRadius: 8,
+            overflow: 'hidden',
+            color: '#262626',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+            maxWidth: 450,
+            margin: '16px auto',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', gap: 10 }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: '50%',
+                background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px'
+              }}>
+                <div style={{
+                  width: '100%', height: '100%', borderRadius: '50%', background: '#FFF',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 11, fontWeight: 'bold', color: '#262626'
+                }}>
+                  {getInitials(post.username)}
+                </div>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontWeight: 600, fontSize: 13.5 }}>{post.username || 'instagram_user'}</span>
+                  <VerifiedIcon />
+                </div>
+                <span style={{ fontSize: 11, color: '#8e8e8e' }}>{formatDate(post.date)}</span>
+              </div>
+            </div>
+
+            <div style={{ width: '100%', background: '#F8F9FA', position: 'relative', overflow: 'hidden' }}>
+              {post.thumbnail ? (
+                <img src={post.thumbnail} alt="" style={{ width: '100%', height: 'auto', maxHeight: 300, objectFit: 'cover', display: 'block' }} />
+              ) : (
+                <div style={{
+                  height: 200,
+                  background: 'linear-gradient(45deg, #f58529, #dd2a7b, #8134af, #515bd4)',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  color: '#FFFFFF', padding: 20, textAlign: 'center'
+                }}>
+                  <PlatformIcon platform="instagram" size={48} />
+                  <span style={{ marginTop: 12, fontSize: 13, opacity: 0.95, fontFamily: "'Geist Mono', monospace" }}>Instagram Post</span>
+                </div>
+              )}
+            </div>
+
+            <div style={{ padding: '10px 14px 4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div style={{ display: 'flex', gap: 14 }}>
+                  <span style={{ color: '#ed4956', cursor: 'pointer' }}><HeartFilledIcon /></span>
+                  <span style={{ color: '#262626' }}><CommentIcon /></span>
+                  <span style={{ color: '#262626' }}><SendIcon /></span>
+                </div>
+                <span style={{ color: '#262626' }}><BookmarkIcon /></span>
+              </div>
+
+              <div style={{ fontWeight: 600, fontSize: 13.5, marginBottom: 8 }}>
+                {post.likes ? `${fmt(post.likes)} Me gusta` : '1 Me gusta'}
+              </div>
+
+              <div style={{ fontSize: 13.5, lineHeight: 1.4, wordBreak: 'break-word', maxHeight: 110, overflowY: 'auto' }}>
+                <span style={{ fontWeight: 600, marginRight: 6 }}>{post.username}</span>
+                {post.text || 'Sin texto.'}
+              </div>
+            </div>
+
+            <div style={{ borderTop: '1px solid #EFEFEF', padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 11, color: '#8e8e8e', textTransform: 'uppercase', fontFamily: "'Geist Mono', monospace" }}>Enlace original</span>
+              {post.url ? (
+                <a href={post.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: '#0095f6', fontWeight: 600, fontSize: 13 }}>
+                  Ver en Instagram
+                </a>
+              ) : (
+                <span style={{ fontSize: 12, color: '#8e8e8e' }}>No disponible</span>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'x':
+        return (
+          <div style={{
+            background: '#000000',
+            border: '1px solid #2F3336',
+            borderRadius: 12,
+            padding: 16,
+            color: '#E7E9EA',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+            maxWidth: 450,
+            margin: '16px auto',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12 }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: '50%', background: '#333',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 'bold', fontSize: 14, color: '#FFF'
+              }}>
+                {getInitials(post.username)}
+              </div>
+              <div style={{ flex: 1, minWidth: 0, lineHeight: 1.2 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontWeight: 700, fontSize: 15, color: '#F7F9F9' }}>{post.username || 'x_user'}</span>
+                  <VerifiedIcon />
+                </div>
+                <span style={{ fontSize: 13, color: '#71767B' }}>@{String(post.username || 'user').toLowerCase()}</span>
+              </div>
+              <span style={{ fontSize: 13, color: '#71767B', alignSelf: 'flex-start' }}>{formatDate(post.date)}</span>
+            </div>
+
+            <div style={{ fontSize: 15, lineHeight: 1.45, marginBottom: 12, whiteSpace: 'pre-wrap', color: '#E7E9EA' }}>
+              {post.text || 'Sin texto en la publicación.'}
+            </div>
+
+            {post.thumbnail && (
+              <div style={{ borderRadius: 16, overflow: 'hidden', border: '1px solid #2F3336', marginBottom: 12, background: '#15181C' }}>
+                <img src={post.thumbnail} alt="" style={{ width: '100%', maxHeight: 250, objectFit: 'cover', display: 'block' }} />
+              </div>
+            )}
+
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', maxWidth: 350, margin: '8px 0 0',
+              borderTop: '1px solid #2F3336', paddingTop: 10, color: '#71767B', fontSize: 13
+            }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><XReplyIcon /> {post.comments ? fmt(post.comments) : '0'}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><XRetweetIcon /> {post.retweets ? fmt(post.retweets) : '0'}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: post.likes ? '#F91880' : 'inherit' }}><XLikeIcon /> {post.likes ? fmt(post.likes) : '1'}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><XShareIcon /></span>
+            </div>
+
+            <div style={{ borderTop: '1px solid #2F3336', marginTop: 12, paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 11, color: '#71767B', textTransform: 'uppercase', fontFamily: "'Geist Mono', monospace" }}>Publicación en X</span>
+              {post.url ? (
+                <a href={post.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: '#1D9BF0', fontWeight: 600, fontSize: 13 }}>
+                  Ver en X.com
+                </a>
+              ) : (
+                <span style={{ fontSize: 12, color: '#71767B' }}>No disponible</span>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'tiktok':
+        return (
+          <div style={{
+            background: '#121212',
+            border: '1px solid #2F2F2F',
+            borderRadius: 12,
+            padding: 16,
+            color: '#FFFFFF',
+            fontFamily: 'SFProText-Regular, Tahoma, Geneva, sans-serif',
+            maxWidth: 450,
+            margin: '16px auto',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12 }}>
+              <div style={{
+                width: 38, height: 38, borderRadius: '50%',
+                background: '#2F2F2F', border: '1.5px solid #FE2C55',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 'bold', fontSize: 13
+              }}>
+                {getInitials(post.username)}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 14.5 }}>{post.username || 'tiktok_user'}</div>
+                <span style={{ fontSize: 11, color: '#A0A0A0' }}>{formatDate(post.date)}</span>
+              </div>
+              <div style={{
+                padding: '4px 12px', background: '#FE2C55', color: '#FFF', borderRadius: 4,
+                fontSize: 12, fontWeight: 600, fontFamily: "'Geist Mono', monospace"
+              }}>TIKTOK</div>
+            </div>
+
+            <div style={{ fontSize: 14, lineHeight: 1.4, marginBottom: 12, color: '#E1E1E1' }}>
+              {post.text || 'Sin descripción.'}
+            </div>
+
+            <div style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', background: '#000', marginBottom: 12 }}>
+              {post.thumbnail ? (
+                <img src={post.thumbnail} alt="" style={{ width: '100%', maxHeight: 250, objectFit: 'cover', display: 'block' }} />
+              ) : (
+                <div style={{
+                  height: 180,
+                  background: 'linear-gradient(135deg, #121212 0%, #252525 100%)',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  padding: 20, border: '1px dashed #FE2C55', borderRadius: 8
+                }}>
+                  <PlatformIcon platform="tiktok" size={40} />
+                  <span style={{ marginTop: 10, fontSize: 12, color: '#A0A0A0' }}>Video de TikTok</span>
+                </div>
+              )}
+              {post.metric && (
+                <div style={{
+                  position: 'absolute', bottom: 10, left: 10, background: 'rgba(0,0,0,0.6)',
+                  padding: '3px 8px', borderRadius: 4, fontSize: 11, display: 'flex', alignItems: 'center', gap: 4
+                }}>
+                  <span>▶</span> {post.metric}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: 16, fontSize: 12.5, color: '#A0A0A0', borderBottom: '1px solid #2F2F2F', paddingBottom: 10 }}>
+              <span>❤️ <strong>{post.likes ? fmt(post.likes) : '0'}</strong> Likes</span>
+              <span>💬 <strong>{post.comments ? fmt(post.comments) : '0'}</strong> Comentarios</span>
+            </div>
+
+            <div style={{ paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 11, color: '#A0A0A0', textTransform: 'uppercase', fontFamily: "'Geist Mono', monospace" }}>Ver original</span>
+              {post.url ? (
+                <a href={post.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: '#25F4EE', fontWeight: 600, fontSize: 13 }}>
+                  Ver en TikTok
+                </a>
+              ) : (
+                <span style={{ fontSize: 12, color: '#A0A0A0' }}>No disponible</span>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'facebook':
+        return (
+          <div style={{
+            background: '#FFFFFF',
+            border: '1px solid #E5E5E5',
+            borderRadius: 8,
+            padding: 14,
+            color: '#1C1E21',
+            fontFamily: 'Segoe UI, Helvetica, Arial, sans-serif',
+            maxWidth: 450,
+            margin: '16px auto',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+          }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: '50%', background: '#F0F2F5',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: 'bold', fontSize: 13, color: '#1877F2', border: '1px solid #E5E5E5'
+              }}>
+                {getInitials(post.username)}
+              </div>
+              <div style={{ flex: 1, minWidth: 0, lineHeight: 1.25 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontWeight: 600, fontSize: 14, color: '#1C1E21' }}>{post.username || 'facebook_user'}</span>
+                  <VerifiedIcon />
+                </div>
+                <span style={{ fontSize: 12, color: '#65676B' }}>{formatDate(post.date)} · 🌐</span>
+              </div>
+            </div>
+
+            <div style={{ fontSize: 14, lineHeight: 1.4, marginBottom: 10, color: '#1C1E21' }}>
+              {post.text || 'Sin texto.'}
+            </div>
+
+            {post.thumbnail && (
+              <div style={{ margin: '0 -14px 10px -14px', borderTop: '1px solid #E5E5E5', borderBottom: '1px solid #E5E5E5', background: '#F0F2F5' }}>
+                <img src={post.thumbnail} alt="" style={{ width: '100%', maxHeight: 250, objectFit: 'cover', display: 'block' }} />
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: '#65676B', paddingBottom: 10, borderBottom: '1px solid #E5E5E5' }}>
+              <span>👍❤️ {post.likes ? fmt(post.likes) : '0'} reacciones</span>
+              <span>{post.comments ? `${fmt(post.comments)} comentarios` : ''}</span>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-around', margin: '4px 0 -4px', padding: '4px 0 0', color: '#65676B', fontWeight: 600, fontSize: 13 }}>
+              <span style={{ cursor: 'pointer' }}>👍 Me gusta</span>
+              <span style={{ cursor: 'pointer' }}>💬 Comentar</span>
+              <span style={{ cursor: 'pointer' }}>↪️ Compartir</span>
+            </div>
+
+            <div style={{ borderTop: '1px solid #E5E5E5', marginTop: 12, paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 10, color: '#65676B', textTransform: 'uppercase', fontFamily: "'Geist Mono', monospace" }}>Publicación de Facebook</span>
+              {post.url ? (
+                <a href={post.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: '#1877F2', fontWeight: 600, fontSize: 13 }}>
+                  Ver en Facebook
+                </a>
+              ) : (
+                <span style={{ fontSize: 12, color: '#65676B' }}>No disponible</span>
+              )}
+            </div>
+          </div>
+        );
+
+      case 'google_news':
+      default:
+        return (
+          <div style={{
+            background: '#FFFFFF',
+            border: '1px solid #DADCE0',
+            borderRadius: 8,
+            padding: 16,
+            color: '#202124',
+            fontFamily: '"Google Sans", Roboto, Arial, sans-serif',
+            maxWidth: 450,
+            margin: '16px auto',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.08)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, borderBottom: '1px solid #F1F3F4', paddingBottom: 10 }}>
+              <div style={{ width: 20, height: 20, borderRadius: 4, background: '#1a73e8', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>G</div>
+              <span style={{ fontSize: 12, color: '#5f6368', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', fontFamily: "'Geist Mono', monospace" }}>Google News</span>
+              <span style={{ fontSize: 11, color: '#70757a', marginLeft: 'auto' }}>{formatDate(post.date)}</span>
+            </div>
+
+            <div style={{ fontSize: 13, color: '#1a73e8', fontWeight: 600, marginBottom: 8, textTransform: 'uppercase' }}>
+              {post.username || 'Prensa'}
+            </div>
+
+            <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.35, color: '#202124', marginBottom: 12 }}>
+              {post.text || 'Sin título.'}
+            </div>
+
+            {post.thumbnail && (
+              <div style={{ borderRadius: 6, overflow: 'hidden', marginBottom: 14 }}>
+                <img src={post.thumbnail} alt="" style={{ width: '100%', maxHeight: 180, objectFit: 'cover', display: 'block' }} />
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
+              {post.url ? (
+                <a href={post.url} target="_blank" rel="noopener noreferrer"
+                  style={{
+                    textDecoration: 'none', background: '#1a73e8', color: '#FFFFFF',
+                    padding: '8px 16px', borderRadius: 4, fontSize: 13, fontWeight: 500,
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.15)', display: 'inline-block'
+                  }}>
+                  Leer noticia completa
+                </a>
+              ) : (
+                <span style={{ fontSize: 12, color: '#70757a' }}>Enlace no disponible</span>
+              )}
+            </div>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div style={{ padding: 12, display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center' }}>
+      <div style={{
+        fontFamily: "'Geist Mono', monospace", fontSize: 9.5, letterSpacing: '0.12em',
+        textTransform: 'uppercase', color: '#8A7E6A', marginBottom: 10, textAlign: 'center'
+      }}>
+        Vista Previa de Publicación
+      </div>
+      {renderContent()}
+    </div>
+  );
+}
+
+function VerifiedIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="#1d9bf0" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <path d="M22.5 12.5c0-1.58-.875-2.95-2.148-3.6.154-.435.238-.905.238-1.4 0-2.21-1.71-3.99-3.818-3.99-.48 0-.94.1-1.348.27C14.825 2.515 13.512 1.5 12 1.5s-2.825 1.015-3.422 2.28c-.407-.17-.867-.27-1.348-.27-2.108 0-3.818 1.78-3.818 3.99 0 .495.084.965.238 1.4-1.273.65-2.148 2.02-2.148 3.6 0 1.58.875 2.95 2.148 3.6-.154.435-.238.905-.238 1.4 0 2.21 1.71 3.99 3.818 3.99.48 0 .94-.1 1.348-.27.597 1.265 1.91 2.27 3.422 2.27s2.825-1.005 3.422-2.27c.407.17.867.27 1.348.27 2.108 0 3.818-1.78 3.818-3.99 0-.495-.084-.965-.238-1.4 1.273-.65 2.148-2.02 2.148-3.6zm-12.72 3.28l-3.29-3.28 1.41-1.42 1.88 1.88 5.18-5.17 1.42 1.41-6.6 6.58z"/>
+    </svg>
+  );
+}
+
+function HeartFilledIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+    </svg>
+  );
+}
+
+function CommentIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+    </svg>
+  );
+}
+
+function SendIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="22" y1="2" x2="11" y2="13"/>
+      <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+    </svg>
+  );
+}
+
+function BookmarkIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+    </svg>
+  );
+}
+
+function XReplyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <path d="M1.75 1.75h20.5c.966 0 1.75.784 1.75 1.75v12.5c0 .966-.784 1.75-1.75 1.75h-4.32l-5.68 5.68-5.68-5.68H1.75C.784 17.75 0 16.966 0 16V3.5c0-.966.784-1.75 1.75-1.75zm0 1.5c-.138 0-.25.112-.25.25v12.5c0 .138.112.25.25.25h5.18l4.07 4.07 4.07-4.07h5.18c.138 0 .25-.112.25-.25V3.5c0-.138-.112-.25-.25-.25H1.75z"/>
+    </svg>
+  );
+}
+
+function XRetweetIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <path d="M4.5 3.75h15c1.24 0 2.25 1.01 2.25 2.25v3c0 .41-.34.75-.75.75s-.75-.34-.75-.75v-3c0-.41-.34-.75-.75-.75h-15c-.41 0-.75.34-.75.75v3c0 .41-.34.75-.75.75s-.75-.34-.75-.75v-3c0-1.24 1.01-2.25 2.25-2.25zm15 16.5h-15c-1.24 0-2.25-1.01-2.25-2.25v-3c0-.41.34-.75.75-.75s.75.34.75.75v3c0 .41.34.75.75.75h15c.41 0 .75-.34.75-.75v-3c0-.41-.34-.75-.75-.75s-.75.34-.75.75v3c0 1.24-1.01 2.25-2.25 2.25z"/>
+    </svg>
+  );
+}
+
+function XLikeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <path d="M12 21.638h-.014C9.403 21.59 1.95 14.856 1.95 8.478c0-3.064 2.525-5.754 5.403-5.754 2.29 0 3.83 1.58 4.646 2.73.814-1.148 2.354-2.73 4.645-2.73 2.88 0 5.404 2.69 5.404 5.755 0 6.376-7.454 13.11-10.037 13.157H12z"/>
+    </svg>
+  );
+}
+
+function XShareIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <path d="M12 2.59l5.7 5.7-1.41 1.42-3.29-3.29V16.5h-2V6.42L7.71 9.71 6.3 8.29 12 2.59zm-7.25 15h14.5v1.5H4.75v-1.5z"/>
+    </svg>
+  );
+}
+
+
 
