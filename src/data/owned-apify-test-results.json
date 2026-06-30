@@ -1,0 +1,209 @@
+﻿[
+    "RUN viralanalyzer/youtube-fast-scraper",
+    {
+        "actor":  "viralanalyzer/youtube-fast-scraper",
+        "runId":  "T0JnT5tHaFOSxIRuz",
+        "status":  "READY",
+        "defaultDatasetId":  "uvXhOzKfC3F1kZXpH",
+        "itemCount":  1,
+        "items":  [
+                      {
+                          "value":  [
+
+                                    ],
+                          "Count":  0
+                      }
+                  ]
+    },
+    "RUN scraper_one/x-profile-posts-scraper",
+    {
+        "actor":  "scraper_one/x-profile-posts-scraper",
+        "runId":  "V5rsRFT1K9oVIKNsU",
+        "status":  "SUCCEEDED",
+        "defaultDatasetId":  "a43htWj0k2fcKYYwC",
+        "itemCount":  1,
+        "items":  [
+                      {
+                          "value":  [
+                                        {
+                                            "postText":  "#GRACIAS a @billboard por incluirme en los “2026 Indie Power Players” 🙌\n\nHan sido años de aprender, arriesgar, crear y defender una manera muy personal de hacer las cosas.\nQué gusto ver que hoy la música independiente tiene más fuerza, más espacios y más voz que nunca👏👊\n\n#PepeAguilar #MachinRecords #EquinoccioRecords #IndiePowerPlayers",
+                                            "postUrl":  "https://x.com/PepeAguilar/status/2054314384152056001",
+                                            "profileUrl":  "https://x.com/PepeAguilar",
+                                            "timestamp":  1778621691000,
+                                            "conversationId":  "2054314384152056001",
+                                            "postId":  "2054314384152056001",
+                                            "media":  [
+                                                          {
+                                                              "mediaUrlHttps":  "https://pbs.twimg.com/media/HIJkC0SWUAA6zJz.jpg",
+                                                              "type":  "photo",
+                                                              "id":  "2054314379592486912"
+                                                          },
+                                                          {
+                                                              "mediaUrlHttps":  "https://pbs.twimg.com/media/HIJkC0OWwAAgHg2.jpg",
+                                                              "type":  "photo",
+                                                              "id":  "2054314379575738368"
+                                                          }
+                                                      ],
+                                            "author":  {
+                                                           "name":  "Pepe Aguilar",
+                                                           "screenName":  "PepeAguilar",
+                                                           "followersCount":  1503405,
+                                                           "favouritesCount":  3724,
+                                                           "friendsCount":  869,
+                                                           "description":  "PreSave #MiSuerteEsMexicano, mi nuevo álbum 🇲🇽🐴📲",
+                                                           "profileImageUrl":  "https://pbs.twimg.com/profile_images/1924982447290384386/0CUtVg61_normal.jpg"
+                                                       },
+                                            "replyCount":  60,
+                                            "quoteCount":  2,
+                                            "repostCount":  29,
+                                            "favouriteCount":  177
+                                        },
+                                        {
+                                            "postText":  "Ganamos el Campeonato Nacional Charro 2025!! 👏😎 \n\nDisponible nuevo video ya en#ElVlog 📹\n\nhttps://t.co/kdsvsBth0f",
+                                            "postUrl":  "https://x.com/PepeAguilar/status/1995520272204792101",
+                                            "profileUrl":  "https://x.com/PepeAguilar",
+                                            "timestamp":  1764604082000,
+                                            "conversationId":  "1995520272204792101",
+                                            "postId":  "1995520272204792101",
+                                            "media":  [
+
+                                                      ],
+                                            "author":  {
+                                                           "name":  "Pepe Aguilar",
+                                                           "screenName":  "PepeAguilar",
+                                                           "followersCount":  1503405,
+                                                           "favouritesCount":  3724,
+                                                           "friendsCount":  869,
+                                                           "description":  "PreSave #MiSuerteEsMexicano, mi nuevo álbum 🇲🇽🐴📲",
+                                                           "profileImageUrl":  "https://pbs.twimg.com/profile_images/1924982447290384386/0CUtVg61_normal.jpg"
+                                                       },
+                                            "replyCount":  169,
+                                            "quoteCount":  2,
+                                            "repostCount":  22,
+                                            "favouriteCount":  153
+                                        },
+                                        {
+                                            "postText":  "Dale PreSave a #AquíSigo y descúbrelo!!😎🙌\n\n👉https://t.co/C0NkTpvGu6\n\n#NuevaMúsica #PepeAguilar https://t.co/P1p7OTpPmP",
+                                            "postUrl":  "https://x.com/PepeAguilar/status/1984700428244902361",
+                                            "profileUrl":  "https://x.com/PepeAguilar",
+                                            "timestamp":  1762024430000,
+                                            "conversationId":  "1984700428244902361",
+                                            "postId":  "1984700428244902361",
+                                            "media":  [
+                                                          {
+                                                              "mediaUrlHttps":  "https://pbs.twimg.com/amplify_video_thumb/1984700341464809477/img/jmnk95V5jIEbKVt2.jpg",
+                                                              "type":  "video",
+                                                              "id":  "1984700341464809477"
+                                                          }
+                                                      ],
+                                            "author":  {
+                                                           "name":  "Pepe Aguilar",
+                                                           "screenName":  "PepeAguilar",
+                                                           "followersCount":  1503405,
+                                                           "favouritesCount":  3724,
+                                                           "friendsCount":  869,
+                                                           "description":  "PreSave #MiSuerteEsMexicano, mi nuevo álbum 🇲🇽🐴📲",
+                                                           "profileImageUrl":  "https://pbs.twimg.com/profile_images/1924982447290384386/0CUtVg61_normal.jpg"
+                                                       },
+                                            "replyCount":  99,
+                                            "quoteCount":  1,
+                                            "repostCount":  19,
+                                            "favouriteCount":  96
+                                        }
+                                    ],
+                          "Count":  3
+                      }
+                  ]
+    },
+    "RUN apify/facebook-pages-scraper",
+    {
+        "actor":  "apify/facebook-pages-scraper",
+        "runId":  "1HXdFbD6PY8awMpv9",
+        "status":  "SUCCEEDED",
+        "defaultDatasetId":  "YEF9fWHkCvsxajnte",
+        "itemCount":  1,
+        "items":  [
+                      {
+                          "value":  [
+                                        {
+                                            "facebookUrl":  "https://www.facebook.com/pepeaguilaroficial/?locale=es_LA",
+                                            "categories":  [
+                                                               "Página",
+                                                               "Músico(a)/banda"
+                                                           ],
+                                            "info":  [
+                                                         "Pepe Aguilar. 6.243.491 Me gusta",
+                                                         "7.402 personas están hablando de esto. Dando lata (musical) desde 1987"
+                                                     ],
+                                            "likes":  0,
+                                            "messenger":  null,
+                                            "title":  "Pepe Aguilar",
+                                            "pageId":  "100044594342192",
+                                            "pageName":  "pepeaguilaroficial",
+                                            "pageUrl":  "https://www.facebook.com/pepeaguilaroficial/?locale=es_LA",
+                                            "intro":  "Dando lata (musical) desde 1987",
+                                            "websites":  [
+                                                             "http://www.pepeaguilar.com/"
+                                                         ],
+                                            "email":  "info@pepeaguilar.com.mx",
+                                            "website":  "http://www.pepeaguilar.com/",
+                                            "seguidores":  62,
+                                            "seguidos":  12,
+                                            "profilePictureUrl":  "https://scontent-lga3-3.xx.fbcdn.net/v/t39.30808-1/648984097_1513279176835213_4062895467697752895_n.jpg?stp=c92.9.967.968a_dst-jpg_tt6\u0026cstp=mx967x968\u0026ctp=s200x200\u0026_nc_cat=108\u0026ccb=1-7\u0026_nc_sid=f907e8\u0026_nc_ohc=-lGUTv2OmO8Q7kNvwGl69Ou\u0026_nc_oc=AdqWVFkpflP8t1cecQ9Pgvh-mYRHbRyQ-4zDlkhwaW4Ux9RvFt-OPBeXObHffsHJSVDpM07q8RmQhUG52fSIlgo-\u0026_nc_zt=24\u0026_nc_ht=scontent-lga3-3.xx\u0026_nc_gid=FE_z6Z0EBBggl7aZqQXQVA\u0026_nc_ss=7c289\u0026oh=00_Af-wjm17Qtr93fJnvFnnCGOwwAU8enmGow1I42iZw10qGA\u0026oe=6A488B13",
+                                            "coverPhotoUrl":  "https://scontent-lga3-2.xx.fbcdn.net/v/t39.30808-6/499163516_1285190872977379_2979968181401174658_n.jpg?stp=dst-jpg_tt6\u0026cstp=mx1500x500\u0026ctp=s1500x500\u0026_nc_cat=105\u0026ccb=1-7\u0026_nc_sid=cc71e4\u0026_nc_ohc=gdLPtm8fVrwQ7kNvwEwEX_n\u0026_nc_oc=AdqpEEix-jSrZrNCldFG-FMBYEYXYRlsizcygLQ-DsVjSWMfjDkeJSvM-_vGdXG6sBL-Mv10a1dyJaQAfbYusRQQ\u0026_nc_zt=23\u0026_nc_ht=scontent-lga3-2.xx\u0026_nc_gid=9IbNVzx7nwjdLl0culH59A\u0026_nc_ss=7c289\u0026oh=00_Af8SpyIZ0aThIVk2pemEwwBtr4qYV8PkbDTmFFgi4cYDXg\u0026oe=6A48A171",
+                                            "profilePhoto":  "https://www.facebook.com/photo/?fbid=1513279476835183\u0026set=a.252255942937549",
+                                            "followers":  6243491,
+                                            "category":  "Musician/band",
+                                            "creation_date":  "March 25, 2009",
+                                            "ad_status":  "This Page isn\u0027t currently running ads.",
+                                            "additionalProperties":  {
+                                                                         "messenger":  null,
+                                                                         "seguidores":  62,
+                                                                         "seguidos":  12,
+                                                                         "profilePictureUrl":  "https://scontent-lga3-3.xx.fbcdn.net/v/t39.30808-1/648984097_1513279176835213_4062895467697752895_n.jpg?stp=c92.9.967.968a_dst-jpg_tt6\u0026cstp=mx967x968\u0026ctp=s200x200\u0026_nc_cat=108\u0026ccb=1-7\u0026_nc_sid=f907e8\u0026_nc_ohc=-lGUTv2OmO8Q7kNvwGl69Ou\u0026_nc_oc=AdqWVFkpflP8t1cecQ9Pgvh-mYRHbRyQ-4zDlkhwaW4Ux9RvFt-OPBeXObHffsHJSVDpM07q8RmQhUG52fSIlgo-\u0026_nc_zt=24\u0026_nc_ht=scontent-lga3-3.xx\u0026_nc_gid=FE_z6Z0EBBggl7aZqQXQVA\u0026_nc_ss=7c289\u0026oh=00_Af-wjm17Qtr93fJnvFnnCGOwwAU8enmGow1I42iZw10qGA\u0026oe=6A488B13",
+                                                                         "coverPhotoUrl":  "https://scontent-lga3-2.xx.fbcdn.net/v/t39.30808-6/499163516_1285190872977379_2979968181401174658_n.jpg?stp=dst-jpg_tt6\u0026cstp=mx1500x500\u0026ctp=s1500x500\u0026_nc_cat=105\u0026ccb=1-7\u0026_nc_sid=cc71e4\u0026_nc_ohc=gdLPtm8fVrwQ7kNvwEwEX_n\u0026_nc_oc=AdqpEEix-jSrZrNCldFG-FMBYEYXYRlsizcygLQ-DsVjSWMfjDkeJSvM-_vGdXG6sBL-Mv10a1dyJaQAfbYusRQQ\u0026_nc_zt=23\u0026_nc_ht=scontent-lga3-2.xx\u0026_nc_gid=9IbNVzx7nwjdLl0culH59A\u0026_nc_ss=7c289\u0026oh=00_Af8SpyIZ0aThIVk2pemEwwBtr4qYV8PkbDTmFFgi4cYDXg\u0026oe=6A48A171",
+                                                                         "category":  "Musician/band",
+                                                                         "ad_status":  "This Page isn\u0027t currently running ads."
+                                                                     },
+                                            "facebookId":  "100044594342192",
+                                            "pageAdLibrary":  {
+                                                                  "id":  "59946037695",
+                                                                  "pamv_comms_data":  null
+                                                              }
+                                        }
+                                    ],
+                          "Count":  1
+                      }
+                  ]
+    },
+    "RUN andok/tiktok-intelligence",
+    {
+        "actor":  "andok/tiktok-intelligence",
+        "runId":  "ohFtOp7RTWDEKvBXh",
+        "status":  "SUCCEEDED",
+        "defaultDatasetId":  "25HbfXJeqtFxmaUpQ",
+        "itemCount":  1,
+        "items":  [
+                      {
+                          "value":  [
+                                        {
+                                            "sourceUrl":  "https://www.tiktok.com/@pepeaguilar_oficial?lang=es",
+                                            "videoId":  "",
+                                            "videoUrl":  "",
+                                            "authorUniqueId":  "",
+                                            "authorNickname":  "",
+                                            "authorFollowers":  0,
+                                            "text":  "",
+                                            "playCount":  0,
+                                            "diggCount":  0,
+                                            "commentCount":  0,
+                                            "shareCount":  0,
+                                            "createTime":  0,
+                                            "error":  "No videos found in the expected rehydration state"
+                                        }
+                                    ],
+                          "Count":  1
+                      }
+                  ]
+    }
+]

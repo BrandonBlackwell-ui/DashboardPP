@@ -4,7 +4,7 @@ import ParticleBackground from './ParticleBackground';
 
 const INK_FILTER = `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><filter id='i'><feTurbulence type='fractalNoise' baseFrequency='0.022' numOctaves='3' seed='4'/><feDisplacementMap in='SourceGraphic' scale='1.4' xChannelSelector='R' yChannelSelector='G'/></filter></svg>#i")`;
 
-export default function Header({ tab, data, onExport, onTabChange, onUpload }) {
+export default function Header({ tab, data, onExport, onTabChange }) {
   const T = data?.themes || {};
   const order = data?.order || [];
   const rawMode = data?.meta?.source === 'apify_local' || T?.resumen?.rawOnly;
@@ -60,16 +60,6 @@ export default function Header({ tab, data, onExport, onTabChange, onUpload }) {
                 color:C.ink, cursor:'pointer', transition:'all 0.15s', whiteSpace:'nowrap' }}>
               {tab==='panorama'||tab==='historico' ? 'Exportar' : 'Exportar'} ↓
             </motion.button>
-            {onUpload && (
-              <motion.button whileHover={{ background:C.gold, color:'#FBF8F1', borderColor:C.gold }} whileTap={{ scale:0.95 }}
-                onClick={onUpload}
-                style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'7px 11px', borderRadius:2,
-                  fontFamily:"'Geist Mono',monospace", fontSize:10, fontWeight:600, letterSpacing:'0.08em',
-                  textTransform:'uppercase', border:`1px solid ${C.gold}`, background:'transparent',
-                  color:C.gold, cursor:'pointer', transition:'all 0.15s', whiteSpace:'nowrap' }}>
-                + Subir CSV
-              </motion.button>
-            )}
           </div>
         </div>
 

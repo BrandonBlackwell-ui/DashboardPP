@@ -9,7 +9,6 @@ import PanoramaView from './components/PanoramaView';
 import ThemeView from './components/ThemeView';
 import CalendarView from './components/CalendarView';
 import ReporteView from './components/ReporteView';
-import UploadModal, { applyStoredExtra } from './components/UploadModal';
 import ExportModal from './components/ExportModal';
 import LoginGate from './components/LoginGate';
 import { loadFromSupabase, loadThemeByDate } from './lib/loadFromSupabase';
@@ -62,7 +61,6 @@ export default function App() {
   const [date, setDate] = useState('todas');
   const [plat, setPlat] = useState('todas');
   const [panoramaDate, setPanoramaDate] = useState('todas');
-  const [showUpload, setShowUpload] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [dataVersion, setDataVersion] = useState(0);
   const initialLoadDone = useRef(false);
@@ -80,10 +78,8 @@ export default function App() {
       setDataVersion(v => v+1);
       return;
     }
-    applyStoredExtra();
     setDataVersion(v => v+1);
     loadFromSupabase().then(() => {
-      applyStoredExtra();
       refreshData();
       setDataVersion(v => v+1);
     });
@@ -176,9 +172,6 @@ export default function App() {
       refreshData();
     }
   }
-  function handleUpload() { setShowUpload(true); }
-  function handleDataUpdated() { setDataVersion(v => v+1); }
-
   function handleExport() {
     setShowExport(true);
   }
@@ -254,7 +247,7 @@ export default function App() {
       </div>
 
       <div style={{ margin:'24px 18px 0', padding:'13px 0', borderTop:'2px solid #211C17', display:'flex', flexWrap:'wrap', gap:8, justifyContent:'space-between', fontFamily:"'Geist Mono',monospace", fontSize:9.5, letterSpacing:'0.06em', textTransform:'uppercase', color:'#B0822F' }}>
-        <span>{LOCAL_APIFY_MODE ? 'Modo local Apify · sin Supabase' : 'Doc. ref · BW-PA-BRIEF-1315JUN26'}</span>
+        <span>Doc. ref · BW-PA-BRIEF-1315JUN26</span>
         <span>Preparado por Blackwell Strategy</span>
         <span style={{ color:'#9B3331', fontWeight:600 }}>Confidencial · uso interno</span>
       </div>
@@ -266,14 +259,13 @@ export default function App() {
       <div style={{ minHeight:'100vh', background:'#241E18', fontFamily:"'Geist', system-ui, sans-serif" }}>
         <div dangerouslySetInnerHTML={{ __html: INK_SVG }} />
         <AnimatePresence>
-          {showUpload && <UploadModal onClose={() => setShowUpload(false)} onDataUpdated={handleDataUpdated} />}
           {showExport && <ExportModal onClose={() => setShowExport(false)} />}
         </AnimatePresence>
         {!data && <Loading />}
         {data && (
           <DesktopShell
             tab={tab} data={data} pano={pano}
-            onTabChange={handleTabChange} onExport={handleExport} onUpload={isAdmin ? handleUpload : null}>
+            onTabChange={handleTabChange} onExport={handleExport}>
             {/* SubBar as sticky strip inside content */}
             <SubBar tab={tab} pano={pano} date={date} plat={plat} data={data}
               dateOptions={dateOptions} onPanoChange={setPano} onDateChange={handleDateChange} onPlatChange={setPlat} isDesktop
@@ -289,7 +281,6 @@ export default function App() {
     <div style={{ minHeight:'100vh', background:'#241E18', display:'flex', justifyContent:'center', fontFamily:"'Geist', system-ui, sans-serif" }}>
       <div dangerouslySetInnerHTML={{ __html: INK_SVG }} />
       <AnimatePresence>
-        {showUpload && <UploadModal onClose={() => setShowUpload(false)} onDataUpdated={handleDataUpdated} />}
         {showExport && <ExportModal onClose={() => setShowExport(false)} />}
       </AnimatePresence>
       <div style={{ width:'100%', maxWidth:468, minHeight:'100vh', background:'#EFE9DC',
@@ -299,7 +290,7 @@ export default function App() {
         {!data && <Loading />}
 
         {data && (<>
-          <Header tab={tab} data={data} onExport={handleExport} onTabChange={handleTabChange} onUpload={isAdmin ? handleUpload : null} />
+          <Header tab={tab} data={data} onExport={handleExport} onTabChange={handleTabChange} />
           <SubBar tab={tab} pano={pano} date={date} plat={plat} data={data}
             dateOptions={dateOptions} onPanoChange={setPano} onDateChange={handleDateChange} onPlatChange={setPlat}
             panoramaDate={panoramaDate} onPanoramaDateChange={setPanoramaDate} />

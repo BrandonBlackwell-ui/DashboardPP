@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import Donut from './Donut';
 import TiltCard from './TiltCard';
 import AnimatedNumber from './AnimatedNumber';
+import PlatformIcon from './PlatformIcon';
 import { C, fmt, fmtK, riskMeta, pill } from '../utils/helpers';
 
 const stagger = { hidden:{}, visible:{ transition:{ staggerChildren:0.07 } } };
@@ -42,32 +43,20 @@ function KPIs({ kpis }) {
   );
 }
 
-function RawNetworkIcon({ platform }) {
-  const p = (platform || '').toLowerCase();
-  if (p === 'x') return <span style={{ width:24, height:24, borderRadius:5, background:'#000', color:'#fff', display:'inline-flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:14 }}>X</span>;
-  if (p === 'google_news') return <span style={{ width:24, height:24, borderRadius:5, background:'#fff', border:'1px solid rgba(33,28,23,0.14)', display:'inline-flex', alignItems:'center', justifyContent:'center', fontSize:14 }}>G</span>;
-  if (p === 'facebook') return <span style={{ width:24, height:24, borderRadius:5, background:'#1877F2', color:'#fff', display:'inline-flex', alignItems:'center', justifyContent:'center', fontWeight:800, fontSize:17 }}>f</span>;
-  if (p === 'instagram') return <span style={{ width:24, height:24, borderRadius:5, background:'linear-gradient(135deg,#f58529 0%,#dd2a7b 45%,#8134af 75%,#515bd4 100%)', color:'#fff', display:'inline-flex', alignItems:'center', justifyContent:'center', fontWeight:800, fontSize:13 }}>◎</span>;
-  if (p === 'tiktok') return <span style={{ width:24, height:24, borderRadius:5, background:'#050505', color:'#fff', display:'inline-flex', alignItems:'center', justifyContent:'center', fontWeight:800, fontSize:14 }}>♪</span>;
-  return <span style={{ width:24, height:24, borderRadius:5, background:C.ink, display:'inline-block' }} />;
-}
 
 function RawApifyPanorama({ data, isDesktop }) {
   const networks = data.themes?.resumen?.networkStrategy?.networks || [];
   const [selected, setSelected] = useState(networks[0]?.key || null);
   const active = networks.find(n => n.key === selected) || networks[0];
   const posts = active?.postsList || [];
-  const actors = data.themes?.resumen?.sourceMeta?.actors || [];
-  const actor = actors.find(a => a.platform === active?.key);
   const totals = networks.reduce((sum, n) => sum + (n.posts || 0), 0);
-  const analyzePlan = data.meta?.analyzePlan || data.themes?.resumen?.sourceMeta?.analyzePlan;
 
   return (
     <motion.div variants={stagger} initial="hidden" animate="visible"
       style={{ padding:isDesktop ? '24px 28px 28px' : '20px 18px 28px' }}>
       <motion.div variants={item}>
         <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, letterSpacing:'0.16em', textTransform:'uppercase', color:C.gold, fontWeight:600 }}>
-          Apify raw · {data.meta.range_label}
+          Monitoreo · {data.meta.range_label}
         </div>
         <h1 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:isDesktop ? 36 : 31, lineHeight:1.05, letterSpacing:'-0.025em', color:C.ink, margin:'9px 0 8px' }}>
           Publicaciones por red.
@@ -85,7 +74,7 @@ function RawApifyPanorama({ data, isDesktop }) {
               style={{ background:C.card, border:activeCard ? `1px solid ${C.gold}` : '1px solid rgba(33,28,23,0.13)',
                 borderRadius:3, padding:16, textAlign:'left', cursor:'pointer', boxShadow:activeCard ? '0 0 0 1px rgba(176,130,47,0.18)' : 'none' }}>
               <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                <RawNetworkIcon platform={n.key} />
+                <PlatformIcon platform={n.key} size={24} />
                 <div style={{ flex:1 }}>
                   <div style={{ fontFamily:"'Geist Mono',monospace", fontWeight:700, fontSize:12, letterSpacing:'0.08em', color:C.ink, textTransform:'uppercase' }}>{n.label}</div>
                   <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:'#8A7E6A', marginTop:3 }}>{fmt(n.posts)} publicaciones</div>
@@ -97,47 +86,12 @@ function RawApifyPanorama({ data, isDesktop }) {
         })}
       </motion.div>
 
-      <motion.div variants={item} style={{ marginTop:12, display:'grid', gridTemplateColumns:isDesktop ? '1fr 1fr 1fr 1.35fr' : '1fr', gap:8 }}>
+      <motion.div variants={item} style={{ marginTop:12, display:'grid', gridTemplateColumns:'1fr', gap:8 }}>
         <div style={{ background:C.ink, color:'#FBF8F1', borderRadius:3, padding:'14px 15px' }}>
-          <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.65)' }}>Total raw</div>
+          <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.65)' }}>Total publicaciones</div>
           <div style={{ fontSize:30, fontWeight:600, lineHeight:1, marginTop:5 }}>{fmt(totals)}</div>
         </div>
-        <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:'14px 15px' }}>
-          <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:'#8A7E6A' }}>Actor</div>
-          <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, color:C.ink, marginTop:7, overflowWrap:'anywhere' }}>{actor?.name || 'Sin actor'}</div>
-        </div>
-        <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:'14px 15px' }}>
-          <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:'#8A7E6A' }}>Costo prueba</div>
-          <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, color:C.ink, marginTop:7 }}>{actor?.cost || 'Sin dato'}</div>
-        </div>
-        <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:'14px 15px' }}>
-          <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:'#8A7E6A' }}>Criterio</div>
-          <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11.5, lineHeight:1.35, color:C.ink, marginTop:7 }}>{actor?.status || 'Sin criterio'}</div>
-        </div>
       </motion.div>
-
-      {analyzePlan && (
-        <motion.div variants={item} style={{ marginTop:12, background:'rgba(176,130,47,0.08)', border:'1px solid rgba(176,130,47,0.26)', borderRadius:3, padding:'14px 15px' }}>
-          <div style={{ display:'flex', flexWrap:'wrap', gap:12, alignItems:'baseline' }}>
-            <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.14em', textTransform:'uppercase', color:C.goldDeep, fontWeight:700 }}>
-              Plan Analizar
-            </span>
-            <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, color:C.ink }}>
-              Tope ${analyzePlan.dailyMaxUsd} / soft stop ${analyzePlan.softStopUsd} / reserva ${analyzePlan.reserveUsd}
-            </span>
-            <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, color:'#6B6253' }}>
-              {analyzePlan.baseComments} comentarios base, {analyzePlan.boostedComments} si hay alto engagement
-            </span>
-          </div>
-          <div style={{ display:'flex', flexWrap:'wrap', gap:7, marginTop:10 }}>
-            {(analyzePlan.stages || []).map(stage => (
-              <span key={stage.key} style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#6B6253', border:'1px solid rgba(33,28,23,0.12)', background:C.card, borderRadius:999, padding:'5px 8px', textTransform:'uppercase' }}>
-                {stage.label}: ${stage.hardCapUsd}
-              </span>
-            ))}
-          </div>
-        </motion.div>
-      )}
 
       <motion.div variants={item} style={{ marginTop:24 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:12, marginBottom:10 }}>
@@ -154,7 +108,7 @@ function RawApifyPanorama({ data, isDesktop }) {
               : '';
             const href = directHref || searchHref;
             const clickable = !!href;
-            const linkLabel = directHref ? (p.urlVerified ? 'link verificado' : 'link Apify') : searchHref ? (p.type === 'reply' ? 'buscar respuesta' : 'buscar en X') : 'sin link';
+            const linkLabel = directHref ? 'link directo' : searchHref ? (p.type === 'reply' ? 'buscar respuesta' : 'buscar en X') : 'sin link';
             const actionLabel = directHref ? 'ABRIR' : searchHref ? (p.type === 'reply' ? 'BUSCAR REPLY' : 'BUSCAR') : 'NO LINK';
             const RowTag = clickable ? 'a' : 'div';
             return (

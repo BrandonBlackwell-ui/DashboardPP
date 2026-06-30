@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Donut from './Donut';
 import TiltCard from './TiltCard';
+import PlatformIcon from './PlatformIcon';
 import { C, fmt, fmtK, platLabel, cap, riskMeta, sentMeta, sevMeta, pill } from '../utils/helpers';
 
 const stagger = { hidden:{}, visible:{ transition:{ staggerChildren:0.06 } } };
@@ -32,90 +33,6 @@ function Card({ accentColor, children }) {
 
 function Pill({ rm }) {
   return <span style={{ ...pill(rm.ink, rm.bg, rm.bd) }}>{rm.label}</span>;
-}
-
-function PlatformIcon({ platform, size = 18 }) {
-  const p = (platform || '').toLowerCase();
-  const box = { width:size, height:size, flex:'none', display:'inline-flex', alignItems:'center', justifyContent:'center' };
-  if (p === 'facebook') {
-    return (
-      <span style={box} aria-label="Facebook">
-        <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
-          <circle cx="12" cy="12" r="11" fill="#1877F2" />
-          <path fill="#fff" d="M14.86 12.66h-1.9V20h-3.05v-7.34H8.36v-2.6h1.55V8.38c0-1.2.57-3.08 3.08-3.08l2.26.01v2.52h-1.64c-.27 0-.65.13-.65.71v1.52h2.33l-.43 2.6Z" />
-        </svg>
-      </span>
-    );
-  }
-  if (p === 'instagram') {
-    return (
-      <span style={box} aria-label="Instagram">
-        <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
-          <defs>
-            <linearGradient id="igGradient" x1="4" x2="20" y1="20" y2="4" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#FEDA75" />
-              <stop offset="0.35" stopColor="#FA7E1E" />
-              <stop offset="0.62" stopColor="#D62976" />
-              <stop offset="1" stopColor="#4F5BD5" />
-            </linearGradient>
-          </defs>
-          <rect width="22" height="22" x="1" y="1" rx="6" fill="url(#igGradient)" />
-          <rect x="6.1" y="6.1" width="11.8" height="11.8" rx="3.6" fill="none" stroke="#fff" strokeWidth="1.8" />
-          <circle cx="12" cy="12" r="3" fill="none" stroke="#fff" strokeWidth="1.8" />
-          <circle cx="16.25" cy="7.75" r="1.05" fill="#fff" />
-        </svg>
-      </span>
-    );
-  }
-  if (p === 'tiktok') {
-    return (
-      <span style={box} aria-label="TikTok">
-        <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
-          <rect width="22" height="22" x="1" y="1" rx="5" fill="#050505" />
-          <path fill="#25F4EE" d="M10.73 17.1a2.04 2.04 0 0 1-1.1.32 2.12 2.12 0 1 1 1.47-3.65V10.5a5.14 5.14 0 1 0 3.05 4.7V8.78a6.25 6.25 0 0 0 3.52 1.08V6.82a3.22 3.22 0 0 1-3.52-3.02h-3.42v13.3Z" opacity=".9" />
-          <path fill="#FE2C55" d="M11.55 17.1a2.04 2.04 0 0 1-1.1.32 2.12 2.12 0 0 1-1.68-3.4 2.12 2.12 0 0 0 3.14 1.85V9.68a6.19 6.19 0 0 0 3.52 1.08V7.71a3.22 3.22 0 0 1-3.52-3.02h-.36v12.4Z" />
-          <path fill="#fff" d="M11.1 17.1a2.04 2.04 0 0 1-1.1.32 2.12 2.12 0 1 1 1.47-3.65v-3.26a5.14 5.14 0 1 0 3.05 4.7V8.78a6.25 6.25 0 0 0 3.52 1.08V6.82a3.22 3.22 0 0 1-3.52-3.02H11.1v13.3Z" />
-        </svg>
-      </span>
-    );
-  }
-  if (p === 'twitter' || p === 'x') {
-    return (
-      <span style={box} aria-label="X">
-        <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
-          <rect width="22" height="22" x="1" y="1" rx="5" fill="#000" />
-          <path fill="#fff" d="M14.58 11.1 20.1 5h-1.31l-4.8 5.3L10.16 5H5.75l5.8 8.01L5.75 19h1.31l5.07-5.2 4.05 5.2h4.41l-6.01-7.9Zm-1.8 1.9-.59-.8-4.67-6.18h2.01l3.77 5 .59.79 4.9 6.49h-2.01l-4-5.3Z" />
-        </svg>
-      </span>
-    );
-  }
-  if (p === 'google_news') {
-    return (
-      <span style={box} aria-label="Google News">
-        <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
-          <rect x="4.2" y="3.2" width="13.5" height="15.8" rx="1.8" fill="#4285F4" transform="rotate(-7 10.95 11.1)" />
-          <rect x="6.2" y="5.2" width="13.5" height="15.8" rx="1.8" fill="#34A853" transform="rotate(5 12.95 13.1)" />
-          <rect x="5" y="6.5" width="14" height="13.5" rx="1.7" fill="#fff" />
-          <rect x="7" y="8.5" width="3.5" height="3.5" fill="#EA4335" />
-          <rect x="11.5" y="8.5" width="5.5" height="1.1" fill="#4285F4" />
-          <rect x="11.5" y="11" width="5.5" height="1.1" fill="#4285F4" />
-          <rect x="7" y="14" width="10" height="1.1" fill="#FBBC04" />
-          <rect x="7" y="16.3" width="8" height="1.1" fill="#34A853" />
-        </svg>
-      </span>
-    );
-  }
-  if (p === 'youtube') {
-    return (
-      <span style={box} aria-label="YouTube">
-        <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
-          <rect x="2.2" y="5.4" width="19.6" height="13.2" rx="4" fill="#FF0000" />
-          <path d="M10 9.1v5.8l5.1-2.9L10 9.1Z" fill="#fff" />
-        </svg>
-      </span>
-    );
-  }
-  return <span style={{ ...box, width:size, height:size, background:C.ink }} aria-hidden="true" />;
 }
 
 function SentBar({ pos, neu, neg }) {
@@ -187,6 +104,62 @@ function deriveNetworkStrategy(themeData) {
   return { totalPosts, networks, allies, fallback:true };
 }
 
+const NEG_KW = ['chisme','chismesito','polém','polemic','escándalo','escandalo','cancela','cancelad','colad','critica','crítica','critico','crítico','horrible','vergüenza','verguenza','fraude','mentira','hipócrita','hipocrita','controver','acusac','denuncia','trampa','falso','odio','asco','decepcion','decepción','hater','malo','pésimo','pesimo','ridículo','ridiculo','reclam'];
+const POS_KW = ['fan','amor','love','increíble','increible','talento','mejor','hermoso','hermosa','apoy','admiro','admira','admiración','admiracion','genio','genial','orgullo','orgullos','bravo','maravill','gracias','éxito','exito','felicit','encanta','encanto','bonit','bellísim','bellisim','viva','gozo','alegria','alegría'];
+
+function scoreText(text) {
+  const t = (text || '').toLowerCase();
+  const neg = NEG_KW.filter(k => t.includes(k)).length;
+  const pos = POS_KW.filter(k => t.includes(k)).length;
+  return neg > pos ? 'negative' : pos > neg ? 'positive' : 'neutral';
+}
+
+function deriveVoices(themeData, postsByPlatform) {
+  const allPosts = Object.values(postsByPlatform).flat();
+  if (!allPosts.length) return { allies:[], critics:[] };
+
+  // Aggregate per author
+  const authorMap = {};
+  allPosts.forEach(p => {
+    const key = (p.username || '').toLowerCase().trim();
+    if (!key || key === 'pepeaguilar_oficial' || key === 'pepeaguilaroficial') return;
+    const eng = (p.likes||0) + (p.comments||0)*2 + (p.shares||0)*3 + (p.bookmarks||0) + (p.retweets||0)*3 + (p.views||0)*0.01;
+    const tone = scoreText(p.text);
+    if (!authorMap[key]) {
+      authorMap[key] = { username:p.username, platform:p.platform, followers:p.followers||0, posts:0, engagement:0, toneVotes:{positive:0,neutral:0,negative:0} };
+    }
+    const a = authorMap[key];
+    a.posts++;
+    a.engagement += eng;
+    a.followers = Math.max(a.followers, p.followers||0);
+    a.toneVotes[tone]++;
+  });
+
+  const voices = Object.values(authorMap).map(a => {
+    const followers = a.followers;
+    const tv = a.toneVotes;
+    const dominant = tv.negative > tv.positive && tv.negative >= tv.neutral ? 'negative'
+                   : tv.positive > tv.negative && tv.positive >= tv.neutral ? 'positive'
+                   : 'neutral';
+    return {
+      username: a.username,
+      platform: a.platform,
+      followers,
+      url: '',
+      posts: a.posts,
+      engagement: Math.round(a.engagement),
+      sentiment: dominant,
+      tier: followers >= 500000 ? 'macro' : followers >= 50000 ? 'medio' : 'micro',
+      score: followers * 0.1 + a.engagement,
+    };
+  }).sort((a, b) => b.score - a.score);
+
+  return {
+    allies: voices.filter(v => v.sentiment !== 'negative').slice(0, 10),
+    critics: voices.filter(v => v.sentiment === 'negative').slice(0, 10),
+  };
+}
+
 function thumbnailFromUrl(url) {
   const raw = String(url || '');
   const videoId = raw.match(/[?&]v=([^&]+)/)?.[1] || raw.match(/youtube\.com\/shorts\/([^?/]+)/)?.[1];
@@ -214,11 +187,13 @@ function deriveNetworkPosts(themeData) {
       platform:key,
       date:post.time || post.fecha || '',
       metric:post.views ? `${fmtK(post.views)} views` : post.engagement ? `${fmtK(post.engagement)} interacc.` : '',
-      likes:post.likes || 0,
+      likes:post.reactions || post.likes || 0,
       comments:post.comments || 0,
       shares:post.shares || 0,
       retweets:post.retweets || 0,
       quotes:post.quotes || 0,
+      bookmarks:post.bookmarks || 0,
+      followers:post.followers || 0,
       type:post.type || '',
       commentsExtracted:post.commentsExtracted || 0,
       commentsList:post.commentsList || [],
@@ -390,6 +365,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
 
   const networkStrategy = deriveNetworkStrategy(t);
   const networkPostsByKey = deriveNetworkPosts(t);
+  const voices = deriveVoices(t, networkPostsByKey);
   const strategyNetworks = (networkStrategy.networks||[]).map(n => {
     const toneMeta = n.tone === 'favorable' ? sentMeta('positivo') : n.tone === 'critica' ? sentMeta('negativo') : sentMeta('neutral');
     return {
@@ -519,7 +495,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                   <span style={{ minWidth:0 }}>
                     <span style={{ display:'block', fontSize:13.5, lineHeight:1.35, color:C.ink }}>{p.text || p.url}</span>
                     <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', marginTop:5, textTransform:'uppercase' }}>
-                      {[p.username, p.metric, p.comments ? `${fmt(p.comments)} com.` : '', (p.date || '').slice(0,10)].filter(Boolean).join(' - ')}
+                      {[p.username, p.metric, p.likes ? `${fmt(p.likes)} likes` : '', p.comments ? `${fmt(p.comments)} com.` : '', p.shares ? `${fmt(p.shares)} shares` : '', p.bookmarks ? `${fmt(p.bookmarks)} saved` : '', (p.date || '').slice(0,10)].filter(Boolean).join(' - ')}
                     </span>
                   </span>
                 </button>
@@ -543,11 +519,12 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                   <span style={{ minWidth:0 }}>
                     <span style={{ display:'block', fontSize:14.5, lineHeight:1.35, color:C.ink }}>{selectedPost.text || selectedPost.url}</span>
                     <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:6, textTransform:'uppercase' }}>
-                      {[selectedPost.username, selectedPost.metric, selectedPost.comments ? `${fmt(selectedPost.comments)} com.` : '', selectedPost.commentsExtracted ? `${fmt(selectedPost.commentsExtracted)} extraidos` : '', (selectedPost.date || '').slice(0,10)].filter(Boolean).join(' - ')}
+                      {[selectedPost.username, selectedPost.metric, selectedPost.likes ? `${fmt(selectedPost.likes)} likes` : '', selectedPost.comments ? `${fmt(selectedPost.comments)} com.` : '', selectedPost.commentsExtracted ? `${fmt(selectedPost.commentsExtracted)} extraidos` : '', selectedPost.shares ? `${fmt(selectedPost.shares)} shares` : '', selectedPost.bookmarks ? `${fmt(selectedPost.bookmarks)} saved` : '', (selectedPost.date || '').slice(0,10)].filter(Boolean).join(' - ')}
                     </span>
                   </span>
                   {selectedPost.url && <a href={selectedPost.url} target="_blank" rel="noopener" style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:C.goldDeep, fontWeight:700, textDecoration:'none' }}>ABRIR</a>}
                 </div>
+                {(selectedComments.length > 0 || t.networkStrategy?.title !== 'Redes monitoreadas') && (
                 <div style={{ padding:12 }}>
                   <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.goldDeep, marginBottom:8 }}>
                     {selectedComments.length ? `${selectedComments.length} comentarios extraidos` : 'Sin comentarios extraidos'}
@@ -566,6 +543,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                     </div>
                   )}
                 </div>
+                )}
               </>
             ) : (
               <div style={{ padding:12, fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', textTransform:'uppercase' }}>Selecciona una publicacion.</div>
@@ -769,6 +747,57 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       {t.rawOnly ? (
         <div style={{ paddingBottom:24 }}>
           {renderNetworkMap(false)}
+          {(voices.allies.length > 0 || voices.critics.length > 0) && (() => {
+            const VoiceCard = ({ v, side }) => {
+              const isAlly = side === 'ally';
+              const accentColor = isAlly ? C.teal : C.crim;
+              const Tag = v.url ? 'a' : 'div';
+              const tierLabel = v.tier === 'macro' ? 'Macro' : v.tier === 'medio' ? 'Medio' : 'Micro';
+              const tierInk = v.tier === 'macro' ? C.crim : v.tier === 'medio' ? C.goldDeep : C.teal;
+              const tierBg = v.tier === 'macro' ? C.crimBg : v.tier === 'medio' ? C.amberBg : C.tealBg;
+              const tierBd = v.tier === 'macro' ? C.crimBd : v.tier === 'medio' ? C.amberBd : C.tealBd;
+              return (
+                <Tag href={v.url || undefined} target={v.url ? '_blank' : undefined} rel={v.url ? 'noopener' : undefined}
+                  style={{ display:'block', padding:'11px 13px', textDecoration:'none',
+                    borderLeft:`3px solid ${accentColor}`, background:C.card,
+                    border:`1px solid rgba(33,28,23,0.10)`, borderLeftWidth:3, borderLeftColor:accentColor,
+                    borderRadius:3, marginBottom:7 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5 }}>
+                    <PlatformIcon platform={v.platform} size={15} />
+                    <span style={{ fontWeight:600, fontSize:13.5, color:C.ink, flex:1, minWidth:0, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{v.username}</span>
+                    <span style={{ ...pill(tierInk, tierBg, tierBd), flexShrink:0 }}>{tierLabel}</span>
+                  </div>
+                  <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', textTransform:'uppercase' }}>
+                    {[v.followers ? `${fmtK(v.followers)} seg.` : '', v.posts ? `${v.posts} posts` : '', v.categoria].filter(Boolean).join(' · ')}
+                  </div>
+                </Tag>
+              );
+            };
+            return (
+              <Section title="Aliados y contrarios" px={sectionPx}>
+                <div style={{ display:'grid', gridTemplateColumns: isDesktop ? '1fr 1fr' : '1fr', gap:12 }}>
+                  {voices.allies.length > 0 && (
+                    <div>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                        <span style={{ width:10, height:10, borderRadius:'50%', background:C.teal, display:'inline-block', flexShrink:0 }} />
+                        <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.teal, fontWeight:700 }}>Aliados · {voices.allies.length}</span>
+                      </div>
+                      {voices.allies.map((v,i) => <VoiceCard key={`ally-${i}`} v={v} side="ally" />)}
+                    </div>
+                  )}
+                  {voices.critics.length > 0 && (
+                    <div>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                        <span style={{ width:10, height:10, borderRadius:'50%', background:C.crim, display:'inline-block', flexShrink:0 }} />
+                        <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.crim, fontWeight:700 }}>Contrarios · {voices.critics.length}</span>
+                      </div>
+                      {voices.critics.map((v,i) => <VoiceCard key={`critic-${i}`} v={v} side="critic" />)}
+                    </div>
+                  )}
+                </div>
+              </Section>
+            );
+          })()}
         </div>
       ) : isDesktop ? (
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:0, padding:'0 28px' }}>
@@ -838,6 +867,59 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
           {/* Right col */}
           <div style={{ paddingLeft:14 }}>
             {renderNetworkMap(true)}
+
+            {/* Aliados y contrarios */}
+            {(voices.allies.length > 0 || voices.critics.length > 0) && (() => {
+              const VoiceCard = ({ v, side }) => {
+                const isAlly = side === 'ally';
+                const accentColor = isAlly ? C.teal : C.crim;
+                const Tag = v.url ? 'a' : 'div';
+                const tierLabel = v.tier === 'macro' ? 'Macro' : v.tier === 'medio' ? 'Medio' : 'Micro';
+                const tierInk = v.tier === 'macro' ? C.crim : v.tier === 'medio' ? C.goldDeep : C.teal;
+                const tierBg = v.tier === 'macro' ? C.crimBg : v.tier === 'medio' ? C.amberBg : C.tealBg;
+                const tierBd = v.tier === 'macro' ? C.crimBd : v.tier === 'medio' ? C.amberBd : C.tealBd;
+                return (
+                  <Tag href={v.url || undefined} target={v.url ? '_blank' : undefined} rel={v.url ? 'noopener' : undefined}
+                    style={{ display:'block', padding:'11px 13px', textDecoration:'none',
+                      background:C.card, borderRadius:3, marginBottom:7,
+                      border:`1px solid rgba(33,28,23,0.10)`, borderLeftWidth:3, borderLeftColor:accentColor, borderLeftStyle:'solid' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5 }}>
+                      <PlatformIcon platform={v.platform} size={15} />
+                      <span style={{ fontWeight:600, fontSize:13.5, color:C.ink, flex:1, minWidth:0, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{v.username}</span>
+                      <span style={{ ...pill(tierInk, tierBg, tierBd), flexShrink:0 }}>{tierLabel}</span>
+                    </div>
+                    <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', textTransform:'uppercase' }}>
+                      {[v.followers ? `${fmtK(v.followers)} seg.` : '', v.posts ? `${v.posts} posts` : '', v.categoria].filter(Boolean).join(' · ')}
+                    </div>
+                  </Tag>
+                );
+              };
+              return (
+                <motion.div variants={item} style={{ paddingTop:16, paddingBottom:6 }}>
+                  <h2 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:22, letterSpacing:'-0.015em', color:C.ink, margin:'0 0 11px' }}>Aliados y contrarios</h2>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                    {voices.allies.length > 0 && (
+                      <div>
+                        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                          <span style={{ width:10, height:10, borderRadius:'50%', background:C.teal, display:'inline-block', flexShrink:0 }} />
+                          <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.teal, fontWeight:700 }}>Aliados · {voices.allies.length}</span>
+                        </div>
+                        {voices.allies.map((v,i) => <VoiceCard key={`ally-${i}`} v={v} side="ally" />)}
+                      </div>
+                    )}
+                    {voices.critics.length > 0 && (
+                      <div>
+                        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                          <span style={{ width:10, height:10, borderRadius:'50%', background:C.crim, display:'inline-block', flexShrink:0 }} />
+                          <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.crim, fontWeight:700 }}>Contrarios · {voices.critics.length}</span>
+                        </div>
+                        {voices.critics.map((v,i) => <VoiceCard key={`critic-${i}`} v={v} side="critic" />)}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })()}
 
             {/* Oportunidades */}
             {(op.recomendacion||opPosts.length>0) && (
@@ -1032,6 +1114,58 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       )}
         </>
       )}
+
+      {/* Aliados y contrarios (mobile / non-rawOnly) */}
+      {!t.rawOnly && (voices.allies.length > 0 || voices.critics.length > 0) && (() => {
+        const VoiceCard = ({ v, side }) => {
+          const isAlly = side === 'ally';
+          const accentColor = isAlly ? C.teal : C.crim;
+          const Tag = v.url ? 'a' : 'div';
+          const tierLabel = v.tier === 'macro' ? 'Macro' : v.tier === 'medio' ? 'Medio' : 'Micro';
+          const tierInk = v.tier === 'macro' ? C.crim : v.tier === 'medio' ? C.goldDeep : C.teal;
+          const tierBg = v.tier === 'macro' ? C.crimBg : v.tier === 'medio' ? C.amberBg : C.tealBg;
+          const tierBd = v.tier === 'macro' ? C.crimBd : v.tier === 'medio' ? C.amberBd : C.tealBd;
+          return (
+            <Tag href={v.url || undefined} target={v.url ? '_blank' : undefined} rel={v.url ? 'noopener' : undefined}
+              style={{ display:'block', padding:'11px 13px', textDecoration:'none', background:C.card,
+                borderRadius:3, marginBottom:7, border:`1px solid rgba(33,28,23,0.10)`,
+                borderLeftWidth:3, borderLeftColor:accentColor, borderLeftStyle:'solid' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5 }}>
+                <PlatformIcon platform={v.platform} size={15} />
+                <span style={{ fontWeight:600, fontSize:13.5, color:C.ink, flex:1, minWidth:0, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{v.username}</span>
+                <span style={{ ...pill(tierInk, tierBg, tierBd), flexShrink:0 }}>{tierLabel}</span>
+              </div>
+              <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', textTransform:'uppercase' }}>
+                {[v.followers ? `${fmtK(v.followers)} seg.` : '', v.posts ? `${v.posts} posts` : '', v.categoria].filter(Boolean).join(' · ')}
+              </div>
+            </Tag>
+          );
+        };
+        return (
+          <Section title="Aliados y contrarios" px={sectionPx}>
+            <div style={{ display:'grid', gridTemplateColumns: isDesktop ? '1fr 1fr' : '1fr', gap:12 }}>
+              {voices.allies.length > 0 && (
+                <div>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                    <span style={{ width:10, height:10, borderRadius:'50%', background:C.teal, display:'inline-block', flexShrink:0 }} />
+                    <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.teal, fontWeight:700 }}>Aliados · {voices.allies.length}</span>
+                  </div>
+                  {voices.allies.map((v,i) => <VoiceCard key={`ally-${i}`} v={v} side="ally" />)}
+                </div>
+              )}
+              {voices.critics.length > 0 && (
+                <div>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                    <span style={{ width:10, height:10, borderRadius:'50%', background:C.crim, display:'inline-block', flexShrink:0 }} />
+                    <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.crim, fontWeight:700 }}>Contrarios · {voices.critics.length}</span>
+                  </div>
+                  {voices.critics.map((v,i) => <VoiceCard key={`critic-${i}`} v={v} side="critic" />)}
+                </div>
+              )}
+            </div>
+          </Section>
+        );
+      })()}
 
       {/* Quejas */}
       {cats.length>0 && (
