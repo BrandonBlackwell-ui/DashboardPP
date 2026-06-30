@@ -1558,7 +1558,36 @@ Nota de ejecucion:
 - Facebook propios:
   - `patient_discovery/facebook-page-posts` no es confiable con el input probado: con `pageUrl` de Pepe devolvio posts de la pagina Facebook generica. No usar para Pepe hasta validar input exacto.
   - `unseenuser/fb-posts` exige `maxPosts >= 3`; la prueba con 3 posts fallo sin costo y sin resultados.
-  - Pendiente: encontrar actor de Facebook que entregue posts reales de `pepeaguilaroficial` y despues correr comentarios sobre URL de post. No inventar posts/comentarios de Facebook.
+  - Prueba corregida: `unseenuser/fb-posts` si funciona cuando se usa `mode: "profile"` y `sources` con el pageId oficial `100044594342192`.
+  - Run posts `aJFqyf79PO2WJa7CE`, dataset `dazvCoMiQeMVpLGSS`, 3 posts/reels reales, costo reportado `0 USD`.
+  - Payload validado para posts propios:
+    ```json
+    {
+      "mode": "profile",
+      "sources": ["100044594342192"],
+      "maxPosts": 3,
+      "includeTopComments": true,
+      "fetchAllComments": false,
+      "fetchCommentReplies": false,
+      "enrichSinglePostFields": false
+    }
+    ```
+  - Campos utiles de posts: `url`, `permalink`, `text`, `authorName`, `authorId`, `reactionCount`, `commentCount`, `publishTimeIso`, `videoThumbnailUrl`, `topComments`.
+  - Comentarios Facebook probados con `apify/facebook-comments-scraper`.
+  - Run comentarios `w4ZHQeDMNNbp650g2`, dataset `5QaQo1orrsRz1p6gA`, 20 comentarios, costo reportado `0.001 USD`.
+  - Payload validado para comentarios:
+    ```json
+    {
+      "startUrls": [
+        { "url": "https://www.facebook.com/reel/1986719605537457/" }
+      ],
+      "resultsLimit": 20,
+      "includeNestedComments": false
+    }
+    ```
+  - Campos utiles de comentarios: `commentUrl`, `commentId`, `date`, `text`, `profileName`, `profileUrl`, `likesCount`, `facebookId`, `postTitle`.
+  - Si trae fecha exacta ISO en `date`; sirve para filtro diario por comentario.
+  - Regla: para diario, primero correr posts con `maxPosts: 3` o `10`, filtrar por fecha exacta localmente y luego correr comentarios solo sobre posts nuevos/top engagement.
 - No subir el token a archivos ni commits.
 
 ## Estado local actual

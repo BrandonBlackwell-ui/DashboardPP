@@ -520,6 +520,77 @@ const ownedInstagramPosts = [
   },
 ];
 
+const ownedFacebookPosts = [
+  {
+    id: 'owned-facebook-unseenuser-001',
+    text: 'Las oportunidades no tienen memoria. Es AHORA cuando podemos cambiar la historia y lo haremos JUNTOS. #VamosMexico #QueSueneElSonDeLaNegra',
+    author: 'pepeaguilaroficial',
+    authorName: 'Pepe Aguilar',
+    platform: 'facebook',
+    time: '2026-06-30T01:43:59.000Z',
+    reactions: 320,
+    comments: 49,
+    followers: 6243491,
+    url: 'https://www.facebook.com/reel/1986719605537457/',
+    thumbnail: 'https://scontent-bos5-1.xx.fbcdn.net/v/t15.5256-10/735877481_1770412390646722_4690009373214197552_n.jpg?stp=dst-jpg_s960x960_tt6&nc_cat=100&ccb=1-7&nc_sid=50ce42&nc_ohc=EPenTqwGC80Q7kNvwHaleNB&nc_oc=Adr0OYepijkB8RkEXgTdl4wMXxk1YNdCmV51jQlOkKNkrEup6LxwyJbiaqr7NO9zSBY&nc_zt=23&nc_ht=scontent-bos5-1.xx&nc_gid=syo-UwLwJ9DWXo3fIqvwPQ&nc_ss=7f289&oh=00_AQC1kMsj74nydaSwQnBQWR_tYbW6X1VfjrcFIzHpt-uECg&oe=6A49B59A',
+    sourceActor: 'unseenuser/fb-posts',
+    urlVerified: true,
+    type: 'reel',
+    commentsExtracted: 20,
+    commentsRunId: 'w4ZHQeDMNNbp650g2',
+    commentsSourceActor: 'apify/facebook-comments-scraper',
+    commentsList: [
+      { id: '1697248621604821', author: 'Isabel Velasquez', text: 'Borramos las memorias, recuerdos, vivencias, experiencias negativas; las borramos del cuerpo mente y espiritu.', publishedTime: '2026-06-30T14:01:10.000Z', likes: 1, replies: 0, url: 'https://www.facebook.com/reel/1986719605537457/?comment_id=1697248621604821' },
+      { id: '1392609242687208', author: 'Rous Rous Rous', text: '🇲🇽 Tienen todo para Ganar querer es poder vamos equipo Mexicano', publishedTime: '2026-06-30T02:52:10.000Z', likes: 4, replies: 0, url: 'https://www.facebook.com/reel/1986719605537457/?comment_id=1392609242687208' },
+      { id: '1043983001492559', author: 'Choco Torres', text: 'Si se puede se pudo y se podrá vamos México 👏🏼👏🏼👏🏼🇲🇽🙏🙏', publishedTime: '2026-06-30T01:49:41.000Z', likes: 4, replies: 0, url: 'https://www.facebook.com/reel/1986719605537457/?comment_id=1043983001492559' },
+      { id: '1033485842545467', author: 'Pedro Ramírez', text: 'LA UNIÓN HACE LA FUERZA, MAÑANA GANAMOS MÉXICO 2-1', publishedTime: '2026-06-30T03:51:09.000Z', likes: 4, replies: 0, url: 'https://www.facebook.com/reel/1986719605537457/?comment_id=1033485842545467' },
+      { id: '1027664916425342', author: 'Maria Del Pilar Useche Mur', text: 'Que buena reflexión', publishedTime: '2026-06-30T02:49:50.000Z', likes: 2, replies: 0, url: 'https://www.facebook.com/reel/1986719605537457/?comment_id=1027664916425342' },
+      { id: '842652452054324', author: 'Sam Ang Mon', text: 'Pepayonce queriendo hacerte México', publishedTime: '2026-06-30T05:55:21.000Z', likes: 1, replies: 0, url: 'https://www.facebook.com/reel/1986719605537457/?comment_id=842652452054324' },
+      { id: '2071848757061247', author: 'Silvia Gonzalez', text: 'Vamos México!!!!!!!! 🥅 ⚽️ 💚🤍❤️', publishedTime: '2026-06-30T01:47:19.000Z', likes: 1, replies: 0, url: 'https://www.facebook.com/reel/1986719605537457/?comment_id=2071848757061247' },
+      { id: '27810277535243679', author: 'Pau Aguilar', text: 'VAMOS MEXICOOO.!!!👏👏👏🏆🇲🇽', publishedTime: '2026-06-30T01:55:33.000Z', likes: 2, replies: 0, url: 'https://www.facebook.com/reel/1986719605537457/?comment_id=27810277535243679' },
+      { id: '1728618588163506', author: 'Naty Mauleon', text: 'Hermosas palabras Don Pepe Aguilar 👏👏😘🙏👏👏👏👏🙏🙏♥️', publishedTime: '2026-06-30T06:04:33.000Z', likes: 0, replies: 0, url: 'https://www.facebook.com/reel/1986719605537457/?comment_id=1728618588163506' },
+      { id: '2285672458632299', author: 'Margoth Velasquez Berganza', text: 'Vamos con todo México 🇲🇽 si se puede se ganará !! Aunque no soy mexicana siempre estoy con México !!!💚', publishedTime: '2026-06-30T14:08:06.000Z', likes: 0, replies: 0, url: 'https://www.facebook.com/reel/1986719605537457/?comment_id=2285672458632299' },
+      { id: '841868352140274', author: 'Queta Garcia', text: 'Vamos México si se puede, la unión hace la fuerza', publishedTime: '2026-06-30T06:49:00.000Z', likes: 0, replies: 0, url: 'https://www.facebook.com/reel/1986719605537457/?comment_id=841868352140274' },
+    ],
+  },
+  {
+    id: 'owned-facebook-unseenuser-002',
+    text: '#NEIVA!! Qué chulada en serio!! #GRACIAS por una noche inolvidable, un honor estar en esta fiesta con ustedes.',
+    author: 'pepeaguilaroficial',
+    authorName: 'Pepe Aguilar',
+    platform: 'facebook',
+    time: '2026-06-27T23:58:41.000Z',
+    reactions: 2144,
+    comments: 389,
+    followers: 6243491,
+    url: 'https://www.facebook.com/reel/1122210637650645/',
+    thumbnail: 'https://scontent-bos5-1.xx.fbcdn.net/v/t15.5256-10/731423021_1698179031380819_1318624550073656302_n.jpg?stp=dst-jpg_s960x960_tt6&nc_cat=102&ccb=1-7&nc_sid=be8305&nc_ohc=LinJm0wBAfgQ7kNvwHUfzZd&nc_oc=AdqtRV9SaJV9ANwATjuBMoQQS6JrG8KEzJJSffv7dnTz0-k85Ke6LAyDPEmh9XYt-8Q&nc_zt=23&nc_ht=scontent-bos5-1.xx&nc_gid=syo-UwLwJ9DWXo3fIqvwPQ&nc_ss=7f289&oh=00_AQCi9dKXWZoBlH1EuyZA4RkdI1JQEJr47qv8BUMbC_UcLg&oe=6A49B20B',
+    sourceActor: 'unseenuser/fb-posts',
+    urlVerified: true,
+    type: 'reel',
+    commentsExtracted: 1,
+    commentsList: [
+      { id: '1712584289951811', author: 'Nora Cortes', text: 'De relleno cualquiera, digo... los Fernández hicieron historia. Pero eso es otro rollo, hay niveles', publishedTime: '2026-06-28T03:19:26.000Z', likes: 0, replies: 0, url: 'https://www.facebook.com/reel/1122210637650645/' },
+    ],
+  },
+  {
+    id: 'owned-facebook-unseenuser-003',
+    text: 'Las oportunidades no tienen memoria. Es AHORA cuando podemos cambiar la historia y lo haremos JUNTOS. #VamosMexico',
+    author: 'pepeaguilaroficial',
+    authorName: 'Pepe Aguilar',
+    platform: 'facebook',
+    time: '2026-06-30T01:44:03.000Z',
+    reactions: 181,
+    comments: 28,
+    followers: 6243491,
+    url: 'https://www.facebook.com/reel/1370438888315023/',
+    thumbnail: 'https://scontent-bos5-1.xx.fbcdn.net/v/t15.5256-10/733810270_1690155925592320_6938148822924611571_n.jpg?stp=dst-jpg_s960x960_tt6&nc_cat=104&ccb=1-7&nc_sid=50ce42&nc_ohc=ydy8uVYgS0oQ7kNvwGRsMlf&nc_oc=Adpr1D8IbWZuEonmhePbnk1fPolCjLcsbm4rV-KEQMJrhsfBjIIFn_9cF2OlHrbsO9Y&nc_zt=23&nc_ht=scontent-bos5-1.xx&nc_gid=syo-UwLwJ9DWXo3fIqvwPQ&nc_ss=7f289&oh=00_AQACxX4ZDkhhcF46h68mEgTa4nlbeL2kaIt0pP67cqTC9A&oe=6A499FD9',
+    sourceActor: 'unseenuser/fb-posts',
+    urlVerified: true,
+    type: 'reel',
+  },
+];
+
 const ownedXPosts = [
   {
     id: 'owned-x-scraperone-001',
@@ -990,8 +1061,8 @@ const ownedProfiles = [
     label: 'Facebook',
     handle: 'pepeaguilaroficial',
     url: 'https://www.facebook.com/pepeaguilaroficial/?locale=es_LA',
-    postsStatus: 'metadata probada',
-    commentsStatus: 'pendiente',
+    postsStatus: '3 posts/reels probados',
+    commentsStatus: '20 comentarios probados en 1 reel',
     audienceLabel: '6.2M seguidores',
   },
   {
@@ -1072,12 +1143,12 @@ const actorMeta = [
   {
     id: 'facebook_owned',
     platform: 'facebook',
-    name: 'probado: apify/facebook-pages-scraper',
-    status: 'metadata de pagina oficial OK; no trae posts',
-    cost: '0.0082 USD prueba / 1 pagina',
-    recommendedMaxItems: 1,
-    fields: ['pageId', 'title', 'followers', 'email', 'website', 'profilePictureUrl', 'coverPhotoUrl'],
-    missing: ['posts propios', 'comentarios por post', 'sentimiento IA', 'tema IA'],
+    name: 'probado: apify/facebook-pages-scraper + unseenuser/fb-posts + apify/facebook-comments-scraper',
+    status: 'metadata, posts/reels oficiales y comentarios por URL probados con pageId 100044594342192',
+    cost: '0.0082 USD metadata + 0 USD posts prueba + 0.001 USD comentarios prueba',
+    recommendedMaxItems: 3,
+    fields: ['pageId', 'followers', 'post URL', 'thumbnail', 'fecha', 'reacciones', 'comentarios', 'comentarios extraidos por post'],
+    missing: ['sentimiento IA', 'tema IA', 'followers de comentaristas'],
   },
   {
     id: 'tiktok_owned',
@@ -1123,7 +1194,7 @@ const actorMeta = [
 function totals(mentions) {
   return {
     posts: mentions.length,
-    comments: 0,
+    comments: mentions.reduce((sum, p) => sum + (p.comments || p.commentsExtracted || 0), 0),
     items: mentions.length,
     promedio_diario: mentions.length,
     likes: mentions.reduce((sum, p) => sum + (p.likes || 0), 0),
@@ -1159,6 +1230,7 @@ function mentionPost(p) {
     followers: p.followers || null,
     commentsExtracted: p.commentsExtracted || 0,
     commentsList: p.commentsList || [],
+    thumbnail: p.thumbnail || '',
     urlVerified: !!p.urlVerified,
     type: p.type || 'post',
     contextAuthor: p.contextAuthor || '',
@@ -1173,7 +1245,7 @@ function networkFromMentions(key, label, mentions, share) {
     label,
     share,
     posts: mentions.length,
-    comments: 0,
+    comments: t.comments,
     views: t.views,
     likes: t.likes,
     reactions: t.reactions,
@@ -1210,7 +1282,7 @@ function baseTheme({ label, es, mentions, networks, actors }) {
     platforms: networks.map(n => ({
       name:n.key,
       posts:n.posts,
-      comments:0,
+      comments:n.comments || 0,
       users:n.posts,
       likes:n.likes,
       views:n.views,
@@ -1252,24 +1324,25 @@ function baseTheme({ label, es, mentions, networks, actors }) {
 }
 
 function ownedTheme() {
-  const ownedMentions = [...ownedInstagramPosts, ...ownedXPosts, ...ownedTikTokPosts, ...ownedYoutubePosts];
+  const ownedMentions = [...ownedInstagramPosts, ...ownedFacebookPosts, ...ownedXPosts, ...ownedTikTokPosts, ...ownedYoutubePosts];
   const total = ownedMentions.length || 1;
   const instagramNetwork = networkFromMentions('instagram', 'Instagram', ownedInstagramPosts, Math.round((ownedInstagramPosts.length / total) * 100));
+  const facebookNetwork = networkFromMentions('facebook', 'Facebook', ownedFacebookPosts, Math.round((ownedFacebookPosts.length / total) * 100));
   const xNetwork = networkFromMentions('x', 'X', ownedXPosts, Math.round((ownedXPosts.length / total) * 100));
   const tiktokNetwork = networkFromMentions('tiktok', 'TikTok', ownedTikTokPosts, Math.round((ownedTikTokPosts.length / total) * 100));
   const youtubeNetwork = networkFromMentions('youtube', 'YouTube', ownedYoutubePosts, Math.round((ownedYoutubePosts.length / total) * 100));
   return {
     ...baseTheme({
       label:'Redes propias',
-      es:'Publicaciones reales desde canales oficiales de Pepe. Esta capa va separada de la escucha publica y despues alimentara comentarios por post.',
+      es:'Publicaciones reales desde canales oficiales de Pepe. Esta capa va separada de la escucha publica y alimenta comentarios por post.',
       mentions:ownedMentions,
-      networks:[tiktokNetwork, xNetwork, youtubeNetwork, instagramNetwork],
-      actors:['instagram_owned', 'tiktok_owned', 'youtube_owned', 'x_owned'],
+      networks:[tiktokNetwork, xNetwork, youtubeNetwork, facebookNetwork, instagramNetwork],
+      actors:['instagram_owned', 'facebook_owned', 'tiktok_owned', 'youtube_owned', 'x_owned'],
     }),
     sourceMeta:{
       mode:'Apify raw - redes propias',
       dateWindow:'posts recientes validados; YouTube ultimos 5 videos sin filtro de fecha',
-      query:'Perfiles oficiales configurados: Instagram, Facebook, TikTok, YouTube y X. Posts extraidos: Instagram, TikTok, X y YouTube. Facebook solo metadata.',
+      query:'Perfiles oficiales configurados: Instagram, Facebook, TikTok, YouTube y X. Posts extraidos: Instagram, Facebook, TikTok, X y YouTube.',
       classificationStatus:'raw_only',
       profiles:ownedProfiles,
       actors:actorMeta.filter(a => ['instagram_owned', 'facebook_owned', 'tiktok_owned', 'youtube_owned', 'x_owned'].includes(a.id || a.platform)),
@@ -1278,7 +1351,7 @@ function ownedTheme() {
       title:'Canales propios monitoreados',
       itemLabel:'PUBLICACIONES',
       totalPosts:ownedMentions.length,
-      networks:[tiktokNetwork, xNetwork, youtubeNetwork, instagramNetwork],
+      networks:[tiktokNetwork, xNetwork, youtubeNetwork, facebookNetwork, instagramNetwork],
       allies:[],
     },
   };
