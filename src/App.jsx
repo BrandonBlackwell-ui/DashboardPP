@@ -85,16 +85,13 @@ export default function App() {
     
     setDataVersion(v => v+1);
     loadFromSupabase().then(() => {
-      // Check if Supabase loaded actual database records
-      if (window.SUPABASE_KEYS && window.SUPABASE_KEYS.size > 0 && !window.SUPABASE_KEYS.has(`resumen:${LOCAL_APIFY_DATE_KEY}`)) {
-        if (window.CALENDAR_DATA?.days) {
-          const dayKeys = Object.keys(window.CALENDAR_DATA.days).sort();
-          const latestKey = dayKeys.pop();
-          if (latestKey) {
-            const latestDay = latestKey.slice(8);
-            setDate(latestDay);
-            setPanoramaDate(latestDay);
-          }
+      if (window.CALENDAR_DATA?.days) {
+        const dayKeys = Object.keys(window.CALENDAR_DATA.days).sort();
+        const latestKey = dayKeys.pop();
+        if (latestKey) {
+          const latestDay = latestKey.slice(8);
+          setDate(latestDay);
+          setPanoramaDate(latestDay);
         }
       }
       refreshData();
