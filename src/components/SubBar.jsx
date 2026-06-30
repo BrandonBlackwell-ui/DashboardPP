@@ -28,47 +28,7 @@ export default function SubBar({ tab, pano, date, data, dateOptions, onPanoChang
     <div style={{ position:'sticky', top:0, zIndex:30, background:C.sub,
       borderBottom:'1px solid #E3DAC6', padding: isDesktop ? '10px 24px' : '10px 18px' }}>
       <AnimatePresence mode="wait">
-        {isPanorama && !rawPanorama && (
-          <motion.div key="pano"
-            initial={{ opacity:0, y:-6 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-6 }}
-            transition={{ duration:0.2 }}
-            style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-              <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.14em',
-                textTransform:'uppercase', color:'#8A7E6A', width:54, flex:'none' }}>Vista</span>
-              <div style={{ display:'flex', gap:6 }}>
-                {[['editorial','Editorial'],['mosaico','Mosaico'],['resumen','Resumen']].map(([k,l]) => (
-                  <Chip key={k} label={l} active={pano===k} onClick={() => onPanoChange(k)} />
-                ))}
-              </div>
-            </div>
-            {onPanoramaDateChange && dateOptions && (
-              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.14em',
-                  textTransform:'uppercase', color:'#8A7E6A', width:54, flex:'none' }}>Fecha</span>
-                <div style={{ display:'flex', gap:5, overflowX:'auto', scrollbarWidth:'none' }}>
-                  {dateOptions.map(([k,l]) => (
-                    <Chip key={k} label={l} active={panoramaDate===k} onClick={() => onPanoramaDateChange(k)} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </motion.div>
-        )}
-        {rawPanorama && (
-          <motion.div key="raw-pano"
-            initial={{ opacity:0, y:-6 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-6 }}
-            transition={{ duration:0.2 }}
-            style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.14em',
-              textTransform:'uppercase', color:'#8A7E6A', width:54, flex:'none' }}>Fecha</span>
-            <div style={{ display:'flex', gap:5, overflowX:'auto', scrollbarWidth:'none' }}>
-              {(dateOptions || [['26','26 jun']]).map(([k,l]) => (
-                <Chip key={k} label={l} active={panoramaDate===k || (panoramaDate==='todas' && k==='todas')} onClick={() => onPanoramaDateChange?.(k)} />
-              ))}
-            </div>
-          </motion.div>
-        )}
+
         {isTheme && (
           <motion.div key="theme"
             initial={{ opacity:0, y:-6 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-6 }}
