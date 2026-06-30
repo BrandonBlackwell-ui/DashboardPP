@@ -60,6 +60,7 @@ function RawApifyPanorama({ data, isDesktop }) {
   const actors = data.themes?.resumen?.sourceMeta?.actors || [];
   const actor = actors.find(a => a.platform === active?.key);
   const totals = networks.reduce((sum, n) => sum + (n.posts || 0), 0);
+  const analyzePlan = data.meta?.analyzePlan || data.themes?.resumen?.sourceMeta?.analyzePlan;
 
   return (
     <motion.div variants={stagger} initial="hidden" animate="visible"
@@ -114,6 +115,29 @@ function RawApifyPanorama({ data, isDesktop }) {
           <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11.5, lineHeight:1.35, color:C.ink, marginTop:7 }}>{actor?.status || 'Sin criterio'}</div>
         </div>
       </motion.div>
+
+      {analyzePlan && (
+        <motion.div variants={item} style={{ marginTop:12, background:'rgba(176,130,47,0.08)', border:'1px solid rgba(176,130,47,0.26)', borderRadius:3, padding:'14px 15px' }}>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:12, alignItems:'baseline' }}>
+            <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.14em', textTransform:'uppercase', color:C.goldDeep, fontWeight:700 }}>
+              Plan Analizar
+            </span>
+            <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, color:C.ink }}>
+              Tope ${analyzePlan.dailyMaxUsd} / soft stop ${analyzePlan.softStopUsd} / reserva ${analyzePlan.reserveUsd}
+            </span>
+            <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, color:'#6B6253' }}>
+              {analyzePlan.baseComments} comentarios base, {analyzePlan.boostedComments} si hay alto engagement
+            </span>
+          </div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:7, marginTop:10 }}>
+            {(analyzePlan.stages || []).map(stage => (
+              <span key={stage.key} style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#6B6253', border:'1px solid rgba(33,28,23,0.12)', background:C.card, borderRadius:999, padding:'5px 8px', textTransform:'uppercase' }}>
+                {stage.label}: ${stage.hardCapUsd}
+              </span>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       <motion.div variants={item} style={{ marginTop:24 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:12, marginBottom:10 }}>

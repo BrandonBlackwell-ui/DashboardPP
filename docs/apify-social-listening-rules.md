@@ -1613,6 +1613,41 @@ La pantalla `Panorama` debe priorizar:
 
 No mostrar campos vacios como `0 seguidores` si Apify no trajo ese dato.
 
+## Presupuesto diario del boton Analizar
+
+Configuracion activa en codigo:
+
+```text
+src/data/apifyDailyPlan.js
+```
+
+Politica:
+
+- Tope duro diario: `1.25 USD`.
+- Soft stop: `1.05 USD`.
+- Reserva minima antes de ampliar limites: `0.20 USD`.
+- Comentarios base por post: `20`.
+- Comentarios boosted por post con alto engagement/riesgo: `50`.
+- Comentarios maximos por post solo con riesgo y presupuesto: `100`.
+- Maximo de posts comentados por red en corrida normal: `3`.
+
+Distribucion recomendada:
+
+- Escucha publica: hasta `0.38 USD`.
+- Posts propios: hasta `0.18 USD`.
+- Comentarios propios: hasta `0.49 USD`.
+- Clasificacion IA: hasta `0.20 USD`.
+
+Reglas de escalado:
+
+- Si un post llega con `comments >= 100`, `reactions >= 1000`, `views >= 25000` o `likes >= 2500`, subir comentarios de `20` a `50` solo para ese post.
+- Si el clasificador o una revision manual marca riesgo, subir de `50` a `100` solo si queda presupuesto despues de la reserva.
+- Si un post tiene menos de `10` comentarios, menos de `100` reacciones y menos de `5000` views, no extraer comentarios salvo que sea un post oficial critico.
+- No iniciar un actor si `gasto_estimado + cap_del_actor > 1.25`.
+- No ampliar `maxItems` cuando `item_count == limit` si no queda al menos `0.20 USD` de reserva.
+- No correr comentarios sobre posts sin URL real o sin fecha usable.
+- No contar comentarios sin fecha exacta en porcentajes diarios.
+
 ## Pendientes
 
 - Buscar y probar un actor de TikTok que acepte rango exacto `from/to`.

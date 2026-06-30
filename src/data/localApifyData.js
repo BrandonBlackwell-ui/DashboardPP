@@ -1,4 +1,7 @@
+import { summarizeApifyDailyPlan } from './apifyDailyPlan';
+
 const DATE_KEY = '2026-06-26';
+const DAILY_ANALYZE_SUMMARY = summarizeApifyDailyPlan();
 
 const xMentions = [
   {
@@ -1264,6 +1267,7 @@ function sourceMeta(platforms) {
     dateWindow: '2026-06-26 a 2026-06-29',
     query: 'Pruebas Apify locales: X/News/TikTok/Facebook 2026-06-26 e Instagram 2026-06-29',
     classificationStatus: 'raw_only',
+    analyzePlan: DAILY_ANALYZE_SUMMARY,
     actors: actorMeta.filter(a => platforms.includes(a.id || a.platform)),
   };
 }
@@ -1344,6 +1348,7 @@ function ownedTheme() {
       dateWindow:'posts recientes validados; YouTube ultimos 5 videos sin filtro de fecha',
       query:'Perfiles oficiales configurados: Instagram, Facebook, TikTok, YouTube y X. Posts extraidos: Instagram, Facebook, TikTok, X y YouTube.',
       classificationStatus:'raw_only',
+      analyzePlan:DAILY_ANALYZE_SUMMARY,
       profiles:ownedProfiles,
       actors:actorMeta.filter(a => ['instagram_owned', 'facebook_owned', 'tiktok_owned', 'youtube_owned', 'x_owned'].includes(a.id || a.platform)),
     },
@@ -1424,6 +1429,7 @@ export function applyLocalApifyData() {
       range_label:'26-29 jun 2026',
       generated:DATE_KEY,
       source:'apify_local',
+      analyzePlan:DAILY_ANALYZE_SUMMARY,
     },
     order:['resumen','facebook','instagram','x','google_news','tiktok','redes_propias'],
     themes,
@@ -1439,7 +1445,7 @@ export function applyLocalApifyData() {
         x:{ pos:0, neu:100, neg:0, risk:'muy_bajo', posts:6, health:100, alerts:0, opps:0, headlines:[], topEvents:[], resumen:'X raw sin respuestas.', alertPosts:[], oppPosts:[] },
         google_news:{ pos:0, neu:100, neg:0, risk:'muy_bajo', posts:2, health:100, alerts:0, opps:0, headlines:[], topEvents:[], resumen:'Google News raw filtrado por fecha exacta.', alertPosts:[], oppPosts:[] },
         tiktok:{ pos:0, neu:100, neg:0, risk:'muy_bajo', posts:6, health:100, alerts:0, opps:0, headlines:[], topEvents:[], resumen:'TikTok raw post-filtrado por fecha exacta.', alertPosts:[], oppPosts:[] },
-        redes_propias:{ pos:0, neu:100, neg:0, risk:'muy_bajo', posts:26, health:100, alerts:0, opps:0, headlines:[], topEvents:[], resumen:'Redes propias raw: Instagram, TikTok, X y YouTube con publicaciones; Facebook metadata.', alertPosts:[], oppPosts:[] },
+        redes_propias:{ pos:0, neu:100, neg:0, risk:'muy_bajo', posts:29, health:100, alerts:0, opps:0, headlines:[], topEvents:[], resumen:'Redes propias raw: Instagram, Facebook, TikTok, X y YouTube con publicaciones y comentarios de prueba.', alertPosts:[], oppPosts:[] },
       },
     },
   };
