@@ -1,38 +1,58 @@
 import { supabase } from './supabase';
 import { getWeekendDates, getFridayDateKey, platLabel } from '../utils/helpers';
 
+const NEG_KW = ['chisme','chismesito','polém','polemic','escándalo','escandalo','cancela','cancelad','colad','critica','crítica','critico','crítico','horrible','vergüenza','verguenza','fraude','mentira','hipócrita','hipocrita','controver','acusac','denuncia','trampa','falso','odio','asco','decepcion','decepción','hater','malo','pésimo','pesimo','ridículo','ridiculo','reclam'];
+const POS_KW = ['fan','amor','love','increíble','increible','talento','mejor','hermoso','hermosa','apoy','admiro','admira','admiración','admiracion','genio','genial','orgullo','orgullos','bravo','maravill','gracias','éxito','exito','felicit','encanta','encanto','bonit','bellísim','bellisim','viva','gozo','alegria','alegría'];
+
+function scoreText(text) {
+  const t = (text || '').toLowerCase();
+  const neg = NEG_KW.filter(k => t.includes(k)).length;
+  const pos = POS_KW.filter(k => t.includes(k)).length;
+  return neg > pos ? 'negative' : pos > neg ? 'positive' : 'neutral';
+}
+
 // Helper function to build themeData dynamically from raw scraped posts and voices
 function buildThemeFromScrapedData(rep) {
   const posts = rep.scraped_posts || [];
   const voicesList = rep.allies_critics_voices || [];
 
-  // 1. Sentiment counts
-  const posC = posts.filter(p => p.sentiment === 'positive').length;
-  const negC = posts.filter(p => p.sentiment === 'negative').length;
-  const neuC = posts.filter(p => p.sentiment === 'neutral' || !p.sentiment).length;
-  const total = posC + negC + neuC || 1;
-  const posPct = Math.round(posC / total * 100);
-  const negPct = Math.round(negC / total * 100);
-  const neuPct = 100 - posPct - negPct;
+  // 1. Sentiment counts (calculated from comments if redes_propias, otherwise from posts)
+  let posC = posts.filter(p => p.sentiment === 'positive').length;
+  let negC = posts.filter(p => p.sentiment === 'negative').length;
+  let neuC = posts.filter(p => p.sentiment === 'neutral' || !p.sentiment).length;
+  let total = posC + negC + neuC || 1;
+  let posPct = Math.round(posC / total * 100);
+  let negPct = Math.round(negC / total * 100);
+  let neuPct = 100 - posPct - negPct;
 
-  // 2. Risk level approximation
   let riskLevel = 'bajo';
   if (negPct > 40) riskLevel = 'muy_alto';
   else if (negPct > 25) riskLevel = 'alto';
   else if (negPct > 15) riskLevel = 'medio';
 
-  // 3. Platform breakdown
+  // 2. Platform breakdown (calculated from comments if redes_propias, otherwise from posts)
   const platformMap = {};
   posts.forEach(p => {
     const plat = p.platform || 'unknown';
     if (!platformMap[plat]) platformMap[plat] = { posts: 0, comments: 0, pos: 0, neu: 0, neg: 0 };
     const pm = platformMap[plat];
     pm.posts += 1;
-    pm.comments += p.comments_count || 0;
-    if (p.sentiment === 'positive') pm.pos += 1;
-    else if (p.sentiment === 'negative') pm.neg += 1;
-    else pm.neu += 1;
+    pm.comments += p.comments_count || (p.scraped_comments?.length || 0);
+
+    if (rep.theme_key === 'redes_propias' && p.scraped_comments?.length) {
+      p.scraped_comments.forEach(c => {
+        const tone = scoreText(c.text);
+        if (tone === 'positive') pm.pos += 1;
+        else if (tone === 'negative') pm.neg += 1;
+        else pm.neu += 1;
+      });
+    } else {
+      if (p.sentiment === 'positive') pm.pos += 1;
+      else if (p.sentiment === 'negative') pm.neg += 1;
+      else pm.neu += 1;
+    }
   });
+
   const platforms = Object.entries(platformMap).map(([name, pm]) => {
     const tot = pm.pos + pm.neu + pm.neg || 1;
     return {
@@ -41,8 +61,8 @@ function buildThemeFromScrapedData(rep) {
     };
   });
 
-  // 4. Alerts and Opportunities
-  const alertPosts = posts.filter(p => p.sentiment === 'negative')
+  // 3. Alerts and Opportunities
+  let alertPosts = posts.filter(p => p.sentiment === 'negative')
     .sort((a,b) => (b.likes||0) - (a.likes||0))
     .slice(0, 10)
     .map(p => ({
@@ -60,7 +80,47 @@ function buildThemeFromScrapedData(rep) {
       engagement: p.likes || 0, username: p.username
     }));
 
-  // 5. Voices (Allies/Critics)
+  // Special handling for owned networks (redes_propias): compute metrics from comments
+  if (rep.theme_key === 'redes_propias') {
+    const allComments = [];
+    posts.forEach(p => {
+      if (p.scraped_comments) {
+        p.scraped_comments.forEach(c => {
+          allComments.push({ ...c, postUrl: p.url, postPlatform: p.platform });
+        });
+      }
+    });
+
+    if (allComments.length > 0) {
+      const commPos = allComments.filter(c => scoreText(c.text) === 'positive');
+      const commNeg = allComments.filter(c => scoreText(c.text) === 'negative');
+      const commNeu = allComments.filter(c => scoreText(c.text) === 'neutral');
+      const commTotal = allComments.length;
+
+      posPct = Math.round(commPos.length / commTotal * 100);
+      negPct = Math.round(commNeg.length / commTotal * 100);
+      neuPct = 100 - posPct - negPct;
+
+      posC = commPos.length;
+      negC = commNeg.length;
+      neuC = commNeu.length;
+
+      if (negPct > 40) riskLevel = 'muy_alto';
+      else if (negPct > 25) riskLevel = 'alto';
+      else if (negPct > 15) riskLevel = 'medio';
+      else riskLevel = 'bajo';
+
+      alertPosts = commNeg.sort((a,b) => (b.likes||0) - (a.likes||0))
+        .slice(0, 10)
+        .map(c => ({
+          url: c.url || c.postUrl, text: c.text, tipo: 'Comentario Crítico', platform: c.postPlatform,
+          time: c.published_time, score: '85', razon: `Comentario negativo de @${c.author} en publicación propia`,
+          engagement: c.likes || 0, username: c.author
+        }));
+    }
+  }
+
+  // 4. Voices (Allies/Critics)
   const alliesList = voicesList.filter(v => v.sentiment !== 'negative')
     .map(v => ({
       username: v.username, platform: v.platform, followers: v.followers, url: v.profile_url,
@@ -119,7 +179,7 @@ export async function loadFromSupabase() {
       .from('reports')
       .select(`
         id, date_key, theme_key, theme_label, filename, created_at,
-        scraped_posts(*),
+        scraped_posts(*, scraped_comments(*)),
         allies_critics_voices(*)
       `)
       .order('created_at', { ascending: true });
@@ -220,7 +280,7 @@ export async function loadThemeByDate(themeKey, dateKey) {
       .from('reports')
       .select(`
         id, date_key, theme_key, theme_label,
-        scraped_posts(*),
+        scraped_posts(*, scraped_comments(*)),
         allies_critics_voices(*)
       `)
       .eq('theme_key', themeKey)
