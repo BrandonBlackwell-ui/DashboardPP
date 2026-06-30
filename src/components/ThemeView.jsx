@@ -115,6 +115,12 @@ function scoreText(text) {
 }
 
 function deriveVoices(themeData, postsByPlatform) {
+  if (themeData.voices?.allies?.length || themeData.voices?.critics?.length) {
+    return {
+      allies: themeData.voices.allies || [],
+      critics: themeData.voices.critics || []
+    };
+  }
   const allPosts = Object.values(postsByPlatform).flat();
   if (!allPosts.length) return { allies:[], critics:[] };
 
@@ -261,6 +267,28 @@ function deriveNetworkPosts(themeData) {
       thumbnail:post.thumbnail || post.image || post.coverUrl || thumbnailFromUrl(post.url),
     });
   };
+
+  if (themeData.scraped_posts) {
+    themeData.scraped_posts.forEach(p => {
+      add(p.platform, {
+        url: p.url,
+        text: p.text,
+        username: p.username,
+        platform: p.platform,
+        time: p.published_date,
+        likes: p.likes,
+        comments: p.comments_count,
+        shares: p.shares,
+        retweets: p.retweets,
+        bookmarks: p.bookmarks,
+        views: p.views,
+        followers: p.followers,
+        thumbnail: p.thumbnail,
+        sentiment: p.sentiment
+      });
+    });
+    return buckets;
+  }
 
   (themeData.networkStrategy?.networks || []).forEach(n => {
     (n.postsList || n.posts_list || []).forEach(p => add(n.key, p));
