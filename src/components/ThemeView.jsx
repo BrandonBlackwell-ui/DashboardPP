@@ -1861,8 +1861,14 @@ function SocialPostPreview({ post, platform, isDesktop }) {
               {post.username || 'Prensa'}
             </div>
 
-            <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.35, color: '#202124', marginBottom: 12 }}>
-              {post.text || 'Sin título.'}
+            <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.35, marginBottom: 12 }}>
+              {post.url ? (
+                <a href={post.url} target="_blank" rel="noopener noreferrer" style={{ color: '#1a0dab', textDecoration: 'none' }}>
+                  {post.text || 'Sin título.'}
+                </a>
+              ) : (
+                <span style={{ color: '#202124' }}>{post.text || 'Sin título.'}</span>
+              )}
             </div>
 
             {post.thumbnail && (
