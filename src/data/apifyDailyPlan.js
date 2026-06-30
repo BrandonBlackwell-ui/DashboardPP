@@ -10,11 +10,13 @@ export const APIFY_DAILY_ANALYZE_PLAN = {
   defaults: {
     publicMaxItems: 100,
     ownedProfilePosts: {
-      x: 10,
-      facebook: 3,
+      x: 5,
+      facebook: 5,
       tiktok: 13,
+      tiktokDisplay: 5,
       youtube: 5,
       instagramProfiles: 1,
+      instagramDisplay: 5,
     },
     commentsPerPostBase: 20,
     commentsPerPostBoosted: 50,
@@ -57,10 +59,10 @@ export const APIFY_DAILY_ANALYZE_PLAN = {
       hardCapUsd: 0.18,
       actors: [
         { key: 'instagram_profile', actor: 'coderx/instagram-profile-scraper-api', capUsd: 0.01, maxItems: 1 },
-        { key: 'facebook_posts', actor: 'unseenuser/fb-posts', capUsd: 0.03, maxItems: 3 },
-        { key: 'tiktok_profile', actor: 'clockworks/tiktok-profile-scraper', capUsd: 0.04, maxItems: 13 },
+        { key: 'facebook_posts', actor: 'unseenuser/fb-posts', capUsd: 0.05, maxItems: 5 },
+        { key: 'tiktok_profile', actor: 'clockworks/tiktok-profile-scraper', capUsd: 0.04, maxItems: 13, displayItems: 5 },
         { key: 'youtube_rss', actor: 'youtube-channel-rss', capUsd: 0, maxItems: 5 },
-        { key: 'x_profile', actor: 'scraper_one/x-profile-posts-scraper', capUsd: 0.04, maxItems: 10 },
+        { key: 'x_profile', actor: 'scraper_one/x-profile-posts-scraper', capUsd: 0.04, maxItems: 5 },
       ],
     },
     {
@@ -98,6 +100,7 @@ export function summarizeApifyDailyPlan(plan = APIFY_DAILY_ANALYZE_PLAN) {
     baseComments: plan.defaults.commentsPerPostBase,
     boostedComments: plan.defaults.commentsPerPostBoosted,
     maxCommentedPostsPerNetwork: plan.defaults.maxCommentedPostsPerNetwork,
+    ownedProfilePosts: plan.defaults.ownedProfilePosts,
     stages: plan.stages.map(stage => ({
       key: stage.key,
       label: stage.label,

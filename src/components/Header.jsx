@@ -7,13 +7,16 @@ const INK_FILTER = `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/s
 export default function Header({ tab, data, onExport, onTabChange, onUpload }) {
   const T = data?.themes || {};
   const order = data?.order || [];
+  const rawMode = data?.meta?.source === 'apify_local' || T?.resumen?.rawOnly;
 
   const tabs = [
     { key:'panorama', label:'Panorama' },
     ...order.map(k => ({ key:k, label:T[k]?.label || k })),
-    { key:'historico', label:'Histórico' },
-    { key:'reporte', label:'Reporte' },
-  ];
+    ...(!rawMode ? [
+      { key:'historico', label:'Histórico' },
+      { key:'reporte', label:'Reporte' },
+    ] : []),
+  ].filter(t => T[t.key] || t.key === 'panorama' || !rawMode);
 
   return (
     <div style={{ position:'sticky', top:0, zIndex:40, background:C.paper,

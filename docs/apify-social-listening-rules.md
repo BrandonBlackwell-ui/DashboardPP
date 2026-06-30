@@ -1630,6 +1630,9 @@ Politica:
 - Comentarios boosted por post con alto engagement/riesgo: `50`.
 - Comentarios maximos por post solo con riesgo y presupuesto: `100`.
 - Maximo de posts comentados por red en corrida normal: `3`.
+- Posts propios objetivo por red: `5`.
+- TikTok se raspa con `13` videos para compensar videos fijados, pero se muestran/analizan los `5` utiles mas recientes despues de excluir fijados.
+- En muestras locales puede aparecer menos de `5/5` si aun no se corrio esa red con el limite nuevo. No rellenar con datos inventados.
 
 Distribucion recomendada:
 

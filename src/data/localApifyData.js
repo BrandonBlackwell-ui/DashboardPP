@@ -1241,13 +1241,15 @@ function mentionPost(p) {
   };
 }
 
-function networkFromMentions(key, label, mentions, share) {
+function networkFromMentions(key, label, mentions, share, targetPosts = null, scrapePosts = null) {
   const t = totals(mentions);
   return {
     key,
     label,
     share,
     posts: mentions.length,
+    targetPosts,
+    scrapePosts,
     comments: t.comments,
     views: t.views,
     likes: t.likes,
@@ -1320,6 +1322,8 @@ function baseTheme({ label, es, mentions, networks, actors }) {
     voices:{ segmentos:[], alertas:[] },
     narrative_gap:null,
     networkStrategy:{
+      title:'Redes monitoreadas',
+      itemLabel:'PUBLICACIONES',
       totalPosts:mentions.length,
       networks,
       allies:[],
@@ -1328,13 +1332,19 @@ function baseTheme({ label, es, mentions, networks, actors }) {
 }
 
 function ownedTheme() {
-  const ownedMentions = [...ownedInstagramPosts, ...ownedFacebookPosts, ...ownedXPosts, ...ownedTikTokPosts, ...ownedYoutubePosts];
+  const targets = DAILY_ANALYZE_SUMMARY.ownedProfilePosts || {};
+  const visibleInstagramPosts = ownedInstagramPosts.slice(0, targets.instagramDisplay || 5);
+  const visibleFacebookPosts = ownedFacebookPosts.slice(0, targets.facebook || 5);
+  const visibleXPosts = ownedXPosts.slice(0, targets.x || 5);
+  const visibleTikTokPosts = ownedTikTokPosts.filter(p => p.type !== 'video fijado').slice(0, targets.tiktokDisplay || 5);
+  const visibleYoutubePosts = ownedYoutubePosts.slice(0, targets.youtube || 5);
+  const ownedMentions = [...visibleInstagramPosts, ...visibleFacebookPosts, ...visibleXPosts, ...visibleTikTokPosts, ...visibleYoutubePosts];
   const total = ownedMentions.length || 1;
-  const instagramNetwork = networkFromMentions('instagram', 'Instagram', ownedInstagramPosts, Math.round((ownedInstagramPosts.length / total) * 100));
-  const facebookNetwork = networkFromMentions('facebook', 'Facebook', ownedFacebookPosts, Math.round((ownedFacebookPosts.length / total) * 100));
-  const xNetwork = networkFromMentions('x', 'X', ownedXPosts, Math.round((ownedXPosts.length / total) * 100));
-  const tiktokNetwork = networkFromMentions('tiktok', 'TikTok', ownedTikTokPosts, Math.round((ownedTikTokPosts.length / total) * 100));
-  const youtubeNetwork = networkFromMentions('youtube', 'YouTube', ownedYoutubePosts, Math.round((ownedYoutubePosts.length / total) * 100));
+  const instagramNetwork = networkFromMentions('instagram', 'Instagram', visibleInstagramPosts, Math.round((visibleInstagramPosts.length / total) * 100), targets.instagramDisplay || 5, targets.instagramProfiles || 1);
+  const facebookNetwork = networkFromMentions('facebook', 'Facebook', visibleFacebookPosts, Math.round((visibleFacebookPosts.length / total) * 100), targets.facebook || 5, targets.facebook || 5);
+  const xNetwork = networkFromMentions('x', 'X', visibleXPosts, Math.round((visibleXPosts.length / total) * 100), targets.x || 5, targets.x || 5);
+  const tiktokNetwork = networkFromMentions('tiktok', 'TikTok', visibleTikTokPosts, Math.round((visibleTikTokPosts.length / total) * 100), targets.tiktokDisplay || 5, targets.tiktok || 13);
+  const youtubeNetwork = networkFromMentions('youtube', 'YouTube', visibleYoutubePosts, Math.round((visibleYoutubePosts.length / total) * 100), targets.youtube || 5, targets.youtube || 5);
   return {
     ...baseTheme({
       label:'Redes propias',
@@ -1431,7 +1441,7 @@ export function applyLocalApifyData() {
       source:'apify_local',
       analyzePlan:DAILY_ANALYZE_SUMMARY,
     },
-    order:['resumen','facebook','instagram','x','google_news','tiktok','redes_propias'],
+    order:['redes_propias','facebook','instagram','x','tiktok','google_news'],
     themes,
   };
 
@@ -1445,7 +1455,7 @@ export function applyLocalApifyData() {
         x:{ pos:0, neu:100, neg:0, risk:'muy_bajo', posts:6, health:100, alerts:0, opps:0, headlines:[], topEvents:[], resumen:'X raw sin respuestas.', alertPosts:[], oppPosts:[] },
         google_news:{ pos:0, neu:100, neg:0, risk:'muy_bajo', posts:2, health:100, alerts:0, opps:0, headlines:[], topEvents:[], resumen:'Google News raw filtrado por fecha exacta.', alertPosts:[], oppPosts:[] },
         tiktok:{ pos:0, neu:100, neg:0, risk:'muy_bajo', posts:6, health:100, alerts:0, opps:0, headlines:[], topEvents:[], resumen:'TikTok raw post-filtrado por fecha exacta.', alertPosts:[], oppPosts:[] },
-        redes_propias:{ pos:0, neu:100, neg:0, risk:'muy_bajo', posts:29, health:100, alerts:0, opps:0, headlines:[], topEvents:[], resumen:'Redes propias raw: Instagram, Facebook, TikTok, X y YouTube con publicaciones y comentarios de prueba.', alertPosts:[], oppPosts:[] },
+        redes_propias:{ pos:0, neu:100, neg:0, risk:'muy_bajo', posts:19, health:100, alerts:0, opps:0, headlines:[], topEvents:[], resumen:'Redes propias raw: objetivo 5 publicaciones por red; TikTok se raspa a 13 para compensar fijadas y se muestran 5 utiles.', alertPosts:[], oppPosts:[] },
       },
     },
   };

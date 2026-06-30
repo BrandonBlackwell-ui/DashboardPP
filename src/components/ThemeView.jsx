@@ -194,6 +194,10 @@ function thumbnailFromUrl(url) {
   return '';
 }
 
+function postKey(post, index = 0) {
+  return post.url || `${post.username || 'post'}-${post.date || index}-${index}`;
+}
+
 function deriveNetworkPosts(themeData) {
   const buckets = {};
   const add = (platform, post) => {
@@ -256,6 +260,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
   const T = data.themes;
   const t = T[tab];
   const [activeNetwork, setActiveNetwork] = useState(null);
+  const [activePostKey, setActivePostKey] = useState(null);
   if (!t) return null;
 
   if (noData) {
@@ -391,7 +396,8 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       ...n,
       toneLabel: n.tone === 'favorable' ? 'Favorable' : n.tone === 'critica' ? 'Critica' : 'Neutral',
       toneMeta,
-      postsLabel:fmt(n.posts),
+      postsLabel:n.targetPosts ? `${fmt(n.posts)}/${n.targetPosts}` : fmt(n.posts),
+      scrapeLabel:n.scrapePosts && n.scrapePosts !== n.targetPosts ? `scrape ${fmt(n.scrapePosts)}` : '',
       viewsLabel:fmtK(n.views),
       commentsLabel:fmt(n.comments),
       topTerms:(n.topTerms||[]).slice(0,4),
@@ -431,7 +437,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       right={<span style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, color:'#8A7E6A' }}>{fmt(networkStrategy.totalPosts||0)} {networkMapItemLabel}</span>}>
       <div style={{ display:'grid', gridTemplateColumns: compact ? 'repeat(2, minmax(0, 1fr))' : isDesktop ? 'repeat(2, minmax(0, 1fr))' : '1fr', gap:8 }}>
         {strategyNetworks.map(n => (
-          <button key={n.key} onClick={() => setActiveNetwork(activeNetwork === n.key ? null : n.key)}
+          <button key={n.key} onClick={() => { setActiveNetwork(activeNetwork === n.key ? null : n.key); setActivePostKey(null); }}
             style={{ textAlign:'left', cursor:'pointer', background:C.card,
               border:selectedNetwork === n.key ? `1px solid ${C.gold}` : '1px solid rgba(33,28,23,0.13)',
               boxShadow:selectedNetwork === n.key ? '0 0 0 1px rgba(176,130,47,0.18)' : 'none',
@@ -441,7 +447,14 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
               <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:700, fontSize:compact ? 20 : 22, color:C.ink, lineHeight:1 }}>{n.share}%</span>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontFamily:"'Geist Mono',monospace", fontWeight:600, fontSize:10.5, color:C.ink, letterSpacing:'0.08em', textTransform:'uppercase', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{n.label}</div>
-                <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:compact ? 9.5 : 10.5, color:'#8A7E6A', marginTop:2 }}>{n.postsLabel} POSTS{!compact && ` · ${n.viewsLabel} VIEWS · ${n.commentsLabel} COM.`}</div>
+                <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:compact ? 9.5 : 10.5, color:'#8A7E6A', marginTop:2 }}>
+                  {[
+                    `${n.postsLabel} POSTS`,
+                    n.scrapeLabel ? n.scrapeLabel.toUpperCase() : '',
+                    !compact && n.views ? `${n.viewsLabel} VIEWS` : '',
+                    !compact && n.comments ? `${n.commentsLabel} COM.` : '',
+                  ].filter(Boolean).join(' - ')}
+                </div>
               </div>
             </div>
             {!t.rawOnly && <>
@@ -475,7 +488,94 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
         ))}
       </div>
 
-      {selectedNetwork && (
+      {selectedNetwork && (() => {
+        const selectedPosts = networkPostsByKey[selectedNetwork] || [];
+        const selectedPost = selectedPosts.find((p, idx) => postKey(p, idx) === activePostKey) || selectedPosts[0];
+        const selectedComments = selectedPost?.commentsList || [];
+        return (
+        <div style={{ marginTop:10, display:'grid', gridTemplateColumns:isDesktop && !compact ? 'minmax(0, 0.95fr) minmax(0, 1.05fr)' : '1fr', gap:10 }}>
+          <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, overflow:'hidden' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', background:'rgba(33,28,23,0.04)', borderBottom:'1px solid rgba(33,28,23,0.10)' }}>
+              <PlatformIcon platform={selectedNetwork} size={16} />
+              <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:600, fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.ink }}>
+                Publicaciones de {platLabel(selectedNetwork)}
+              </span>
+              <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginLeft:'auto' }}>
+                {selectedPosts.length} visibles
+              </span>
+            </div>
+            {selectedPosts.length > 0 ? selectedPosts.map((p, i) => {
+              const key = postKey(p, i);
+              const isSelected = key === postKey(selectedPost, selectedPosts.indexOf(selectedPost));
+              return (
+                <button key={key} onClick={() => setActivePostKey(key)}
+                  style={{ display:'grid', gridTemplateColumns:p.thumbnail && !compact ? '76px 1fr' : '1fr', gap:10, width:'100%', padding:'11px 12px', textAlign:'left',
+                    background:isSelected ? 'rgba(176,130,47,0.10)' : C.card, border:0, borderBottom:i<selectedPosts.length-1?'1px solid rgba(33,28,23,0.08)':'none', cursor:'pointer', font:'inherit' }}>
+                  {p.thumbnail && !compact && (
+                    <span style={{ width:76, height:48, borderRadius:3, overflow:'hidden', background:'rgba(33,28,23,0.08)', display:'block' }}>
+                      <img src={p.thumbnail} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} loading="lazy" />
+                    </span>
+                  )}
+                  <span style={{ minWidth:0 }}>
+                    <span style={{ display:'block', fontSize:13.5, lineHeight:1.35, color:C.ink }}>{p.text || p.url}</span>
+                    <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', marginTop:5, textTransform:'uppercase' }}>
+                      {[p.username, p.metric, p.comments ? `${fmt(p.comments)} com.` : '', (p.date || '').slice(0,10)].filter(Boolean).join(' - ')}
+                    </span>
+                  </span>
+                </button>
+              );
+            }) : (
+              <div style={{ padding:'12px', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', textTransform:'uppercase' }}>
+                No hay publicaciones para esta red.
+              </div>
+            )}
+          </div>
+
+          <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, overflow:'hidden' }}>
+            {selectedPost ? (
+              <>
+                <div style={{ display:'grid', gridTemplateColumns:selectedPost.thumbnail && !compact ? '104px 1fr auto' : '1fr auto', gap:12, padding:12, borderBottom:'1px solid rgba(33,28,23,0.10)', alignItems:'center' }}>
+                  {selectedPost.thumbnail && !compact && (
+                    <span style={{ width:104, height:64, borderRadius:3, overflow:'hidden', background:'rgba(33,28,23,0.08)', display:'block' }}>
+                      <img src={selectedPost.thumbnail} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} loading="lazy" />
+                    </span>
+                  )}
+                  <span style={{ minWidth:0 }}>
+                    <span style={{ display:'block', fontSize:14.5, lineHeight:1.35, color:C.ink }}>{selectedPost.text || selectedPost.url}</span>
+                    <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:6, textTransform:'uppercase' }}>
+                      {[selectedPost.username, selectedPost.metric, selectedPost.comments ? `${fmt(selectedPost.comments)} com.` : '', selectedPost.commentsExtracted ? `${fmt(selectedPost.commentsExtracted)} extraidos` : '', (selectedPost.date || '').slice(0,10)].filter(Boolean).join(' - ')}
+                    </span>
+                  </span>
+                  {selectedPost.url && <a href={selectedPost.url} target="_blank" rel="noopener" style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:C.goldDeep, fontWeight:700, textDecoration:'none' }}>ABRIR</a>}
+                </div>
+                <div style={{ padding:12 }}>
+                  <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.goldDeep, marginBottom:8 }}>
+                    {selectedComments.length ? `${selectedComments.length} comentarios extraidos` : 'Sin comentarios extraidos'}
+                  </div>
+                  {selectedComments.length ? selectedComments.slice(0, 12).map(comment => (
+                    <a key={comment.id} href={comment.url || undefined} target={comment.url ? '_blank' : undefined} rel={comment.url ? 'noopener' : undefined}
+                      style={{ display:'block', marginBottom:8, padding:'9px 10px', background:'rgba(33,28,23,0.035)', border:'1px solid rgba(33,28,23,0.07)', borderRadius:3, textDecoration:'none' }}>
+                      <span style={{ display:'block', fontSize:12.8, lineHeight:1.38, color:'#2A241C' }}>{comment.text || '[Sin texto]'}</span>
+                      <span style={{ display:'block', marginTop:5, fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', textTransform:'uppercase' }}>
+                        {[comment.author, comment.publishedTime, comment.likes ? `${comment.likes} likes` : '', comment.replies ? `${comment.replies} replies` : '', comment.views ? `${comment.views} views` : '', comment.url ? 'abrir comentario' : ''].filter(Boolean).join(' - ')}
+                      </span>
+                    </a>
+                  )) : (
+                    <div style={{ padding:'16px 0 4px', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', textTransform:'uppercase' }}>
+                      Esta publicacion aun no tiene comentarios raspados en la muestra local.
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div style={{ padding:12, fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', textTransform:'uppercase' }}>Selecciona una publicacion.</div>
+            )}
+          </div>
+        </div>
+        );
+      })()}
+
+      {false && selectedNetwork && (
         <div style={{ marginTop:10, background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, overflow:'hidden' }}>
           <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', background:'rgba(33,28,23,0.04)', borderBottom:'1px solid rgba(33,28,23,0.10)' }}>
             <PlatformIcon platform={selectedNetwork} size={16} />
