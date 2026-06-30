@@ -50,6 +50,10 @@ export default function CalendarView({ calData, onGoTheme, isDesktop, supabaseKe
   const [selected, setSelected] = useState(lastDay);
   const selData = days[selected] || {};
 
+  const startLabel = startDate.getDate() + ' ' + MONTHS_ES[startDate.getMonth()];
+  const endLabel = endDate.getDate() + ' ' + MONTHS_ES[endDate.getMonth()] + ' ' + endDate.getFullYear();
+  const totalDays = allDays.length;
+
   const stagger = { hidden:{}, visible:{ transition:{ staggerChildren:0.04 } } };
   const item = { hidden:{ opacity:0, y:10 }, visible:{ opacity:1, y:0, transition:{ type:'spring', stiffness:300, damping:24 } } };
 
@@ -59,10 +63,10 @@ export default function CalendarView({ calData, onGoTheme, isDesktop, supabaseKe
       {/* Header */}
       <motion.div variants={item}>
         <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, letterSpacing:'0.18em',
-          textTransform:'uppercase', color:C.gold, fontWeight:600 }}>Histórico · 1 – 15 jun 2026</div>
+          textTransform:'uppercase', color:C.gold, fontWeight:600 }}>Histórico · {startLabel} – {endLabel}</div>
         <h1 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:28, lineHeight:1.05,
           letterSpacing:'-0.025em', color:C.ink, margin:'8px 0 4px' }}>
-          15 días de <em style={{ fontStyle:'normal', color:C.goldDeep }}>conversación</em>.
+          {totalDays} días de <em style={{ fontStyle:'normal', color:C.goldDeep }}>conversación</em>.
         </h1>
         <p style={{ fontSize:12, color:'#6B6253', margin:'0 0 16px' }}>Selecciona un día para ver el resumen.</p>
       </motion.div>

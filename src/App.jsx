@@ -82,6 +82,15 @@ export default function App() {
     setDataVersion(v => v+1);
     loadFromSupabase().then(() => {
       refreshData();
+      if (window.CALENDAR_DATA?.days) {
+        const dayKeys = Object.keys(window.CALENDAR_DATA.days).sort();
+        const latestKey = dayKeys.pop();
+        if (latestKey) {
+          const latestDay = latestKey.slice(8);
+          setDate(latestDay);
+          setPanoramaDate(latestDay);
+        }
+      }
       setDataVersion(v => v+1);
     });
   }, [authed, data, calData]);
@@ -177,26 +186,6 @@ export default function App() {
     setShowExport(true);
   }
 
-  const [injecting, setInjecting] = useState(false);
-  async function handleInjectData() {
-    if (injecting) return;
-    const confirmInject = window.confirm('¿Deseas inyectar los datos locales de prueba en tu nuevo Supabase?');
-    if (!confirmInject) return;
-    setInjecting(true);
-    try {
-      const themes = buildThemes();
-      for (const [key, themeData] of Object.entries(themes)) {
-        await saveReport({ dateKey: '2026-06-26', themeKey: key, themeData, filename: 'importado_local.json' });
-      }
-      alert('¡Datos inyectados con éxito en Supabase!');
-      window.location.reload();
-    } catch (e) {
-      console.error(e);
-      alert('Error al inyectar datos: ' + e.message);
-    } finally {
-      setInjecting(false);
-    }
-  }
 
   const isTheme = !['panorama','historico','reporte'].includes(tab);
 
@@ -268,11 +257,9 @@ export default function App() {
         </AnimatePresence>
       </div>
 
-      <div style={{ margin:'24px 18px 0', padding:'13px 0', borderTop:'2px solid #211C17', display:'flex', flexWrap:'wrap', gap:8, justifyContent:'space-between', fontFamily:"'Geist Mono',monospace", fontSize:9.5, letterSpacing:'0.06em', textTransform:'uppercase', color:'#B0822F', alignItems:'center' }}>
+      <div style={{ margin:'24px 18px 0', padding:'13px 0', borderTop:'2px solid #211C17', display:'flex', flexWrap:'wrap', gap:8, justifyContent:'space-between', fontFamily:"'Geist Mono',monospace", fontSize:9.5, letterSpacing:'0.06em', textTransform:'uppercase', color:'#B0822F' }}>
         <span>Doc. ref · BW-PA-BRIEF-1315JUN26</span>
-        <button onClick={handleInjectData} disabled={injecting} style={{ background:'none', border:'none', color:'#B0822F', cursor:'pointer', fontSize:9.5, fontFamily:'inherit', letterSpacing:'inherit', textTransform:'uppercase', textDecoration:'underline', padding:0 }}>
-          {injecting ? 'Inyectando...' : 'Inyectar Datos Base'}
-        </button>
+        <span>Preparado por Blackwell Strategy</span>
         <span style={{ color:'#9B3331', fontWeight:600 }}>Confidencial · uso interno</span>
       </div>
     </>
