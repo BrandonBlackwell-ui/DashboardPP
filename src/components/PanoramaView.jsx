@@ -132,7 +132,7 @@ export default function PanoramaView({ data, isDesktop }) {
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:8, background:C.card, border:'1px solid rgba(176,130,47,0.22)', padding:'6px 12px', borderRadius:3 }}>
           <span style={{ width:7, height:7, borderRadius:'50%', background:C.teal, display:'inline-block', boxShadow:`0 0 8px ${C.teal}` }} />
-          <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, fontWeight:600, color:C.goldDeep, textTransform:'uppercase' }}>Sonnet 4.6 Activo</span>
+          <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, fontWeight:600, color:C.goldDeep, textTransform:'uppercase' }}>Opus 4.6 Activo</span>
         </div>
       </motion.div>
 

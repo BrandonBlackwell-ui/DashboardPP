@@ -143,6 +143,7 @@ Aquí están los datos recopilados:
 ${dataPrompt}`;
 
   const models = [
+    'anthropic/claude-opus-4.6',
     'anthropic/claude-3.5-sonnet',
     'google/gemini-2.5-flash',
     'meta-llama/llama-3.3-70b-instruct',
