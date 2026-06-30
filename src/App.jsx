@@ -14,7 +14,9 @@ import ExportModal from './components/ExportModal';
 import LoginGate from './components/LoginGate';
 import { loadFromSupabase, loadThemeByDate } from './lib/loadFromSupabase';
 import { getFridayDateKey } from './utils/helpers';
+import { applyLocalApifyData, LOCAL_APIFY_DATE_KEY } from './data/localApifyData';
 
+const LOCAL_APIFY_MODE = true;
 
 const INK_SVG = `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><filter id="bw-ink" x="-3%" y="-15%" width="106%" height="130%" filterUnits="objectBoundingBox" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="3" seed="4" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/></filter><filter id="bw-ink-rough" x="-3%" y="-80%" width="106%" height="260%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.04 0.5" numOctaves="2" seed="7" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="2.5" xChannelSelector="R" yChannelSelector="G"/></filter></defs></svg>`;
 
@@ -72,6 +74,12 @@ export default function App() {
     if (!authed || !data || !calData) return;
     if (initialLoadDone.current) return;
     initialLoadDone.current = true;
+    if (LOCAL_APIFY_MODE) {
+      applyLocalApifyData();
+      refreshData();
+      setDataVersion(v => v+1);
+      return;
+    }
     applyStoredExtra();
     setDataVersion(v => v+1);
     loadFromSupabase().then(() => {
@@ -117,7 +125,7 @@ export default function App() {
       window.scrollTo(0, 0);
       return;
     }
-    const latestDateKey = calData ? Object.keys(calData.days).sort().pop() : null;
+    const latestDateKey = LOCAL_APIFY_MODE ? LOCAL_APIFY_DATE_KEY : (calData ? Object.keys(calData.days).sort().pop() : null);
     const targetDateKey = latestDateKey ? getFridayDateKey(latestDateKey) : null;
     const latestDay = targetDateKey?.slice(8) || 'todas';
     const hasDataForLatest = targetDateKey && window.SUPABASE_KEYS?.has(`${t}:${targetDateKey}`);
@@ -126,7 +134,7 @@ export default function App() {
       if (window.PA_DATA?.themes?.[t] && !todasCache.current[t]) {
         todasCache.current[t] = window.PA_DATA.themes[t];
       }
-      await loadThemeByDate(t, targetDateKey);
+      if (!LOCAL_APIFY_MODE) await loadThemeByDate(t, targetDateKey);
       refreshData();
     }
     setTab(t); setDate(latestDay); setPlat('todas');
@@ -135,7 +143,9 @@ export default function App() {
   async function handleGoFromCalendar(themeKey, dateKey) {
     const targetDateKey = getFridayDateKey(dateKey);
     const dayNum = targetDateKey.slice(8);
-    const loaded = await loadThemeByDate(themeKey, targetDateKey);
+    const loaded = LOCAL_APIFY_MODE
+      ? !!window.PA_DATA?.themes?.[themeKey]
+      : await loadThemeByDate(themeKey, targetDateKey);
     if (!loaded) buildThemeFromCalendar(themeKey, targetDateKey);
     refreshData();
     setTab(themeKey);
@@ -159,7 +169,9 @@ export default function App() {
         todasCache.current[tab] = window.PA_DATA.themes[tab];
       }
       const dateKey = `2026-06-${newDate}`;
-      const loaded = await loadThemeByDate(tab, dateKey);
+      const loaded = LOCAL_APIFY_MODE
+        ? !!window.PA_DATA?.themes?.[tab]
+        : await loadThemeByDate(tab, dateKey);
       if (!loaded) buildThemeFromCalendar(tab, dateKey);
       refreshData();
     }
@@ -242,7 +254,7 @@ export default function App() {
       </div>
 
       <div style={{ margin:'24px 18px 0', padding:'13px 0', borderTop:'2px solid #211C17', display:'flex', flexWrap:'wrap', gap:8, justifyContent:'space-between', fontFamily:"'Geist Mono',monospace", fontSize:9.5, letterSpacing:'0.06em', textTransform:'uppercase', color:'#B0822F' }}>
-        <span>Doc. ref · BW-PA-BRIEF-1315JUN26</span>
+        <span>{LOCAL_APIFY_MODE ? 'Modo local Apify · sin Supabase' : 'Doc. ref · BW-PA-BRIEF-1315JUN26'}</span>
         <span>Preparado por Blackwell Strategy</span>
         <span style={{ color:'#9B3331', fontWeight:600 }}>Confidencial · uso interno</span>
       </div>

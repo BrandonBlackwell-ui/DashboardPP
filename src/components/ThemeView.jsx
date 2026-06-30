@@ -105,6 +105,16 @@ function PlatformIcon({ platform, size = 18 }) {
       </span>
     );
   }
+  if (p === 'youtube') {
+    return (
+      <span style={box} aria-label="YouTube">
+        <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
+          <rect x="2.2" y="5.4" width="19.6" height="13.2" rx="4" fill="#FF0000" />
+          <path d="M10 9.1v5.8l5.1-2.9L10 9.1Z" fill="#fff" />
+        </svg>
+      </span>
+    );
+  }
   return <span style={{ ...box, width:size, height:size, background:C.ink }} aria-hidden="true" />;
 }
 
@@ -177,20 +187,38 @@ function deriveNetworkStrategy(themeData) {
   return { totalPosts, networks, allies, fallback:true };
 }
 
+function thumbnailFromUrl(url) {
+  const raw = String(url || '');
+  const videoId = raw.match(/[?&]v=([^&]+)/)?.[1] || raw.match(/youtube\.com\/shorts\/([^?/]+)/)?.[1];
+  if (videoId) return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+  return '';
+}
+
 function deriveNetworkPosts(themeData) {
   const buckets = {};
   const add = (platform, post) => {
     const key = (platform || post.platform || '').toLowerCase();
-    if (!key || !post.url) return;
+    if (!key) return;
     if (!buckets[key]) buckets[key] = [];
-    if (buckets[key].some(p => p.url === post.url)) return;
+    if (post.url && buckets[key].some(p => p.url === post.url)) return;
+    if (!post.url && buckets[key].some(p => p.text === (post.text || post.titulo || post.title || '') && p.username === (post.username || post.user || post.fuente || ''))) return;
     buckets[key].push({
-      url:post.url,
+      url:post.url || '',
+      sourceUrl:post.sourceUrl || '',
       text:post.text || post.titulo || post.title || '',
       username:post.username || post.user || post.fuente || '',
       platform:key,
       date:post.time || post.fecha || '',
       metric:post.views ? `${fmtK(post.views)} views` : post.engagement ? `${fmtK(post.engagement)} interacc.` : '',
+      likes:post.likes || 0,
+      comments:post.comments || 0,
+      shares:post.shares || 0,
+      retweets:post.retweets || 0,
+      quotes:post.quotes || 0,
+      type:post.type || '',
+      commentsExtracted:post.commentsExtracted || 0,
+      commentsList:post.commentsList || [],
+      thumbnail:post.thumbnail || post.image || post.coverUrl || thumbnailFromUrl(post.url),
     });
   };
 
@@ -273,11 +301,11 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
 
   // Alerts
   const al = t.alertometro||t.alerts||{};
-  const alPosts = (al.posts||[]).filter(p=>platMatch(p.platform)&&dateMatchTs(p.time)).map(mapPost);
+  const alPosts = (al.posts||[]).filter(p=>p.url&&platMatch(p.platform)&&dateMatchTs(p.time)).map(mapPost);
 
   // Opps
   const op = t.oportunometro||t.opps||{};
-  const opPosts = (op.posts||[]).filter(p=>platMatch(p.platform)&&dateMatchTs(p.time)).map(mapPost);
+  const opPosts = (op.posts||[]).filter(p=>p.url&&platMatch(p.platform)&&dateMatchTs(p.time)).map(mapPost);
 
   // Pros/cons
   const pc = t.pros_cons||t.proscons||{};
@@ -288,7 +316,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
     titulo:cat.titulo, porcentaje:cat.porcentaje,
     items:(cat.items||[]).map(it => {
       const src=(it.sources&&it.sources[0])||null;
-      return { texto:it.texto, url:src?.url, hasLink:!!src, sourceLabel:src?'Fuente · '+platLabel(src.platform):'' };
+      return { texto:it.texto, url:src?.url || '', hasLink:!!src?.url, sourceLabel:src?.url?'Fuente · '+platLabel(src.platform):'' };
     })
   }));
 
@@ -371,12 +399,14 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       postsList:networkPostsByKey[n.key] || n.postsList || [],
     };
   });
+  const selectedNetwork = activeNetwork || (t.rawOnly ? strategyNetworks[0]?.key : null);
   const strategyAllies = (networkStrategy.allies||[]).map(a => ({
       ...a,
       tierLabel:a.tier === 'macro' ? 'Macro' : a.tier === 'medio' ? 'Medio' : 'Micro',
-      followersLabel:fmtK(a.followers),
-      viewsLabel:fmtK(a.views),
+      followersLabel:a.followers ? `${fmtK(a.followers)} seguidores` : (a.audienceLabel || ''),
+      viewsLabel:a.views ? fmtK(a.views) : '',
       platformLabel:a.platformLabel || platLabel(a.platform),
+      hasLink:!!a.url,
     }));
 
   // Comments topics
@@ -394,15 +424,17 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
 
   const px = isDesktop ? '24px 28px' : '19px 18px';
   const sectionPx = isDesktop ? '14px 28px 6px' : '14px 18px 6px';
+  const networkMapTitle = networkStrategy.title || 'Mapa por red y aliados';
+  const networkMapItemLabel = networkStrategy.itemLabel || 'MENCIONES';
   const renderNetworkMap = (compact = false) => strategyNetworks.length > 0 && (
-    <Section title="Mapa por red y aliados" px={compact ? '16px 0 6px' : sectionPx}
-      right={<span style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, color:'#8A7E6A' }}>{fmt(networkStrategy.totalPosts||0)} MENCIONES</span>}>
+    <Section title={networkMapTitle} px={compact ? '16px 0 6px' : sectionPx}
+      right={<span style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, color:'#8A7E6A' }}>{fmt(networkStrategy.totalPosts||0)} {networkMapItemLabel}</span>}>
       <div style={{ display:'grid', gridTemplateColumns: compact ? 'repeat(2, minmax(0, 1fr))' : isDesktop ? 'repeat(2, minmax(0, 1fr))' : '1fr', gap:8 }}>
         {strategyNetworks.map(n => (
           <button key={n.key} onClick={() => setActiveNetwork(activeNetwork === n.key ? null : n.key)}
             style={{ textAlign:'left', cursor:'pointer', background:C.card,
-              border:activeNetwork === n.key ? `1px solid ${C.gold}` : '1px solid rgba(33,28,23,0.13)',
-              boxShadow:activeNetwork === n.key ? '0 0 0 1px rgba(176,130,47,0.18)' : 'none',
+              border:selectedNetwork === n.key ? `1px solid ${C.gold}` : '1px solid rgba(33,28,23,0.13)',
+              boxShadow:selectedNetwork === n.key ? '0 0 0 1px rgba(176,130,47,0.18)' : 'none',
               borderRadius:3, padding:compact ? 12 : 16, font:'inherit' }}>
             <div style={{ display:'flex', alignItems:'center', gap:9, marginBottom:compact ? 8 : 10 }}>
               <PlatformIcon platform={n.key} size={compact ? 22 : 24} />
@@ -412,12 +444,14 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                 <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:compact ? 9.5 : 10.5, color:'#8A7E6A', marginTop:2 }}>{n.postsLabel} POSTS{!compact && ` · ${n.viewsLabel} VIEWS · ${n.commentsLabel} COM.`}</div>
               </div>
             </div>
-            <SentBar pos={n.sent?.positivo||0} neu={n.sent?.neutral||0} neg={n.sent?.negativo||0} />
-            <div style={{ display:'flex', gap:10, marginTop:7, fontFamily:"'Geist Mono',monospace" }}>
-              <span style={{ fontSize:10.5, color:C.teal }}>{n.sent?.positivo||0}%+</span>
-              <span style={{ fontSize:10.5, color:'#8A7E6A' }}>{n.sent?.neutral||0}% NEU</span>
-              <span style={{ fontSize:10.5, color:C.crim }}>{n.sent?.negativo||0}%-</span>
-            </div>
+            {!t.rawOnly && <>
+              <SentBar pos={n.sent?.positivo||0} neu={n.sent?.neutral||0} neg={n.sent?.negativo||0} />
+              <div style={{ display:'flex', gap:10, marginTop:7, fontFamily:"'Geist Mono',monospace" }}>
+                <span style={{ fontSize:10.5, color:C.teal }}>{n.sent?.positivo||0}%+</span>
+                <span style={{ fontSize:10.5, color:'#8A7E6A' }}>{n.sent?.neutral||0}% NEU</span>
+                <span style={{ fontSize:10.5, color:C.crim }}>{n.sent?.negativo||0}%-</span>
+              </div>
+            </>}
 
             {!compact && n.themes.length>0 && (
               <div style={{ marginTop:12, paddingTop:11, borderTop:'1px solid rgba(33,28,23,0.10)' }}>
@@ -441,36 +475,64 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
         ))}
       </div>
 
-      {activeNetwork && (
+      {selectedNetwork && (
         <div style={{ marginTop:10, background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, overflow:'hidden' }}>
           <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', background:'rgba(33,28,23,0.04)', borderBottom:'1px solid rgba(33,28,23,0.10)' }}>
-            <PlatformIcon platform={activeNetwork} size={16} />
+            <PlatformIcon platform={selectedNetwork} size={16} />
             <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:600, fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.ink }}>
-              Menciones de {platLabel(activeNetwork)}
+              {networkMapItemLabel === 'PUBLICACIONES' ? 'Publicaciones de' : 'Menciones de'} {platLabel(selectedNetwork)}
             </span>
             <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginLeft:'auto' }}>
-              {(networkPostsByKey[activeNetwork] || []).length} LINKS
+              {(networkPostsByKey[selectedNetwork] || []).length} {networkMapItemLabel}
             </span>
           </div>
-          {(networkPostsByKey[activeNetwork] || []).length > 0 ? (
-            (networkPostsByKey[activeNetwork] || []).map((p, i) => (
-              <a key={`${p.url}-${i}`} href={p.url} target="_blank" rel="noopener"
-                style={{ display:'grid', gridTemplateColumns:compact ? '1fr auto' : '1fr 72px', gap:10, padding:'10px 12px',
-                  textDecoration:'none', borderBottom:i<(networkPostsByKey[activeNetwork] || []).length-1?'1px solid rgba(33,28,23,0.08)':'none' }}>
-                <span style={{ minWidth:0 }}>
-                  <span style={{ display:'block', fontSize:12.5, lineHeight:1.35, color:C.ink, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+          {t.rawOnly && (
+            <div style={{ padding:'9px 12px', borderBottom:'1px solid rgba(33,28,23,0.08)', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', textTransform:'uppercase', background:'rgba(176,130,47,0.06)' }}>
+              Comentarios individuales pendientes; aqui se muestran publicaciones y conteos que trajo cada post.
+            </div>
+          )}
+          {(networkPostsByKey[selectedNetwork] || []).length > 0 ? (
+            (networkPostsByKey[selectedNetwork] || []).map((p, i) => {
+              const Tag = p.url ? 'a' : 'div';
+              return (
+              <Tag key={`${p.url || p.username}-${i}`} href={p.url || undefined} target={p.url ? '_blank' : undefined} rel={p.url ? 'noopener' : undefined}
+                style={{ display:'grid', gridTemplateColumns:p.thumbnail && !compact ? '96px 1fr auto' : p.url ? '1fr auto' : '1fr', gap:12, alignItems:'center', padding:'12px',
+                  textDecoration:'none', borderBottom:i<(networkPostsByKey[selectedNetwork] || []).length-1?'1px solid rgba(33,28,23,0.08)':'none' }}>
+                {p.thumbnail && !compact && (
+                  <span style={{ width:96, height:54, borderRadius:3, overflow:'hidden', background:'rgba(33,28,23,0.08)', display:'block' }}>
+                    <img src={p.thumbnail} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} loading="lazy" />
+                  </span>
+                )}
+                <span style={{ minWidth:0, display:'block' }}>
+                  <span style={{ display:'block', fontSize:14, lineHeight:1.35, color:C.ink, whiteSpace:compact ? 'nowrap' : 'normal', overflow:'hidden', textOverflow:'ellipsis' }}>
                     {p.text || p.username || p.url}
                   </span>
-                  <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:3, textTransform:'uppercase' }}>
-                    {[p.username, p.metric, (p.date || '').slice(0,10)].filter(Boolean).join(' · ')}
+                  <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:6, textTransform:'uppercase', lineHeight:1.45 }}>
+                    {[p.username, p.metric, p.sourceUrl ? 'URL sin verificar' : '', (p.date || '').slice(0,10)].filter(Boolean).join(' · ')}
                   </span>
+                  {(p.commentsList || []).length > 0 && (
+                    <span style={{ display:'block', marginTop:10, paddingTop:9, borderTop:'1px solid rgba(33,28,23,0.08)' }}>
+                      <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10, letterSpacing:'0.12em', textTransform:'uppercase', color:C.goldDeep, marginBottom:7 }}>
+                        {p.commentsList.length} comentarios extraidos
+                      </span>
+                      {(p.commentsList || []).slice(0, 6).map(comment => (
+                        <span key={comment.id} style={{ display:'block', marginBottom:8, padding:'8px 9px', background:'rgba(33,28,23,0.035)', border:'1px solid rgba(33,28,23,0.07)', borderRadius:3 }}>
+                          <span style={{ display:'block', fontSize:12.5, lineHeight:1.35, color:'#2A241C' }}>{comment.text}</span>
+                          <span style={{ display:'block', marginTop:5, fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', textTransform:'uppercase' }}>
+                            {[comment.author, comment.publishedTime, comment.likes ? `${comment.likes} likes` : '', comment.replies ? `${comment.replies} replies` : ''].filter(Boolean).join(' · ')}
+                          </span>
+                        </span>
+                      ))}
+                    </span>
+                  )}
                 </span>
-                <span style={{ alignSelf:'center', justifySelf:'end', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:C.goldDeep, fontWeight:600 }}>ABRIR</span>
-              </a>
-            ))
+                {p.url && <span style={{ alignSelf:'center', justifySelf:'end', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:C.goldDeep, fontWeight:600 }}>ABRIR</span>}
+              </Tag>
+              );
+            })
           ) : (
             <div style={{ padding:'12px', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', textTransform:'uppercase' }}>
-              Este histórico no guardó links individuales para esta red.
+              No hay menciones individuales para esta red.
             </div>
           )}
         </div>
@@ -484,13 +546,15 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
               <span key={h} style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, letterSpacing:'0.12em', textTransform:'uppercase', color:'#8A7E6A' }}>{h}</span>
             ))}
           </div>
-          {strategyAllies.slice(0, compact ? 4 : strategyAllies.length).map((a,i) => (
-            <a key={`${a.platform}-${a.username}-${i}`} href={a.url} target="_blank" rel="noopener"
+          {strategyAllies.slice(0, compact ? 4 : strategyAllies.length).map((a,i) => {
+            const Tag = a.hasLink ? 'a' : 'div';
+            return (
+            <Tag key={`${a.platform}-${a.username}-${i}`} href={a.hasLink ? a.url : undefined} target={a.hasLink ? '_blank' : undefined} rel={a.hasLink ? 'noopener' : undefined}
               style={{ display:'grid', gridTemplateColumns: compact ? '1.1fr 0.8fr 0.6fr' : isDesktop ? '1.2fr 0.8fr 0.7fr 0.7fr 0.55fr' : '1.1fr 0.8fr 0.6fr', gap:8,
                 alignItems:'center', padding:'10px 12px', textDecoration:'none', borderBottom:i<Math.min(strategyAllies.length, compact ? 4 : strategyAllies.length)-1?'1px solid rgba(33,28,23,0.08)':'none' }}>
               <span style={{ minWidth:0 }}>
                 <span style={{ display:'block', fontWeight:600, fontSize:13, color:C.ink, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{a.username}</span>
-                <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:2 }}>{a.followersLabel} seguidores</span>
+                {a.followersLabel && <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:2 }}>{a.followersLabel}</span>}
               </span>
               <span style={{ display:'flex', alignItems:'center', gap:7, fontFamily:"'Geist Mono',monospace", fontSize:11, color:'#6B6253', textTransform:'uppercase' }}>
                 <PlatformIcon platform={a.platform} size={16} />
@@ -498,9 +562,10 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
               </span>
               <span style={{ ...pill(a.tier === 'macro' ? C.crim : a.tier === 'medio' ? C.goldDeep : C.teal, a.tier === 'macro' ? C.crimBg : a.tier === 'medio' ? C.amberBg : C.tealBg, a.tier === 'macro' ? C.crimBd : a.tier === 'medio' ? C.amberBd : C.tealBd) }}>{a.tierLabel}</span>
               {!compact && isDesktop && <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:'#6B6253' }}>{a.viewsLabel}</span>}
-              {!compact && isDesktop && <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.goldDeep, fontWeight:600 }}>ABRIR</span>}
-            </a>
-          ))}
+              {!compact && isDesktop && a.hasLink && <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.goldDeep, fontWeight:600 }}>ABRIR</span>}
+            </Tag>
+            );
+          })}
         </div>
       )}
     </Section>
@@ -514,7 +579,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
         <motion.div variants={item} style={{ margin: isDesktop ? '16px 28px 0' : '14px 18px 0',
           background:'rgba(176,130,47,0.10)', border:'1px solid rgba(176,130,47,0.35)',
           borderRadius:3, padding:'10px 14px', display:'flex', alignItems:'center', gap:10 }}>
-          <span style={{ fontSize:14, flex:'none' }}>📅</span>
+          <span style={{ fontSize:14, flex:'none' }}>[cal]</span>
           <div>
             <div style={{ fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:12, color:'#7A5A1A' }}>
               Reporte consolidado de fin de semana
@@ -529,7 +594,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       {/* Header */}
       <motion.div variants={item} style={{ padding: isDesktop ? '24px 28px 4px' : '19px 18px 4px' }}>
         <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, letterSpacing:'0.16em',
-          textTransform:'uppercase', color:C.gold, fontWeight:600 }}>Tema · {t.label}</div>
+          textTransform:'uppercase', color:C.gold, fontWeight:600 }}>{t.rawOnly ? 'Vista' : 'Tema'} · {t.label}</div>
         <h1 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:33, lineHeight:1.02,
           letterSpacing:'-0.025em', color:C.ink, margin:'7px 0 5px' }}>
           {t.label}<em style={{ fontStyle:'normal', color:C.goldDeep }}>.</em>
@@ -538,7 +603,74 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       </motion.div>
 
       {/* Desktop 2-column: Sentiment + Alertómetro | Oportunidades + Pros/contras */}
-      {isDesktop ? (
+      {t.sourceMeta && !t.rawOnly && (
+        <motion.div variants={item} style={{ padding:isDesktop ? '8px 28px 4px' : '8px 18px 4px' }}>
+          <div style={{ background:'rgba(33,28,23,0.04)', border:'1px solid rgba(33,28,23,0.10)', borderRadius:3, padding:'11px 13px' }}>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:'8px 14px', alignItems:'center', marginBottom:8 }}>
+              <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.goldDeep, fontWeight:600 }}>{t.sourceMeta.mode}</span>
+              <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#6B6253' }}>{t.sourceMeta.dateWindow}</span>
+              <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#6B6253' }}>{t.sourceMeta.query}</span>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:isDesktop ? '1fr 1fr' : '1fr', gap:8 }}>
+              {(t.sourceMeta.actors||[]).map(actor => (
+                <div key={actor.name} style={{ background:C.card, border:'1px solid rgba(33,28,23,0.10)', borderRadius:3, padding:'9px 10px' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+                    <PlatformIcon platform={actor.platform} size={16} />
+                    <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, fontWeight:600, color:C.ink }}>{actor.name}</span>
+                  </div>
+                  <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', marginTop:5, textTransform:'uppercase' }}>
+                    {[actor.status, actor.cost].filter(Boolean).join(' · ')}
+                  </div>
+                  <div style={{ fontSize:12, color:'#2A241C', marginTop:6, lineHeight:1.35 }}>
+                    Datos: {(actor.fields||[]).join(', ')}
+                  </div>
+                  {(actor.missing||[]).length>0 && (
+                    <div style={{ fontSize:12, color:'#8A7E6A', marginTop:3, lineHeight:1.35 }}>
+                      No viene: {actor.missing.join(', ')}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            {(t.sourceMeta.profiles||[]).length > 0 && (
+              <div style={{ marginTop:10, paddingTop:10, borderTop:'1px solid rgba(33,28,23,0.10)' }}>
+                <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:'#8A7E6A', marginBottom:7 }}>
+                  Perfiles oficiales configurados
+                </div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:7 }}>
+                  {t.sourceMeta.profiles.map(profile => (
+                    <a key={profile.platform} href={profile.url} target="_blank" rel="noopener"
+                      style={{ display:'inline-flex', alignItems:'center', gap:7, textDecoration:'none',
+                        background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:'7px 9px' }}>
+                      <PlatformIcon platform={profile.platform} size={16} />
+                      <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:C.ink, fontWeight:600, textTransform:'uppercase' }}>
+                        {profile.label}
+                      </span>
+                      <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A' }}>
+                        @{profile.handle}
+                      </span>
+                      {profile.audienceLabel && (
+                        <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A' }}>
+                          {profile.audienceLabel}
+                        </span>
+                      )}
+                      <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:C.goldDeep, textTransform:'uppercase' }}>
+                        {profile.postsStatus}
+                      </span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
+
+      {t.rawOnly ? (
+        <div style={{ paddingBottom:24 }}>
+          {renderNetworkMap(false)}
+        </div>
+      ) : isDesktop ? (
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:0, padding:'0 28px' }}>
           {/* Left col */}
           <div style={{ paddingRight:14 }}>
@@ -596,7 +728,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                     <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:9, paddingTop:8, borderTop:'1px dotted rgba(33,28,23,0.10)' }}>
                       <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.crim }}>PELIGROSIDAD {p.score}</span>
                       <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:'#8A7E6A' }}>{p.engagementLabel} INTERACC.</span>
-                      <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.goldDeep, fontWeight:600, marginLeft:'auto' }}>ABRIR ↗</span>
+                      <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.goldDeep, fontWeight:600, marginLeft:'auto' }}>ABRIR</span>
                     </div>
                   </a>
                 </TiltCard>
@@ -613,7 +745,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:11 }}>
                   <h2 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:22,
                     letterSpacing:'-0.015em', color:C.ink, margin:0 }}>Oportunidades</h2>
-                  <span style={{ ...pill(C.teal,C.tealBg,C.tealBd) }}>Nivel {cap(op.nivel||'—')}</span>
+                  <span style={{ ...pill(C.teal,C.tealBg,C.tealBd) }}>Nivel {cap(op.nivel||'-')}</span>
                 </div>
                 {op.recomendacion && <Card accentColor={C.teal}>
                   <div style={{ fontSize:14, lineHeight:1.5, color:'#2A241C' }}>{op.recomendacion}</div>
@@ -630,7 +762,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                       <div style={{ fontSize:14, lineHeight:1.45, color:'#2A241C' }}>{p.text}</div>
                       <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:9, paddingTop:8, borderTop:'1px dotted rgba(33,28,23,0.10)' }}>
                         <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.teal }}>OPORTUNIDAD {p.score}</span>
-                        <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.goldDeep, fontWeight:600, marginLeft:'auto' }}>ABRIR ↗</span>
+                        <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.goldDeep, fontWeight:600, marginLeft:'auto' }}>ABRIR</span>
                       </div>
                     </a>
                   </TiltCard>
@@ -730,7 +862,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
               <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:9, paddingTop:8, borderTop:'1px dotted rgba(33,28,23,0.10)' }}>
                 <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.crim }}>PELIGROSIDAD {p.score}</span>
                 <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:'#8A7E6A' }}>{p.engagementLabel} INTERACC.</span>
-                <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.goldDeep, fontWeight:600, marginLeft:'auto' }}>ABRIR ↗</span>
+                <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.goldDeep, fontWeight:600, marginLeft:'auto' }}>ABRIR</span>
               </div>
             </a>
           </TiltCard>
@@ -739,7 +871,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
 
       {/* Oportunidades */}
       {(op.recomendacion||opPosts.length>0) && (
-        <Section title="Oportunidades" right={<span style={{ ...pill(C.teal,C.tealBg,C.tealBd) }}>Nivel {cap(op.nivel||'—')}</span>}>
+        <Section title="Oportunidades" right={<span style={{ ...pill(C.teal,C.tealBg,C.tealBd) }}>Nivel {cap(op.nivel||'-')}</span>}>
           {op.recomendacion && <Card accentColor={C.teal}>
             <div style={{ fontSize:14, lineHeight:1.5, color:'#2A241C' }}>{op.recomendacion}</div>
           </Card>}
@@ -755,7 +887,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                 <div style={{ fontSize:14, lineHeight:1.45, color:'#2A241C' }}>{p.text}</div>
                 <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:9, paddingTop:8, borderTop:'1px dotted rgba(33,28,23,0.10)' }}>
                   <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.teal }}>OPORTUNIDAD {p.score}</span>
-                  <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.goldDeep, fontWeight:600, marginLeft:'auto' }}>ABRIR ↗</span>
+                  <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.goldDeep, fontWeight:600, marginLeft:'auto' }}>ABRIR</span>
                 </div>
               </a>
             </TiltCard>
@@ -820,7 +952,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                   <span style={{ flex:'none', width:14, height:1, background:C.crim, marginTop:9 }} />
                   <span style={{ flex:1 }}>
                     <span style={{ fontSize:12, lineHeight:1.5, color:'#2A241C', display:'block' }}>{it.texto}</span>
-                    {it.hasLink && <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.goldDeep, fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase' }}>{it.sourceLabel} ↗</span>}
+                    {it.hasLink && <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.goldDeep, fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase' }}>{it.sourceLabel}</span>}
                   </span>
                 </a>
               ))}
@@ -849,7 +981,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                     <span style={{ flex:'none', width:14, height:1, background:g.color, marginTop:9 }} />
                     <span style={{ flex:1 }}>
                       <span style={{ fontSize:12, lineHeight:1.4, color:'#2A241C', display:'block' }}>{n.titulo}</span>
-                      <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.goldDeep, fontWeight:600, textTransform:'uppercase' }}>{n.fuente} · {n.fecha} ↗</span>
+                      <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.goldDeep, fontWeight:600, textTransform:'uppercase' }}>{n.fuente} · {n.fecha}</span>
                     </span>
                   </a>
                 ))}
@@ -875,7 +1007,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                 <span style={{ fontSize:11, color:'#6B6253' }}>{tr.viewsLabel} VIEWS</span>
                 <span style={{ fontSize:11, color:'#6B6253' }}>{tr.likesLabel} LIKES</span>
                 <span style={{ fontSize:11, color:C.teal, marginLeft:'auto' }}>{tr.posPct}%+</span>
-                <span style={{ fontSize:11, color:C.crim }}>{tr.negPct}%–</span>
+                <span style={{ fontSize:11, color:C.crim }}>{tr.negPct}%-</span>
               </div>
             </TiltCard>
           ))}
@@ -935,7 +1067,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                   <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:'#8A7E6A', marginTop:3, textTransform:'uppercase' }}>{i.platformLabel} · {i.categoria}</div>
                   <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, color:'#6B6253', marginTop:2 }}>{i.followersFmt} seguidores</div>
                 </div>
-                <span style={{ fontFamily:"'Geist Mono',monospace", color:C.goldDeep, fontSize:11, fontWeight:600 }}>↗</span>
+                <span style={{ fontFamily:"'Geist Mono',monospace", color:C.goldDeep, fontSize:11, fontWeight:600 }}>ABRIR</span>
               </a>
             </TiltCard>
           ))}
@@ -1000,7 +1132,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       {/* Desglose por red */}
       {!isDesktop && strategyNetworks.length>0 && (
         <Section title="Mapa por red y aliados" px={sectionPx} right={<span style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, color:'#8A7E6A' }}>{fmt(networkStrategy.totalPosts||0)} MENCIONES</span>}>
-          {networkStrategy.fallback && (
+          {false && networkStrategy.fallback && (
             <div style={{ background:'rgba(176,130,47,0.08)', border:'1px solid rgba(176,130,47,0.22)', borderRadius:3,
               padding:'9px 12px', marginBottom:9, fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A',
               letterSpacing:'0.04em', textTransform:'uppercase' }}>
@@ -1057,13 +1189,15 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                   <span key={h} style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, letterSpacing:'0.12em', textTransform:'uppercase', color:'#8A7E6A' }}>{h}</span>
                 ))}
               </div>
-              {strategyAllies.map((a,i) => (
-                <a key={`${a.platform}-${a.username}-${i}`} href={a.url} target="_blank" rel="noopener"
+              {strategyAllies.map((a,i) => {
+                const Tag = a.hasLink ? 'a' : 'div';
+                return (
+                <Tag key={`${a.platform}-${a.username}-${i}`} href={a.hasLink ? a.url : undefined} target={a.hasLink ? '_blank' : undefined} rel={a.hasLink ? 'noopener' : undefined}
                   style={{ display:'grid', gridTemplateColumns: isDesktop ? '1.2fr 0.8fr 0.7fr 0.7fr 0.55fr' : '1.1fr 0.8fr 0.6fr', gap:8,
                     alignItems:'center', padding:'10px 12px', textDecoration:'none', borderBottom:i<strategyAllies.length-1?'1px solid rgba(33,28,23,0.08)':'none' }}>
                   <span style={{ minWidth:0 }}>
                     <span style={{ display:'block', fontWeight:600, fontSize:13, color:C.ink, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{a.username}</span>
-                    <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:2 }}>{a.followersLabel} seguidores</span>
+                    {a.followersLabel && <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:2 }}>{a.followersLabel}</span>}
                   </span>
                   <span style={{ display:'flex', alignItems:'center', gap:7, fontFamily:"'Geist Mono',monospace", fontSize:11, color:'#6B6253', textTransform:'uppercase' }}>
                     <PlatformIcon platform={a.platform} size={16} />
@@ -1071,16 +1205,17 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                   </span>
                   <span style={{ ...pill(a.tier === 'macro' ? C.crim : a.tier === 'medio' ? C.goldDeep : C.teal, a.tier === 'macro' ? C.crimBg : a.tier === 'medio' ? C.amberBg : C.tealBg, a.tier === 'macro' ? C.crimBd : a.tier === 'medio' ? C.amberBd : C.tealBd) }}>{a.tierLabel}</span>
                   {isDesktop && <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:'#6B6253' }}>{a.viewsLabel}</span>}
-                  {isDesktop && <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.goldDeep, fontWeight:600 }}>ABRIR</span>}
-                </a>
-              ))}
+                  {isDesktop && a.hasLink && <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.goldDeep, fontWeight:600 }}>ABRIR</span>}
+                </Tag>
+                );
+              })}
             </div>
           )}
         </Section>
       )}
 
       {/* Desglose por red */}
-      {pls.length>0 && (
+      {!t.rawOnly && pls.length>0 && (
         <Section title="Desglose por red" px={sectionPx}>
           {pls.map((p,i) => (
             <div key={i} style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:16, marginBottom:8 }}>
@@ -1093,7 +1228,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
               <div style={{ display:'flex', gap:13, marginTop:8, fontFamily:"'Geist Mono',monospace" }}>
                 <span style={{ fontSize:11, color:C.teal }}>{p.pp}%+</span>
                 <span style={{ fontSize:11, color:'#8A7E6A' }}>{p.pu}% NEU</span>
-                <span style={{ fontSize:11, color:C.crim }}>{p.pn}%–</span>
+                <span style={{ fontSize:11, color:C.crim }}>{p.pn}%-</span>
               </div>
             </div>
           ))}
@@ -1152,3 +1287,4 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
     </motion.div>
   );
 }
+
