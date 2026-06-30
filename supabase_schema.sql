@@ -6,6 +6,7 @@ create table if not exists reports (
   theme_key text not null,
   theme_label text,
   filename text,
+  ai_analysis jsonb, -- Almacena el análisis consolidado por IA (resumen ejecutivo, recomendaciones, etc.)
   created_at timestamptz default now()
 );
 

@@ -19,10 +19,10 @@ function Chip({ label, active, onClick }) {
 }
 
 export default function SubBar({ tab, pano, date, data, dateOptions, onPanoChange, onDateChange, isDesktop, panoramaDate, onPanoramaDateChange }) {
-  const isPanorama = tab === 'panorama';
-  const isTheme = !isPanorama && tab !== 'historico' && tab !== 'reporte';
+  if (tab === 'panorama') return null;
+
+  const isTheme = tab !== 'historico' && tab !== 'reporte';
   const isHist = tab === 'historico';
-  const rawPanorama = isPanorama && (data?.meta?.source === 'apify_local' || data?.themes?.resumen?.rawOnly);
 
   return (
     <div style={{ position:'sticky', top:0, zIndex:30, background:C.sub,
