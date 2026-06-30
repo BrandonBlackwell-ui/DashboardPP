@@ -1464,3 +1464,23 @@ export function applyLocalApifyData() {
 }
 
 export const LOCAL_APIFY_DATE_KEY = DATE_KEY;
+
+export function getRawMentions() {
+  const xPrimaryPosts = xMentions.filter(p => p.type !== 'reply');
+  const visibleInstagramPosts = ownedInstagramPosts.slice(0, 5);
+  const visibleFacebookPosts = ownedFacebookPosts.slice(0, 5);
+  const visibleXPosts = ownedXPosts.slice(0, 5);
+  const visibleTikTokPosts = ownedTikTokPosts.filter(p => p.type !== 'video fijado').slice(0, 5);
+  const visibleYoutubePosts = ownedYoutubePosts.slice(0, 5);
+  const ownedMentions = [...visibleInstagramPosts, ...visibleFacebookPosts, ...visibleXPosts, ...visibleTikTokPosts, ...visibleYoutubePosts];
+
+  return {
+    resumen: [...xPrimaryPosts, ...newsMentions, ...tiktokMentions, ...facebookMentions, ...instagramMentions],
+    x: xPrimaryPosts,
+    google_news: newsMentions,
+    tiktok: tiktokMentions,
+    facebook: facebookMentions,
+    instagram: instagramMentions,
+    redes_propias: ownedMentions
+  };
+}
