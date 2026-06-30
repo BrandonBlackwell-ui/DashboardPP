@@ -185,6 +185,42 @@ function deriveVoices(themeData, postsByPlatform) {
   };
 }
 
+function formatSpanishDate(dateStr) {
+  if (!dateStr) return '';
+  try {
+    const cleanStr = dateStr.replace('T', ' ');
+    const parts = cleanStr.split(' ');
+    const datePart = parts[0]; // YYYY-MM-DD
+    const timePart = parts[1]; // HH:MM:SS
+    
+    const dateRegex = /^(\d{4})-(\d{2})-(\d{2})/.exec(datePart);
+    if (dateRegex) {
+      const year = dateRegex[1];
+      const monthIndex = parseInt(dateRegex[2], 10) - 1;
+      const day = parseInt(dateRegex[3], 10);
+      const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+      const monthName = months[monthIndex] || '';
+      
+      let timeStr = '';
+      if (timePart) {
+        const timeRegex = /^(\d{2}):(\d{2})/.exec(timePart);
+        if (timeRegex) {
+          timeStr = ` a las ${timeRegex[1]}:${timeRegex[2]}`;
+        }
+      }
+      return `${day} ${monthName} ${year}${timeStr}`;
+    }
+    
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+    return dateStr;
+  } catch (e) {
+    return dateStr;
+  }
+}
+
 function thumbnailFromUrl(url) {
   const raw = String(url || '');
   const videoId = raw.match(/[?&]v=([^&]+)/)?.[1] || raw.match(/youtube\.com\/shorts\/([^?/]+)/)?.[1];
@@ -531,11 +567,11 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                       <div style={{ display:'flex', flexWrap:'wrap', gap:'6px 12px', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:8, textTransform:'uppercase', lineHeight:1.4, alignItems:'center' }}>
                         <PlatformIcon platform={p.platform} size={12} />
                         {p.username && <span style={{ fontWeight:600, color:C.goldDeep }}>@{p.username}</span>}
-                        {p.likes ? <span>{fmt(p.likes)} likes</span> : null}
+                        {p.likes ? <span>{fmt(p.likes)} Me gusta</span> : null}
                         {p.comments ? <span>{fmt(p.comments)} com.</span> : null}
-                        {p.shares ? <span>{fmt(p.shares)} shares</span> : null}
+                        {p.shares ? <span>{fmt(p.shares)} compartidos</span> : null}
                         {p.metric ? <span>{p.metric}</span> : null}
-                        {p.date && <span>{p.date.slice(0,10)}</span>}
+                        {p.date && <span>{formatSpanishDate(p.date)}</span>}
                       </div>
                     </div>
                     {p.url && (
@@ -588,7 +624,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                   <span style={{ minWidth:0 }}>
                     <span style={{ display:'block', fontSize:13.5, lineHeight:1.35, color:C.ink }}>{p.text || p.url}</span>
                     <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', marginTop:5, textTransform:'uppercase' }}>
-                      {[p.username, p.metric, p.likes ? `${fmt(p.likes)} likes` : '', p.comments ? `${fmt(p.comments)} com.` : '', p.shares ? `${fmt(p.shares)} shares` : '', p.bookmarks ? `${fmt(p.bookmarks)} saved` : '', (p.date || '').slice(0,10)].filter(Boolean).join(' - ')}
+                      {[p.username, p.metric, p.likes ? `${fmt(p.likes)} Me gusta` : '', p.comments ? `${fmt(p.comments)} com.` : '', p.shares ? `${fmt(p.shares)} compartidos` : '', p.bookmarks ? `${fmt(p.bookmarks)} guardados` : '', formatSpanishDate(p.date)].filter(Boolean).join(' - ')}
                     </span>
                   </span>
                 </button>
@@ -612,7 +648,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                   <span style={{ minWidth:0 }}>
                     <span style={{ display:'block', fontSize:14.5, lineHeight:1.35, color:C.ink }}>{selectedPost.text || selectedPost.url}</span>
                     <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:6, textTransform:'uppercase' }}>
-                      {[selectedPost.username, selectedPost.metric, selectedPost.likes ? `${fmt(selectedPost.likes)} likes` : '', selectedPost.comments ? `${fmt(selectedPost.comments)} com.` : '', selectedPost.commentsExtracted ? `${fmt(selectedPost.commentsExtracted)} extraidos` : '', selectedPost.shares ? `${fmt(selectedPost.shares)} shares` : '', selectedPost.bookmarks ? `${fmt(selectedPost.bookmarks)} saved` : '', (selectedPost.date || '').slice(0,10)].filter(Boolean).join(' - ')}
+                      {[selectedPost.username, selectedPost.metric, selectedPost.likes ? `${fmt(selectedPost.likes)} Me gusta` : '', selectedPost.comments ? `${fmt(selectedPost.comments)} com.` : '', selectedPost.commentsExtracted ? `${fmt(selectedPost.commentsExtracted)} extraídos` : '', selectedPost.shares ? `${fmt(selectedPost.shares)} compartidos` : '', selectedPost.bookmarks ? `${fmt(selectedPost.bookmarks)} guardados` : '', formatSpanishDate(selectedPost.date)].filter(Boolean).join(' - ')}
                     </span>
                   </span>
                   {selectedPost.url && <a href={selectedPost.url} target="_blank" rel="noopener" style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:C.goldDeep, fontWeight:700, textDecoration:'none' }}>ABRIR</a>}
@@ -627,7 +663,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                       style={{ display:'block', marginBottom:8, padding:'9px 10px', background:'rgba(33,28,23,0.035)', border:'1px solid rgba(33,28,23,0.07)', borderRadius:3, textDecoration:'none' }}>
                       <span style={{ display:'block', fontSize:12.8, lineHeight:1.38, color:'#2A241C' }}>{comment.text || '[Sin texto]'}</span>
                       <span style={{ display:'block', marginTop:5, fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', textTransform:'uppercase' }}>
-                        {[comment.author, comment.publishedTime, comment.likes ? `${comment.likes} likes` : '', comment.replies ? `${comment.replies} replies` : '', comment.views ? `${comment.views} views` : '', comment.url ? 'abrir comentario' : ''].filter(Boolean).join(' - ')}
+                        {[comment.author, formatSpanishDate(comment.publishedTime), comment.likes ? `${fmt(comment.likes)} Me gusta` : '', comment.replies ? `${fmt(comment.replies)} respuestas` : '', comment.views ? `${fmt(comment.views)} vistas` : '', comment.url ? 'abrir comentario' : ''].filter(Boolean).join(' - ')}
                       </span>
                     </a>
                   )) : (
