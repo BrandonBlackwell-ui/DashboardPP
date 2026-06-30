@@ -1514,6 +1514,51 @@ Nota de ejecucion:
     }
     ```
   - Limitacion importante: el actor trae `publishedTime` relativo (`7 days ago`, `3 weeks ago`, etc.), no fecha exacta confiable. No usar estos comentarios para el corte diario hasta resolver fecha exacta o normalizacion confiable.
+- Comentarios Instagram propios probados:
+  - Actor recomendado: `apify/instagram-comment-scraper`.
+  - Prueba real ejecutada el 2026-06-30 sobre `https://www.instagram.com/p/DaG8ym3DMxL/`.
+  - Run `xGdVKzx5SM8vlHc25`, dataset `BoIwCEOxBjGZRWUDm`, costo reportado `0.046 USD`, 20 comentarios.
+  - Payload validado:
+    ```json
+    {
+      "directUrls": ["https://www.instagram.com/p/DaG8ym3DMxL/"],
+      "resultsLimit": 20,
+      "includeNestedComments": false
+    }
+    ```
+  - Si trae fecha exacta ISO en `timestamp`; sirve para filtro diario por comentario.
+- Comentarios TikTok propios probados:
+  - Actor recomendado: `clockworks/tiktok-comments-scraper`.
+  - Razon: mas de 9M runs, 80 reviews, rating aprox. 4.76; cobra por comentario.
+  - Prueba real ejecutada el 2026-06-30 sobre `https://www.tiktok.com/@pepeaguilar_oficial/video/7650181751595109663`.
+  - Run `imT9yocJUiBd1IoWa`, dataset `ifEYO1xcLKPCuqtxf`, 20 comentarios. Costo reportado por API: `0 USD` en esta prueba.
+  - Payload validado:
+    ```json
+    {
+      "postURLs": ["https://www.tiktok.com/@pepeaguilar_oficial/video/7650181751595109663"],
+      "commentsPerPost": 20,
+      "maxRepliesPerComment": 0
+    }
+    ```
+  - Si trae fecha exacta ISO en `createTimeISO`; sirve para filtro diario por comentario.
+  - `andok/tiktok-comments-extractor` se descarta por ahora: rechazo `maxComments` y no expone schema publico.
+- Replies de X propios probados:
+  - Actor recomendado: `scraper_one/x-post-replies-scraper`.
+  - Razon: muchas corridas, rating aprox. 4.96, costo bajo por reply.
+  - Prueba real ejecutada el 2026-06-30 sobre `https://x.com/PepeAguilar/status/2054314384152056001`.
+  - Run `zichgB1sHf1IObjif`, dataset `NE00frJ5Nf1OA4r21`, 20 replies. Costo reportado por API: `0 USD` en esta prueba.
+  - Payload validado:
+    ```json
+    {
+      "postUrls": ["https://x.com/PepeAguilar/status/2054314384152056001"],
+      "maxItems": 20
+    }
+    ```
+  - Trae `replyUrl`, `replyText`, autor, followers, replies, reposts, likes, views y timestamp Unix; sirve para links reales y filtro diario.
+- Facebook propios:
+  - `patient_discovery/facebook-page-posts` no es confiable con el input probado: con `pageUrl` de Pepe devolvio posts de la pagina Facebook generica. No usar para Pepe hasta validar input exacto.
+  - `unseenuser/fb-posts` exige `maxPosts >= 3`; la prueba con 3 posts fallo sin costo y sin resultados.
+  - Pendiente: encontrar actor de Facebook que entregue posts reales de `pepeaguilaroficial` y despues correr comentarios sobre URL de post. No inventar posts/comentarios de Facebook.
 - No subir el token a archivos ni commits.
 
 ## Estado local actual

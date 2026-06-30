@@ -508,18 +508,18 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                     {p.text || p.username || p.url}
                   </span>
                   <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:6, textTransform:'uppercase', lineHeight:1.45 }}>
-                    {[p.username, p.metric, p.sourceUrl ? 'URL sin verificar' : '', (p.date || '').slice(0,10)].filter(Boolean).join(' · ')}
+                    {[p.username, p.metric, p.sourceUrl ? 'URL sin verificar' : '', (p.date || '').slice(0,10)].filter(Boolean).join(' - ')}
                   </span>
                   {(p.commentsList || []).length > 0 && (
                     <span style={{ display:'block', marginTop:10, paddingTop:9, borderTop:'1px solid rgba(33,28,23,0.08)' }}>
                       <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10, letterSpacing:'0.12em', textTransform:'uppercase', color:C.goldDeep, marginBottom:7 }}>
                         {p.commentsList.length} comentarios extraidos
                       </span>
-                      {(p.commentsList || []).slice(0, 6).map(comment => (
+                      {(p.commentsList || []).slice(0, 12).map(comment => (
                         <span key={comment.id} style={{ display:'block', marginBottom:8, padding:'8px 9px', background:'rgba(33,28,23,0.035)', border:'1px solid rgba(33,28,23,0.07)', borderRadius:3 }}>
                           <span style={{ display:'block', fontSize:12.5, lineHeight:1.35, color:'#2A241C' }}>{comment.text}</span>
                           <span style={{ display:'block', marginTop:5, fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', textTransform:'uppercase' }}>
-                            {[comment.author, comment.publishedTime, comment.likes ? `${comment.likes} likes` : '', comment.replies ? `${comment.replies} replies` : ''].filter(Boolean).join(' · ')}
+                            {[comment.author, comment.publishedTime, comment.likes ? `${comment.likes} likes` : '', comment.replies ? `${comment.replies} replies` : '', comment.views ? `${comment.views} views` : '', comment.url ? 'link' : ''].filter(Boolean).join(' - ')}
                           </span>
                         </span>
                       ))}
