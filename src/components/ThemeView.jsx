@@ -126,13 +126,28 @@ function deriveVoices(themeData, postsByPlatform) {
     const eng = (p.likes||0) + (p.comments||0)*2 + (p.shares||0)*3 + (p.bookmarks||0) + (p.retweets||0)*3 + (p.views||0)*0.01;
     const tone = scoreText(p.text);
     if (!authorMap[key]) {
-      authorMap[key] = { username:p.username, platform:p.platform, followers:p.followers||0, posts:0, engagement:0, toneVotes:{positive:0,neutral:0,negative:0} };
+      authorMap[key] = { 
+        username: p.username, 
+        platform: p.platform, 
+        followers: p.followers || 0, 
+        posts: 0, 
+        engagement: 0, 
+        likes: 0, 
+        comments: 0, 
+        toneVotes: { positive: 0, neutral: 0, negative: 0 }, 
+        postTexts: [], 
+        url: p.url || '' 
+      };
     }
     const a = authorMap[key];
     a.posts++;
     a.engagement += eng;
-    a.followers = Math.max(a.followers, p.followers||0);
+    a.likes += p.likes || 0;
+    a.comments += p.comments || 0;
+    a.followers = Math.max(a.followers, p.followers || 0);
     a.toneVotes[tone]++;
+    if (p.text) a.postTexts.push(p.text);
+    if (p.url && !a.url) a.url = p.url;
   });
 
   const voices = Object.values(authorMap).map(a => {
@@ -141,16 +156,26 @@ function deriveVoices(themeData, postsByPlatform) {
     const dominant = tv.negative > tv.positive && tv.negative >= tv.neutral ? 'negative'
                    : tv.positive > tv.negative && tv.positive >= tv.neutral ? 'positive'
                    : 'neutral';
+
+    // Find triggers
+    const allText = a.postTexts.join(' ');
+    const matchedPos = POS_KW.filter(kw => allText.toLowerCase().includes(kw));
+    const matchedNeg = NEG_KW.filter(kw => allText.toLowerCase().includes(kw));
+    const keywordsUsed = dominant === 'negative' ? matchedNeg : matchedPos;
+
     return {
       username: a.username,
       platform: a.platform,
       followers,
-      url: '',
+      url: a.url,
       posts: a.posts,
       engagement: Math.round(a.engagement),
+      likes: a.likes,
+      comments: a.comments,
       sentiment: dominant,
       tier: followers >= 500000 ? 'macro' : followers >= 50000 ? 'medio' : 'micro',
-      score: followers * 0.1 + a.engagement,
+      score: a.engagement, // Sort purely by engagement/reach
+      keywords: keywordsUsed.slice(0, 4)
     };
   }).sort((a, b) => b.score - a.score);
 
@@ -608,100 +633,6 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
         </div>
         );
       })()}
-
-      {false && selectedNetwork && (
-        <div style={{ marginTop:10, background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, overflow:'hidden' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', background:'rgba(33,28,23,0.04)', borderBottom:'1px solid rgba(33,28,23,0.10)' }}>
-            <PlatformIcon platform={selectedNetwork} size={16} />
-            <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:600, fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.ink }}>
-              {networkMapItemLabel === 'PUBLICACIONES' ? 'Publicaciones de' : 'Menciones de'} {platLabel(selectedNetwork)}
-            </span>
-            <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginLeft:'auto' }}>
-              {(networkPostsByKey[selectedNetwork] || []).length} {networkMapItemLabel}
-            </span>
-          </div>
-          {t.rawOnly && (
-            <div style={{ padding:'9px 12px', borderBottom:'1px solid rgba(33,28,23,0.08)', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', textTransform:'uppercase', background:'rgba(176,130,47,0.06)' }}>
-              Comentarios individuales pendientes; aqui se muestran publicaciones y conteos que trajo cada post.
-            </div>
-          )}
-          {(networkPostsByKey[selectedNetwork] || []).length > 0 ? (
-            (networkPostsByKey[selectedNetwork] || []).map((p, i) => {
-              const Tag = p.url ? 'a' : 'div';
-              return (
-              <Tag key={`${p.url || p.username}-${i}`} href={p.url || undefined} target={p.url ? '_blank' : undefined} rel={p.url ? 'noopener' : undefined}
-                style={{ display:'grid', gridTemplateColumns:p.thumbnail && !compact ? '96px 1fr auto' : p.url ? '1fr auto' : '1fr', gap:12, alignItems:'center', padding:'12px',
-                  textDecoration:'none', borderBottom:i<(networkPostsByKey[selectedNetwork] || []).length-1?'1px solid rgba(33,28,23,0.08)':'none' }}>
-                {p.thumbnail && !compact && (
-                  <span style={{ width:96, height:54, borderRadius:3, overflow:'hidden', background:'rgba(33,28,23,0.08)', display:'block' }}>
-                    <img src={p.thumbnail} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} loading="lazy" />
-                  </span>
-                )}
-                <span style={{ minWidth:0, display:'block' }}>
-                  <span style={{ display:'block', fontSize:14, lineHeight:1.35, color:C.ink, whiteSpace:compact ? 'nowrap' : 'normal', overflow:'hidden', textOverflow:'ellipsis' }}>
-                    {p.text || p.username || p.url}
-                  </span>
-                  <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:6, textTransform:'uppercase', lineHeight:1.45 }}>
-                    {[p.username, p.metric, p.sourceUrl ? 'URL sin verificar' : '', (p.date || '').slice(0,10)].filter(Boolean).join(' - ')}
-                  </span>
-                  {(p.commentsList || []).length > 0 && (
-                    <span style={{ display:'block', marginTop:10, paddingTop:9, borderTop:'1px solid rgba(33,28,23,0.08)' }}>
-                      <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10, letterSpacing:'0.12em', textTransform:'uppercase', color:C.goldDeep, marginBottom:7 }}>
-                        {p.commentsList.length} comentarios extraidos
-                      </span>
-                      {(p.commentsList || []).slice(0, 12).map(comment => (
-                        <span key={comment.id} style={{ display:'block', marginBottom:8, padding:'8px 9px', background:'rgba(33,28,23,0.035)', border:'1px solid rgba(33,28,23,0.07)', borderRadius:3 }}>
-                          <span style={{ display:'block', fontSize:12.5, lineHeight:1.35, color:'#2A241C' }}>{comment.text}</span>
-                          <span style={{ display:'block', marginTop:5, fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', textTransform:'uppercase' }}>
-                            {[comment.author, comment.publishedTime, comment.likes ? `${comment.likes} likes` : '', comment.replies ? `${comment.replies} replies` : '', comment.views ? `${comment.views} views` : '', comment.url ? 'link' : ''].filter(Boolean).join(' - ')}
-                          </span>
-                        </span>
-                      ))}
-                    </span>
-                  )}
-                </span>
-                {p.url && <span style={{ alignSelf:'center', justifySelf:'end', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:C.goldDeep, fontWeight:600 }}>ABRIR</span>}
-              </Tag>
-              );
-            })
-          ) : (
-            <div style={{ padding:'12px', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', textTransform:'uppercase' }}>
-              No hay menciones individuales para esta red.
-            </div>
-          )}
-        </div>
-      )}
-
-      {strategyAllies.length>0 && (
-        <div style={{ marginTop:10, background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, overflow:'hidden' }}>
-          <div style={{ display:'grid', gridTemplateColumns: compact ? '1.1fr 0.8fr 0.6fr' : isDesktop ? '1.2fr 0.8fr 0.7fr 0.7fr 0.55fr' : '1.1fr 0.8fr 0.6fr', gap:8,
-            padding:'9px 12px', background:'rgba(33,28,23,0.04)', borderBottom:'1px solid rgba(33,28,23,0.10)' }}>
-            {['Voz posible','Red','Tamaño', ...(!compact && isDesktop ? ['Views','Tipo'] : [])].map(h => (
-              <span key={h} style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, letterSpacing:'0.12em', textTransform:'uppercase', color:'#8A7E6A' }}>{h}</span>
-            ))}
-          </div>
-          {strategyAllies.slice(0, compact ? 4 : strategyAllies.length).map((a,i) => {
-            const Tag = a.hasLink ? 'a' : 'div';
-            return (
-            <Tag key={`${a.platform}-${a.username}-${i}`} href={a.hasLink ? a.url : undefined} target={a.hasLink ? '_blank' : undefined} rel={a.hasLink ? 'noopener' : undefined}
-              style={{ display:'grid', gridTemplateColumns: compact ? '1.1fr 0.8fr 0.6fr' : isDesktop ? '1.2fr 0.8fr 0.7fr 0.7fr 0.55fr' : '1.1fr 0.8fr 0.6fr', gap:8,
-                alignItems:'center', padding:'10px 12px', textDecoration:'none', borderBottom:i<Math.min(strategyAllies.length, compact ? 4 : strategyAllies.length)-1?'1px solid rgba(33,28,23,0.08)':'none' }}>
-              <span style={{ minWidth:0 }}>
-                <span style={{ display:'block', fontWeight:600, fontSize:13, color:C.ink, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{a.username}</span>
-                {a.followersLabel && <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:2 }}>{a.followersLabel}</span>}
-              </span>
-              <span style={{ display:'flex', alignItems:'center', gap:7, fontFamily:"'Geist Mono',monospace", fontSize:11, color:'#6B6253', textTransform:'uppercase' }}>
-                <PlatformIcon platform={a.platform} size={16} />
-                {a.platformLabel}
-              </span>
-              <span style={{ ...pill(a.tier === 'macro' ? C.crim : a.tier === 'medio' ? C.goldDeep : C.teal, a.tier === 'macro' ? C.crimBg : a.tier === 'medio' ? C.amberBg : C.tealBg, a.tier === 'macro' ? C.crimBd : a.tier === 'medio' ? C.amberBd : C.tealBd) }}>{a.tierLabel}</span>
-              {!compact && isDesktop && <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:'#6B6253' }}>{a.viewsLabel}</span>}
-              {!compact && isDesktop && a.hasLink && <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:C.goldDeep, fontWeight:600 }}>ABRIR</span>}
-            </Tag>
-            );
-          })}
-        </div>
-      )}
     </Section>
   );
 
@@ -814,18 +745,31 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
               const tierBd = v.tier === 'macro' ? C.crimBd : v.tier === 'medio' ? C.amberBd : C.tealBd;
               return (
                 <Tag href={v.url || undefined} target={v.url ? '_blank' : undefined} rel={v.url ? 'noopener' : undefined}
-                  style={{ display:'block', padding:'11px 13px', textDecoration:'none',
-                    borderLeft:`3px solid ${accentColor}`, background:C.card,
-                    border:`1px solid rgba(33,28,23,0.10)`, borderLeftWidth:3, borderLeftColor:accentColor,
-                    borderRadius:3, marginBottom:7 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5 }}>
+                  style={{ display:'block', padding:'12px 14px', textDecoration:'none',
+                    background:C.card, borderRadius:3, marginBottom:8,
+                    border:`1px solid rgba(33,28,23,0.10)`, borderLeftWidth:3, borderLeftColor:accentColor, borderLeftStyle:'solid' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
                     <PlatformIcon platform={v.platform} size={15} />
                     <span style={{ fontWeight:600, fontSize:13.5, color:C.ink, flex:1, minWidth:0, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{v.username}</span>
                     <span style={{ ...pill(tierInk, tierBg, tierBd), flexShrink:0 }}>{tierLabel}</span>
                   </div>
-                  <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', textTransform:'uppercase' }}>
-                    {[v.followers ? `${fmtK(v.followers)} seg.` : '', v.posts ? `${v.posts} posts` : '', v.categoria].filter(Boolean).join(' · ')}
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:'4px 8px', fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', textTransform:'uppercase', marginBottom:5 }}>
+                    {v.followers ? <span>{fmtK(v.followers)} seg.</span> : null}
+                    <span>{v.posts} {v.posts === 1 ? 'post' : 'posts'}</span>
+                    {v.likes ? <span>👍 {fmt(v.likes)}</span> : null}
+                    {v.comments ? <span>💬 {fmt(v.comments)}</span> : null}
+                    {v.engagement ? <span style={{ color:C.goldDeep, fontWeight:600 }}>Alcance: {fmt(v.engagement)}</span> : null}
                   </div>
+                  {v.keywords && v.keywords.length > 0 && (
+                    <div style={{ borderTop:'1px dotted rgba(33,28,23,0.08)', paddingTop:6, marginTop:4, display:'flex', flexWrap:'wrap', gap:4, alignItems:'center' }}>
+                      <span style={{ fontSize:9.5, color:'#8A7E6A', fontFamily:"'Geist Mono',monospace", textTransform:'uppercase' }}>Gatillos:</span>
+                      {v.keywords.map((kw, idx) => (
+                        <span key={idx} style={{ fontSize:9.5, background:isAlly ? 'rgba(40,167,69,0.08)' : 'rgba(220,53,69,0.08)', color:accentColor, padding:'2px 5px', borderRadius:2, border:`1px solid ${isAlly ? 'rgba(40,167,69,0.15)' : 'rgba(220,53,69,0.15)'}`, fontFamily:"'Geist Mono',monospace" }}>
+                          {kw}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </Tag>
               );
             };
@@ -936,17 +880,31 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                 const tierBd = v.tier === 'macro' ? C.crimBd : v.tier === 'medio' ? C.amberBd : C.tealBd;
                 return (
                   <Tag href={v.url || undefined} target={v.url ? '_blank' : undefined} rel={v.url ? 'noopener' : undefined}
-                    style={{ display:'block', padding:'11px 13px', textDecoration:'none',
-                      background:C.card, borderRadius:3, marginBottom:7,
+                    style={{ display:'block', padding:'12px 14px', textDecoration:'none',
+                      background:C.card, borderRadius:3, marginBottom:8,
                       border:`1px solid rgba(33,28,23,0.10)`, borderLeftWidth:3, borderLeftColor:accentColor, borderLeftStyle:'solid' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
                       <PlatformIcon platform={v.platform} size={15} />
                       <span style={{ fontWeight:600, fontSize:13.5, color:C.ink, flex:1, minWidth:0, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{v.username}</span>
                       <span style={{ ...pill(tierInk, tierBg, tierBd), flexShrink:0 }}>{tierLabel}</span>
                     </div>
-                    <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', textTransform:'uppercase' }}>
-                      {[v.followers ? `${fmtK(v.followers)} seg.` : '', v.posts ? `${v.posts} posts` : '', v.categoria].filter(Boolean).join(' · ')}
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:'4px 8px', fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', textTransform:'uppercase', marginBottom:5 }}>
+                      {v.followers ? <span>{fmtK(v.followers)} seg.</span> : null}
+                      <span>{v.posts} {v.posts === 1 ? 'post' : 'posts'}</span>
+                      {v.likes ? <span>👍 {fmt(v.likes)}</span> : null}
+                      {v.comments ? <span>💬 {fmt(v.comments)}</span> : null}
+                      {v.engagement ? <span style={{ color:C.goldDeep, fontWeight:600 }}>Alcance: {fmt(v.engagement)}</span> : null}
                     </div>
+                    {v.keywords && v.keywords.length > 0 && (
+                      <div style={{ borderTop:'1px dotted rgba(33,28,23,0.08)', paddingTop:6, marginTop:4, display:'flex', flexWrap:'wrap', gap:4, alignItems:'center' }}>
+                        <span style={{ fontSize:9.5, color:'#8A7E6A', fontFamily:"'Geist Mono',monospace", textTransform:'uppercase' }}>Gatillos:</span>
+                        {v.keywords.map((kw, idx) => (
+                          <span key={idx} style={{ fontSize:9.5, background:isAlly ? 'rgba(40,167,69,0.08)' : 'rgba(220,53,69,0.08)', color:accentColor, padding:'2px 5px', borderRadius:2, border:`1px solid ${isAlly ? 'rgba(40,167,69,0.15)' : 'rgba(220,53,69,0.15)'}`, fontFamily:"'Geist Mono',monospace" }}>
+                            {kw}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </Tag>
                 );
               };
@@ -1183,17 +1141,31 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
           const tierBd = v.tier === 'macro' ? C.crimBd : v.tier === 'medio' ? C.amberBd : C.tealBd;
           return (
             <Tag href={v.url || undefined} target={v.url ? '_blank' : undefined} rel={v.url ? 'noopener' : undefined}
-              style={{ display:'block', padding:'11px 13px', textDecoration:'none', background:C.card,
-                borderRadius:3, marginBottom:7, border:`1px solid rgba(33,28,23,0.10)`,
+              style={{ display:'block', padding:'12px 14px', textDecoration:'none', background:C.card,
+                borderRadius:3, marginBottom:8, border:`1px solid rgba(33,28,23,0.10)`,
                 borderLeftWidth:3, borderLeftColor:accentColor, borderLeftStyle:'solid' }}>
-              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
                 <PlatformIcon platform={v.platform} size={15} />
                 <span style={{ fontWeight:600, fontSize:13.5, color:C.ink, flex:1, minWidth:0, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{v.username}</span>
                 <span style={{ ...pill(tierInk, tierBg, tierBd), flexShrink:0 }}>{tierLabel}</span>
               </div>
-              <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', textTransform:'uppercase' }}>
-                {[v.followers ? `${fmtK(v.followers)} seg.` : '', v.posts ? `${v.posts} posts` : '', v.categoria].filter(Boolean).join(' · ')}
+              <div style={{ display:'flex', flexWrap:'wrap', gap:'4px 8px', fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', textTransform:'uppercase', marginBottom:5 }}>
+                {v.followers ? <span>{fmtK(v.followers)} seg.</span> : null}
+                <span>{v.posts} {v.posts === 1 ? 'post' : 'posts'}</span>
+                {v.likes ? <span>👍 {fmt(v.likes)}</span> : null}
+                {v.comments ? <span>💬 {fmt(v.comments)}</span> : null}
+                {v.engagement ? <span style={{ color:C.goldDeep, fontWeight:600 }}>Alcance: {fmt(v.engagement)}</span> : null}
               </div>
+              {v.keywords && v.keywords.length > 0 && (
+                <div style={{ borderTop:'1px dotted rgba(33,28,23,0.08)', paddingTop:6, marginTop:4, display:'flex', flexWrap:'wrap', gap:4, alignItems:'center' }}>
+                  <span style={{ fontSize:9.5, color:'#8A7E6A', fontFamily:"'Geist Mono',monospace", textTransform:'uppercase' }}>Gatillos:</span>
+                  {v.keywords.map((kw, idx) => (
+                    <span key={idx} style={{ fontSize:9.5, background:isAlly ? 'rgba(40,167,69,0.08)' : 'rgba(220,53,69,0.08)', color:accentColor, padding:'2px 5px', borderRadius:2, border:`1px solid ${isAlly ? 'rgba(40,167,69,0.15)' : 'rgba(220,53,69,0.15)'}`, fontFamily:"'Geist Mono',monospace" }}>
+                      {kw}
+                    </span>
+                  ))}
+                </div>
+              )}
             </Tag>
           );
         };
