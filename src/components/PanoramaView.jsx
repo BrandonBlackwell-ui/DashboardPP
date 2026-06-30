@@ -62,7 +62,7 @@ export default function PanoramaView({ data, isDesktop }) {
           margin: '0 0 28px 0',
           fontFamily: "'Geist',sans-serif"
         }}>
-          El análisis reputacional consolidado aún no ha sido procesado por Claude 3.5 Sonnet en Supabase para esta fecha.
+          El análisis reputacional consolidado aún no ha sido procesado por Sonnet 4.6 en Supabase para esta fecha.
         </p>
 
         {/* Executive Info Box */}
@@ -132,7 +132,7 @@ export default function PanoramaView({ data, isDesktop }) {
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:8, background:C.card, border:'1px solid rgba(176,130,47,0.22)', padding:'6px 12px', borderRadius:3 }}>
           <span style={{ width:7, height:7, borderRadius:'50%', background:C.teal, display:'inline-block', boxShadow:`0 0 8px ${C.teal}` }} />
-          <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, fontWeight:600, color:C.goldDeep, textTransform:'uppercase' }}>Claude 3.5 Sonnet Activo</span>
+          <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, fontWeight:600, color:C.goldDeep, textTransform:'uppercase' }}>Sonnet 4.6 Activo</span>
         </div>
       </motion.div>
 
@@ -184,17 +184,29 @@ export default function PanoramaView({ data, isDesktop }) {
             </svg>
             <h2 style={{ fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:19, color:C.ink, margin:0 }}>Resumen Ejecutivo de Reputación</h2>
           </div>
-          <div style={{ fontSize:15, lineHeight:1.65, color:'#2A241C', whiteSpace:'pre-line' }}>
-            {ai.resumen_ejecutivo}
-          </div>
+          
+          {Array.isArray(ai.resumen_ejecutivo) ? (
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {ai.resumen_ejecutivo.map((bullet, idx) => (
+                <div key={idx} style={{ display:'flex', gap:12, alignItems:'flex-start', background:'#FAF8F5', border:'1px solid rgba(33,28,23,0.06)', padding:'12px 14px', borderRadius:3 }}>
+                  <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, color:C.goldDeep, fontWeight:700 }}>0{idx+1}</span>
+                  <span style={{ fontSize:14, lineHeight:1.5, color:'#2A241C' }}>{bullet}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize:15, lineHeight:1.65, color:'#2A241C', whiteSpace:'pre-line' }}>
+              {ai.resumen_ejecutivo}
+            </div>
+          )}
         </div>
       </motion.div>
 
       {/* Alerts / Red Flags Block */}
       {ai.alertas && ai.alertas.length > 0 && (
         <motion.div variants={item} style={{ marginBottom:20 }}>
-          <div style={{ background:'rgba(220,53,69,0.03)', border:`1px solid ${C.crimBd}`, borderRadius:3, padding:20 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
+          <div style={{ background:'rgba(220,53,69,0.02)', border:`1px solid ${C.crimBd}`, borderRadius:3, padding:20 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C.crim} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
                 <line x1="12" y1="9" x2="12" y2="13"/>
@@ -202,13 +214,14 @@ export default function PanoramaView({ data, isDesktop }) {
               </svg>
               <h2 style={{ fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:18, color:C.crim, margin:0 }}>Alertas de Crisis & Focos Rojos</h2>
             </div>
-            <ul style={{ margin:0, paddingLeft:20, display:'flex', flexDirection:'column', gap:8 }}>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {ai.alertas.map((a, i) => (
-                <li key={i} style={{ fontSize:14.5, lineHeight:1.5, color:'#4A2C2A' }}>
-                  {a}
-                </li>
+                <div key={i} style={{ display:'flex', gap:10, alignItems:'flex-start', background:'#FFF8F7', border:'1px solid rgba(220,53,69,0.08)', padding:'12px 14px', borderRadius:3 }}>
+                  <span style={{ width:6, height:6, borderRadius:'50%', background:C.crim, marginTop:7, flexShrink:0 }} />
+                  <span style={{ fontSize:13.5, lineHeight:1.45, color:'#4A2C2A' }}>{a}</span>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
         </motion.div>
       )}
@@ -222,13 +235,14 @@ export default function PanoramaView({ data, isDesktop }) {
             <span style={{ ...pill(C.ink,'#EDE6D8','#C8BBA0') }}>PLAN DE ACCIÓN</span>
             <h3 style={{ fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:17, color:C.ink, margin:0 }}>Cosas por Hacer</h3>
           </div>
-          <ul style={{ margin:0, paddingLeft:20, display:'flex', flexDirection:'column', gap:10 }}>
-            {ai.plan_accion?.map((item, idx) => (
-              <li key={idx} style={{ fontSize:14, lineHeight:1.45, color:'#2A241C' }}>
-                {item}
-              </li>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {ai.plan_accion?.map((act, idx) => (
+              <div key={idx} style={{ display:'flex', gap:10, alignItems:'flex-start', background:'#F5F8F5', border:'1px solid rgba(40,167,69,0.06)', padding:'10px 12px', borderRadius:3 }}>
+                <span style={{ color:C.teal, fontWeight:'bold', fontSize:14, flexShrink:0, marginTop:1 }}>✓</span>
+                <span style={{ fontSize:13, lineHeight:1.45, color:'#2A241C' }}>{act}</span>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
 
         {/* Areas of Opportunity */}
@@ -237,13 +251,14 @@ export default function PanoramaView({ data, isDesktop }) {
             <span style={{ ...pill(C.teal,C.tealBg,C.tealBd) }}>RECOMENDACIÓN</span>
             <h3 style={{ fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:17, color:C.ink, margin:0 }}>Mejoras y Oportunidades</h3>
           </div>
-          <ul style={{ margin:0, paddingLeft:20, display:'flex', flexDirection:'column', gap:10 }}>
-            {ai.oportunidades?.map((item, idx) => (
-              <li key={idx} style={{ fontSize:14, lineHeight:1.45, color:'#2A241C' }}>
-                {item}
-              </li>
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {ai.oportunidades?.map((op, idx) => (
+              <div key={idx} style={{ display:'flex', gap:10, alignItems:'flex-start', background:'#FDF9F2', border:'1px solid rgba(176,130,47,0.10)', padding:'10px 12px', borderRadius:3 }}>
+                <span style={{ color:C.goldDeep, fontWeight:'bold', fontSize:14, flexShrink:0, marginTop:1 }}>✦</span>
+                <span style={{ fontSize:13, lineHeight:1.45, color:'#2A241C' }}>{op}</span>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
 
       </motion.div>
