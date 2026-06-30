@@ -138,6 +138,7 @@ function buildThemeFromScrapedData(rep) {
   return {
     label: rep.theme_label,
     es: esLabel(rep.theme_key),
+    ai_analysis: rep.ai_analysis || null,
     sentiment: { pos: posPct, neu: neuPct, neg: negPct, posC: posC, neuC: neuC, negC: negC },
     risk: { level: riskLevel, negPct: negPct, attention: negPct > 20 },
     totals: { posts: posts.length },
@@ -178,7 +179,7 @@ export async function loadFromSupabase() {
     const { data: reports, error } = await supabase
       .from('reports')
       .select(`
-        id, date_key, theme_key, theme_label, filename, created_at,
+        id, date_key, theme_key, theme_label, filename, created_at, ai_analysis,
         scraped_posts(*, scraped_comments(*)),
         allies_critics_voices(*)
       `)
@@ -279,7 +280,7 @@ export async function loadThemeByDate(themeKey, dateKey) {
     const { data: reports, error } = await supabase
       .from('reports')
       .select(`
-        id, date_key, theme_key, theme_label,
+        id, date_key, theme_key, theme_label, ai_analysis,
         scraped_posts(*, scraped_comments(*)),
         allies_critics_voices(*)
       `)
