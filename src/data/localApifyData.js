@@ -1372,7 +1372,7 @@ function ownedTheme() {
   };
 }
 
-function buildThemes() {
+export function buildThemes() {
   const xPrimaryPosts = xMentions.filter(p => p.type !== 'reply');
   const allMentions = [...xPrimaryPosts, ...newsMentions, ...tiktokMentions, ...facebookMentions, ...instagramMentions];
   const total = allMentions.length || 1;

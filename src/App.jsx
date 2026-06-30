@@ -13,9 +13,10 @@ import ExportModal from './components/ExportModal';
 import LoginGate from './components/LoginGate';
 import { loadFromSupabase, loadThemeByDate } from './lib/loadFromSupabase';
 import { getFridayDateKey } from './utils/helpers';
-import { applyLocalApifyData, LOCAL_APIFY_DATE_KEY } from './data/localApifyData';
+import { applyLocalApifyData, LOCAL_APIFY_DATE_KEY, buildThemes } from './data/localApifyData';
+import { saveReport } from './lib/saveReport';
 
-const LOCAL_APIFY_MODE = true;
+const LOCAL_APIFY_MODE = false;
 
 const INK_SVG = `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><filter id="bw-ink" x="-3%" y="-15%" width="106%" height="130%" filterUnits="objectBoundingBox" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.022" numOctaves="3" seed="4" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="1.4" xChannelSelector="R" yChannelSelector="G"/></filter><filter id="bw-ink-rough" x="-3%" y="-80%" width="106%" height="260%" color-interpolation-filters="sRGB"><feTurbulence type="fractalNoise" baseFrequency="0.04 0.5" numOctaves="2" seed="7" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="2.5" xChannelSelector="R" yChannelSelector="G"/></filter></defs></svg>`;
 
@@ -176,6 +177,27 @@ export default function App() {
     setShowExport(true);
   }
 
+  const [injecting, setInjecting] = useState(false);
+  async function handleInjectData() {
+    if (injecting) return;
+    const confirmInject = window.confirm('¿Deseas inyectar los datos locales de prueba en tu nuevo Supabase?');
+    if (!confirmInject) return;
+    setInjecting(true);
+    try {
+      const themes = buildThemes();
+      for (const [key, themeData] of Object.entries(themes)) {
+        await saveReport({ dateKey: '2026-06-26', themeKey: key, themeData, filename: 'importado_local.json' });
+      }
+      alert('¡Datos inyectados con éxito en Supabase!');
+      window.location.reload();
+    } catch (e) {
+      console.error(e);
+      alert('Error al inyectar datos: ' + e.message);
+    } finally {
+      setInjecting(false);
+    }
+  }
+
   const isTheme = !['panorama','historico','reporte'].includes(tab);
 
   // Build date options dynamically from calData (last 7 days with any data, most recent first)
@@ -246,9 +268,11 @@ export default function App() {
         </AnimatePresence>
       </div>
 
-      <div style={{ margin:'24px 18px 0', padding:'13px 0', borderTop:'2px solid #211C17', display:'flex', flexWrap:'wrap', gap:8, justifyContent:'space-between', fontFamily:"'Geist Mono',monospace", fontSize:9.5, letterSpacing:'0.06em', textTransform:'uppercase', color:'#B0822F' }}>
+      <div style={{ margin:'24px 18px 0', padding:'13px 0', borderTop:'2px solid #211C17', display:'flex', flexWrap:'wrap', gap:8, justifyContent:'space-between', fontFamily:"'Geist Mono',monospace", fontSize:9.5, letterSpacing:'0.06em', textTransform:'uppercase', color:'#B0822F', alignItems:'center' }}>
         <span>Doc. ref · BW-PA-BRIEF-1315JUN26</span>
-        <span>Preparado por Blackwell Strategy</span>
+        <button onClick={handleInjectData} disabled={injecting} style={{ background:'none', border:'none', color:'#B0822F', cursor:'pointer', fontSize:9.5, fontFamily:'inherit', letterSpacing:'inherit', textTransform:'uppercase', textDecoration:'underline', padding:0 }}>
+          {injecting ? 'Inyectando...' : 'Inyectar Datos Base'}
+        </button>
         <span style={{ color:'#9B3331', fontWeight:600 }}>Confidencial · uso interno</span>
       </div>
     </>
