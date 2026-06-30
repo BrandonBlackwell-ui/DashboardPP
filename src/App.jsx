@@ -73,24 +73,31 @@ export default function App() {
     if (!authed || !data || !calData) return;
     if (initialLoadDone.current) return;
     initialLoadDone.current = true;
+    
+    // Always apply local Apify data as the default fallback
+    applyLocalApifyData();
+    refreshData();
+
     if (LOCAL_APIFY_MODE) {
-      applyLocalApifyData();
-      refreshData();
       setDataVersion(v => v+1);
       return;
     }
+    
     setDataVersion(v => v+1);
     loadFromSupabase().then(() => {
-      refreshData();
-      if (window.CALENDAR_DATA?.days) {
-        const dayKeys = Object.keys(window.CALENDAR_DATA.days).sort();
-        const latestKey = dayKeys.pop();
-        if (latestKey) {
-          const latestDay = latestKey.slice(8);
-          setDate(latestDay);
-          setPanoramaDate(latestDay);
+      // Check if Supabase loaded actual database records
+      if (window.SUPABASE_KEYS && window.SUPABASE_KEYS.size > 0 && !window.SUPABASE_KEYS.has(`resumen:${LOCAL_APIFY_DATE_KEY}`)) {
+        if (window.CALENDAR_DATA?.days) {
+          const dayKeys = Object.keys(window.CALENDAR_DATA.days).sort();
+          const latestKey = dayKeys.pop();
+          if (latestKey) {
+            const latestDay = latestKey.slice(8);
+            setDate(latestDay);
+            setPanoramaDate(latestDay);
+          }
         }
       }
+      refreshData();
       setDataVersion(v => v+1);
     });
   }, [authed, data, calData]);

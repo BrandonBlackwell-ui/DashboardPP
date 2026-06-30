@@ -30,6 +30,21 @@ export async function loadFromSupabase() {
 
     if (error || !reports?.length) return;
 
+    window.PA_DATA = {
+      meta: {
+        cliente: 'Pepe Aguilar',
+        period: { start: '2026-06-01', end: '2026-06-15' },
+        range_label: '1-15 jun 2026',
+        source: 'supabase',
+      },
+      order: ['redes_propias','facebook','instagram','x','tiktok','google_news'],
+      themes: {},
+    };
+    window.CALENDAR_DATA = {
+      dateRange: { start: '2026-06-01', end: '2026-06-15' },
+      days: {},
+    };
+
     // Build a set of "theme_key:date_key" strings for calendar VER button gating
     const keys = new Set();
     for (const r of reports) {
