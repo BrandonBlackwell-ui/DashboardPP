@@ -489,17 +489,24 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
         ))}
       </div>
 
-      {selectedNetwork && (() => {
-        const selectedPosts = networkPostsByKey[selectedNetwork] || [];
+      {(() => {
+        const allPosts = Object.values(networkPostsByKey).flat().sort((a,b) => {
+          const engA = (a.likes||0) + (a.comments||0)*2 + (a.shares||0)*3;
+          const engB = (b.likes||0) + (b.comments||0)*2 + (b.shares||0)*3;
+          return engB - engA;
+        });
+        if (allPosts.length === 0) return null;
+
+        const selectedPosts = activeNetwork ? (networkPostsByKey[activeNetwork] || []) : allPosts;
         const isPublicListening = t.networkStrategy?.title === 'Redes monitoreadas' || tab !== 'redes_propias';
 
         if (isPublicListening) {
           return (
             <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, overflow:'hidden', marginTop:10 }}>
               <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', background:'rgba(33,28,23,0.04)', borderBottom:'1px solid rgba(33,28,23,0.10)' }}>
-                <PlatformIcon platform={selectedNetwork} size={16} />
+                {activeNetwork ? <PlatformIcon platform={activeNetwork} size={16} /> : <span style={{ fontSize:12 }}>💬</span>}
                 <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:600, fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.ink }}>
-                  Publicaciones de {platLabel(selectedNetwork)}
+                  {activeNetwork ? `Publicaciones de ${platLabel(activeNetwork)}` : 'Publicaciones relevantes (Todas las redes - Ordenadas por Impacto)'}
                 </span>
                 <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginLeft:'auto' }}>
                   {selectedPosts.length} visibles
@@ -521,7 +528,8 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                       <div style={{ fontSize:14.5, lineHeight:1.45, color:C.ink, wordBreak:'break-word' }}>
                         {p.text || '[Sin texto]'}
                       </div>
-                      <div style={{ display:'flex', flexWrap:'wrap', gap:'6px 12px', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:8, textTransform:'uppercase', lineHeight:1.4 }}>
+                      <div style={{ display:'flex', flexWrap:'wrap', gap:'6px 12px', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:8, textTransform:'uppercase', lineHeight:1.4, alignItems:'center' }}>
+                        <PlatformIcon platform={p.platform} size={12} />
                         {p.username && <span style={{ fontWeight:600, color:C.goldDeep }}>@{p.username}</span>}
                         {p.likes ? <span>{fmt(p.likes)} likes</span> : null}
                         {p.comments ? <span>{fmt(p.comments)} com.</span> : null}
@@ -547,27 +555,31 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
           );
         }
 
-        const selectedPost = selectedPosts.find((p, idx) => postKey(p, idx) === activePostKey) || selectedPosts[0];
+        const currentNetwork = activeNetwork || strategyNetworks[0]?.key;
+        if (!currentNetwork) return null;
+
+        const networkPosts = networkPostsByKey[currentNetwork] || [];
+        const selectedPost = networkPosts.find((p, idx) => postKey(p, idx) === activePostKey) || networkPosts[0];
         const selectedComments = selectedPost?.commentsList || [];
         return (
         <div style={{ marginTop:10, display:'grid', gridTemplateColumns:isDesktop && !compact ? 'minmax(0, 0.95fr) minmax(0, 1.05fr)' : '1fr', gap:10 }}>
           <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, overflow:'hidden' }}>
             <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', background:'rgba(33,28,23,0.04)', borderBottom:'1px solid rgba(33,28,23,0.10)' }}>
-              <PlatformIcon platform={selectedNetwork} size={16} />
+              <PlatformIcon platform={currentNetwork} size={16} />
               <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:600, fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.ink }}>
-                Publicaciones de {platLabel(selectedNetwork)}
+                Publicaciones de {platLabel(currentNetwork)}
               </span>
               <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginLeft:'auto' }}>
-                {selectedPosts.length} visibles
+                {networkPosts.length} visibles
               </span>
             </div>
-            {selectedPosts.length > 0 ? selectedPosts.map((p, i) => {
+            {networkPosts.length > 0 ? networkPosts.map((p, i) => {
               const key = postKey(p, i);
-              const isSelected = key === postKey(selectedPost, selectedPosts.indexOf(selectedPost));
+              const isSelected = key === postKey(selectedPost, networkPosts.indexOf(selectedPost));
               return (
                 <button key={key} onClick={() => setActivePostKey(key)}
                   style={{ display:'grid', gridTemplateColumns:p.thumbnail && !compact ? '76px 1fr' : '1fr', gap:10, width:'100%', padding:'11px 12px', textAlign:'left',
-                    background:isSelected ? 'rgba(176,130,47,0.10)' : C.card, border:0, borderBottom:i<selectedPosts.length-1?'1px solid rgba(33,28,23,0.08)':'none', cursor:'pointer', font:'inherit' }}>
+                    background:isSelected ? 'rgba(176,130,47,0.10)' : C.card, border:0, borderBottom:i<networkPosts.length-1?'1px solid rgba(33,28,23,0.08)':'none', cursor:'pointer', font:'inherit' }}>
                   {p.thumbnail && !compact && (
                     <span style={{ width:76, height:48, borderRadius:3, overflow:'hidden', background:'rgba(33,28,23,0.08)', display:'block' }}>
                       <img src={p.thumbnail} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} loading="lazy" />
