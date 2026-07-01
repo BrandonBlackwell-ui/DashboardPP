@@ -5,9 +5,18 @@ import { C, riskMeta, pill } from '../utils/helpers';
 const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.07 } } };
 const item = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 22 } } };
 
+const MONTHS_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function fmtDateKey(dk) {
+  if (!dk) return '';
+  const d = new Date(dk + 'T12:00:00');
+  if (isNaN(d)) return dk;
+  return `${d.getDate()} ${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`;
+}
+
 export default function PanoramaView({ data, isDesktop }) {
   const resumenTheme = data?.themes?.resumen;
   const ai = resumenTheme?.ai_analysis;
+  const reportDateKey = data?.meta?.latest_ai_report?.date_key || resumenTheme?.sourceThemeKey && data?.meta?.period?.end;
 
   // Fallback if no AI analysis is generated yet
   if (!ai) {
@@ -161,7 +170,7 @@ export default function PanoramaView({ data, isDesktop }) {
       <motion.div variants={item} style={{ display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'space-between', gap:16, marginBottom:24, borderBottom:'1px solid #E3DAC6', paddingBottom:16 }}>
         <div>
           <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.16em', textTransform:'uppercase', color:C.gold, fontWeight:600 }}>
-            Análisis de Crisis y Reputación · IA
+            Análisis de Crisis y Reputación · IA{reportDateKey ? ` · ${fmtDateKey(reportDateKey)}` : ''}
           </div>
           <h1 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:isDesktop ? 34 : 29, lineHeight:1.05, letterSpacing:'-0.025em', color:C.ink, margin:'8px 0 0' }}>
             Panorama General.
