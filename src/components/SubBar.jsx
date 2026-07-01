@@ -37,9 +37,10 @@ function fmtDateKey(dk) {
 export default function SubBar({ tab, pano, date, data, dateOptions, onPanoChange, onDateChange, onOwnedNetChange, ownedNet, isDesktop, panoramaDate, onPanoramaDateChange }) {
   if (tab === 'panorama') return null;
 
-  const isTheme = tab !== 'historico' && tab !== 'reporte' && tab !== 'redes_propias';
+  const isTheme = tab !== 'historico' && tab !== 'reporte' && tab !== 'redes_propias' && tab !== 'social_listening';
   const isHist = tab === 'historico';
   const isOwned = tab === 'redes_propias';
+  const isSL = tab === 'social_listening';
 
   return (
     <div style={{ position:'sticky', top:0, zIndex:30, background:C.sub,
@@ -62,6 +63,17 @@ export default function SubBar({ tab, pano, date, data, dateOptions, onPanoChang
                 <Chip key={n.key} label={n.label} active={ownedNet === n.key} onClick={() => onOwnedNetChange?.(n.key)} />
               ))}
             </div>
+          </motion.div>
+        )}
+
+        {isSL && (
+          <motion.div key="sl"
+            initial={{ opacity:0, y:-6 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-6 }}
+            transition={{ duration:0.2 }}>
+            <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.14em',
+              textTransform:'uppercase', color:'#8A7E6A' }}>
+              {date && date !== 'todas' ? fmtDateKey(date) : 'Última actualización'}
+            </span>
           </motion.div>
         )}
 
