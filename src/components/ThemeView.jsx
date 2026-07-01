@@ -255,15 +255,24 @@ function deriveNetworkPosts(themeData) {
       date:post.time || post.fecha || '',
       metric:post.views ? `${fmtK(post.views)} views` : post.engagement ? `${fmtK(post.engagement)} interacc.` : '',
       likes:post.reactions || post.likes || 0,
-      comments:post.comments || 0,
+      comments:post.comments || post.comments_count || post.scraped_comments?.length || 0,
       shares:post.shares || 0,
       retweets:post.retweets || 0,
       quotes:post.quotes || 0,
       bookmarks:post.bookmarks || 0,
       followers:post.followers || 0,
       type:post.type || '',
-      commentsExtracted:post.commentsExtracted || 0,
-      commentsList:post.commentsList || [],
+      commentsExtracted:post.commentsExtracted || post.scraped_comments?.length || 0,
+      commentsList:(post.commentsList || post.scraped_comments || []).map(c => ({
+        id:c.id,
+        author:c.author || c.username || '',
+        text:c.text || '',
+        publishedTime:c.publishedTime || c.published_time || c.time || '',
+        likes:c.likes || 0,
+        replies:c.replies || 0,
+        views:c.views || 0,
+        url:c.url || '',
+      })),
       thumbnail:post.thumbnail || post.image || post.coverUrl || thumbnailFromUrl(post.url),
     });
   };
@@ -284,7 +293,8 @@ function deriveNetworkPosts(themeData) {
         views: p.views,
         followers: p.followers,
         thumbnail: p.thumbnail,
-        sentiment: p.sentiment
+        sentiment: p.sentiment,
+        scraped_comments: p.scraped_comments || []
       });
     });
     return buckets;

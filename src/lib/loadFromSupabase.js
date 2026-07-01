@@ -222,6 +222,10 @@ function buildThemeFromScrapedData(rep) {
   }
 
   const hasAi = !!aiSentiment;
+  const alertSummary = (ai?.alertas || []).length
+    ? (typeof ai.alertas[0] === 'string' ? ai.alertas[0] : (ai.alertas[0].text || ai.alertas[0].alerta || 'Alertas generadas por IA.'))
+    : '';
+  const totalNetworkPosts = platforms.reduce((sum, p) => sum + (Number(p.posts) || 0), 0) || 1;
 
   return {
     label: rep.theme_label,
@@ -233,7 +237,7 @@ function buildThemeFromScrapedData(rep) {
     totals: { posts: posts.length },
     platforms,
     alertometro: hasAi
-      ? { total: alertPosts.length, analizados: posts.length, nivel: riskLevel, recomendacion: ai.recomendacion_riesgo || '', posts: alertPosts }
+      ? { total: alertPosts.length, analizados: posts.length, nivel: riskLevel, recomendacion: ai.recomendacion_riesgo || alertSummary, posts: alertPosts }
       : { total: 0, analizados: 0, nivel: '', recomendacion: '', posts: [] },
     oportunometro: hasAi
       ? { total: ai.oportunidades?.length || 0, analizados: posts.length, nivel: 'ia', recomendacion: (ai.oportunidades || []).join(' '), posts: oppPosts }
@@ -255,9 +259,12 @@ function buildThemeFromScrapedData(rep) {
       critics: aiVoices.critics.length ? aiVoices.critics : criticsList
     },
     networkStrategy: {
+      title: rep.theme_key === 'redes_propias' ? 'Redes y publicaciones' : 'Mapa por red y aliados',
+      itemLabel: rep.theme_key === 'redes_propias' ? 'PUBLICACIONES' : 'MENCIONES',
       totalPosts: posts.length,
       networks: platforms.map(p => ({
         key: p.name, label: platLabel(p.name), posts: p.posts, comments: p.comments, views: 0, likes: 0,
+        share: Math.round((Number(p.posts) || 0) / totalNetworkPosts * 100),
         sent: p.sent, tone: p.sent.negativo > p.sent.positivo ? 'critica' : 'favorable'
       })),
       allies: aiVoices.allies.length ? aiVoices.allies : alliesList
