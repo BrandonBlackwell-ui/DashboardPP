@@ -315,9 +315,26 @@ async function enrichAndSaveAI(apiKey, themeKey, dateKey, allPostsByTheme) {
   if (!rep?.length) return null;
   const report = rep[0];
 
-  // Load comments from supabase for this report
-  const postRecs = await supabase.from('scraped_posts').select('id').eq('report_id', report.id);
-  const postIds = (postRecs.data || []).map(p => p.id);
+  // Load comments — for resumen: pull from ALL reports of this date (social + propias)
+  let postIds = [];
+  if (themeKey === 'resumen') {
+    const { data: allReps } = await supabase.from('reports').select('id').eq('date_key', dateKey);
+    const allRepIds = (allReps || []).map(r => r.id);
+    if (allRepIds.length) {
+      const { data: allPostRecs } = await supabase.from('scraped_posts').select('id').in('report_id', allRepIds);
+      postIds = (allPostRecs || []).map(p => p.id);
+    }
+    // Also add owned posts to the posts array for the AI prompt
+    const { data: ownedPosts } = await supabase.from('scraped_posts')
+      .select('platform,username,text,url,published_date,likes,comments_count,views')
+      .in('report_id', allRepIds);
+    const ownedOnly = (ownedPosts || []).filter(p => !posts.find(sp => sp.url === p.url));
+    posts = [...posts, ...ownedOnly];
+  } else {
+    const postRecs = await supabase.from('scraped_posts').select('id').eq('report_id', report.id);
+    postIds = (postRecs.data || []).map(p => p.id);
+  }
+
   if (postIds.length) {
     const { data: cmts } = await supabase.from('scraped_comments').select('*').in('post_id', postIds);
     comments = cmts || [];
