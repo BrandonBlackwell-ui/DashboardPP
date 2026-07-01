@@ -1,0 +1,8 @@
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+
+[phases.build]
+cmds = ["echo 'server only — no frontend build'"]
+
+[start]
+cmd = "node scripts/analizar-server.js"
