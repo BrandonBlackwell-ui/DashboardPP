@@ -150,7 +150,7 @@ function VoiceDetail({ v, side, onClose, isDesktop }) {
         {/* Aggregate stats */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 14 }}>
           {[
-            { label: 'Posts totales', value: fmt(v.posts || 0) },
+            { label: 'Posts únicos', value: posts !== null ? fmt(posts.length) : '…' },
             { label: 'Engagement', value: fmtK(v.engagement || 0) },
             { label: 'Comentarios', value: fmt(v.comments || 0) },
           ].map(m => (
@@ -269,13 +269,21 @@ function BarRow({ v, side, maxEng, index, onSelect }) {
         padding: '5px 0', cursor: 'pointer' }}>
 
       {/* Name column */}
-      <div style={{ display:'flex', alignItems:'center', gap:5, width: 150, flex:'none' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:5, width: 160, flex:'none' }}>
         <PlatformIcon platform={v.platform} size={12} />
-        <span style={{ fontFamily:"'Geist',sans-serif", fontSize:12, fontWeight: hovered ? 700 : 500,
-          color: hovered ? accent : C.ink, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
-          flex:1, transition:'all 0.15s' }}>
-          {v.username}
-        </span>
+        <div style={{ flex:1, minWidth:0 }}>
+          <span style={{ fontFamily:"'Geist',sans-serif", fontSize:12, fontWeight: hovered ? 700 : 500,
+            color: hovered ? accent : C.ink, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
+            display:'block', transition:'all 0.15s' }}>
+            {v.username}
+          </span>
+          {v.posts > 0 && (
+            <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:8, color:'#A9997B',
+              letterSpacing:'0.04em', display:'block', lineHeight:1 }}>
+              {v.posts} {v.posts === 1 ? 'post' : 'posts'}
+            </span>
+          )}
+        </div>
         <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:8.5, color: tierColor,
           flex:'none', letterSpacing:'0.04em' }}>{tierLabel}</span>
       </div>
