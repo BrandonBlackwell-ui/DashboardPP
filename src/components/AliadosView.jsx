@@ -90,7 +90,7 @@ function VoiceDetail({ v, side, onClose, isDesktop }) {
         const username = (v.username || '').replace(/^@/, '');
         const { data } = await supabase
           .from('scraped_posts')
-          .select('url, text, platform, published_date, likes, comments_count, shares, views, retweets')
+          .select('url, text, platform, published_date, likes, comments_count, shares, views, retweets, fb_like, fb_love, fb_haha, fb_wow, fb_sad, fb_angry')
           .ilike('username', username)
           .order('published_date', { ascending: false })
           .limit(500);
@@ -230,7 +230,12 @@ function VoiceDetail({ v, side, onClose, isDesktop }) {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px 10px',
                 fontFamily: "'Geist Mono',monospace", fontSize: 9.5,
                 color: '#8A7E6A', textTransform: 'uppercase' }}>
-                {p.likes     ? <span>{fmt(p.likes)} ♥</span> : null}
+                {p.platform === 'facebook' && (p.fb_haha||p.fb_love||p.fb_like||p.fb_wow||p.fb_sad||p.fb_angry)
+                  ? FB_REACTIONS.map(r => {
+                      const n = p[`fb_${r.key}`] || 0;
+                      return n > 0 ? <span key={r.key}>{r.emoji} {fmt(n)} {r.label}</span> : null;
+                    })
+                  : p.likes ? <span>{fmt(p.likes)} {p.platform === 'facebook' ? 'Reacciones' : '♥'}</span> : null}
                 {p.comments_count ? <span>{fmt(p.comments_count)} 💬</span> : null}
                 {p.shares    ? <span>{fmt(p.shares)} ↗</span> : null}
                 {p.retweets  ? <span>{fmt(p.retweets)} RT</span> : null}

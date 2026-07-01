@@ -107,6 +107,12 @@ const normFacebook = (items, from, to) => items.map(p => {
     likes: rx || +(p.like || p.likes || 0),
     comments_count: +(p.comments_count || p.commentsCount || 0),
     shares: +(p.reshare_count || p.shares || 0), retweets:0, views:0,
+    fb_like:  +(p.like || p.likeCount || 0),
+    fb_love:  +(p.love || p.loveCount || 0),
+    fb_haha:  +(p.haha || p.hahaCount || 0),
+    fb_wow:   +(p.wow  || p.wowCount  || 0),
+    fb_sad:   +(p.sad  || p.sadCount  || 0),
+    fb_angry: +(p.angry|| p.angryCount|| 0),
   };
 }).filter(p => p.text && p.url && inDate(p.published_date, from, to) && isRelevant(p.text));
 

@@ -262,6 +262,12 @@ function deriveNetworkPosts(themeData) {
       bookmarks:post.bookmarks || 0,
       followers:post.followers || 0,
       type:post.type || '',
+      fbLike: post.fb_like || post.like || 0,
+      fbLove: post.fb_love || post.love || 0,
+      fbHaha: post.fb_haha || post.haha || 0,
+      fbWow:  post.fb_wow  || post.wow  || 0,
+      fbSad:  post.fb_sad  || post.sad  || 0,
+      fbAngry:post.fb_angry|| post.angry|| 0,
       commentsExtracted:post.commentsExtracted || post.scraped_comments?.length || 0,
       commentsList:(post.commentsList || post.scraped_comments || []).map(c => ({
         id:c.id,
@@ -707,7 +713,11 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                   <span style={{ minWidth:0 }}>
                     <span style={{ display:'block', fontSize:13.5, lineHeight:1.35, color:C.ink }}>{p.text || p.url}</span>
                     <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', marginTop:5, textTransform:'uppercase' }}>
-                      {[p.username, p.metric, p.likes ? `${fmt(p.likes)} Me gusta` : '', p.comments ? `${fmt(p.comments)} com.` : '', p.shares ? `${fmt(p.shares)} compartidos` : '', p.bookmarks ? `${fmt(p.bookmarks)} guardados` : '', formatSpanishDate(p.date)].filter(Boolean).join(' - ')}
+                      {[p.username, p.metric,
+                        p.platform === 'facebook' && (p.fbHaha||p.fbLove||p.fbLike||p.fbWow||p.fbSad||p.fbAngry)
+                          ? [p.fbHaha?`😂${fmt(p.fbHaha)}`:'', p.fbLove?`❤️${fmt(p.fbLove)}`:'', p.fbLike?`👍${fmt(p.fbLike)}`:'', p.fbWow?`😮${fmt(p.fbWow)}`:'', p.fbSad?`😢${fmt(p.fbSad)}`:'', p.fbAngry?`😡${fmt(p.fbAngry)}`:''].filter(Boolean).join(' ')
+                          : p.likes ? `${fmt(p.likes)} Me gusta` : '',
+                        p.comments ? `${fmt(p.comments)} com.` : '', p.shares ? `${fmt(p.shares)} compartidos` : '', p.bookmarks ? `${fmt(p.bookmarks)} guardados` : '', formatSpanishDate(p.date)].filter(Boolean).join(' - ')}
                     </span>
                   </span>
                 </button>
@@ -738,7 +748,9 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                   <p style={{ fontSize:14.5, lineHeight:1.5, color:C.ink, margin:'0 0 10px', wordBreak:'break-word' }}>{selectedPost.text || selectedPost.url}</p>
                   <div style={{ display:'flex', flexWrap:'wrap', gap:'5px 10px', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', textTransform:'uppercase' }}>
                     {selectedPost.username && <span style={{ fontWeight:600, color:C.goldDeep }}>@{selectedPost.username}</span>}
-                    {selectedPost.likes ? <span>{fmt(selectedPost.likes)} Me gusta</span> : null}
+                    {selectedPost.platform === 'facebook' && (selectedPost.fbHaha||selectedPost.fbLove||selectedPost.fbLike||selectedPost.fbWow||selectedPost.fbSad||selectedPost.fbAngry)
+                      ? [['😂','Jaja',selectedPost.fbHaha],['❤️','Me encanta',selectedPost.fbLove],['👍','Me gusta',selectedPost.fbLike],['😮','Asombro',selectedPost.fbWow],['😢','Tristeza',selectedPost.fbSad],['😡','Enojo',selectedPost.fbAngry]].filter(([,,n])=>n>0).map(([e,l,n])=><span key={l}>{e} {fmt(n)} {l}</span>)
+                      : selectedPost.likes ? <span>{fmt(selectedPost.likes)} Me gusta</span> : null}
                     {selectedPost.comments ? <span>{fmt(selectedPost.comments)} comentarios</span> : null}
                     {selectedPost.commentsExtracted ? <span>{fmt(selectedPost.commentsExtracted)} extraídos</span> : null}
                     {selectedPost.shares ? <span>{fmt(selectedPost.shares)} compartidos</span> : null}
