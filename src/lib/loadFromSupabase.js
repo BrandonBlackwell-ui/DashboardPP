@@ -189,19 +189,28 @@ function buildThemeFromScrapedData(rep) {
   }
 
   // 4. Voices (Allies/Critics)
-  // Build lookup from AI analysis voices (has text/impact but no metrics)
+  // Normalize username: strip leading @, lowercase
+  const normKey = (u) => (u || '').toLowerCase().trim().replace(/^@/, '');
+
+  // Build lookups indexed by normalized username
   const aiVoiceMap = {};
   [...(aiVoices.allies || []), ...(aiVoices.critics || [])].forEach(v => {
-    const key = (v.username || '').toLowerCase().trim();
+    const key = normKey(v.username);
     if (key) aiVoiceMap[key] = v;
   });
 
-  // Merge table data (real metrics) with AI narrative (text, impact)
+  const tableVoiceMap = {};
+  voicesList.forEach(v => {
+    const key = normKey(v.username);
+    if (key) tableVoiceMap[key] = v;
+  });
+
+  // Merge a table row with AI narrative
   const mergeVoice = (v) => {
-    const key = (v.username || '').toLowerCase().trim();
+    const key = normKey(v.username);
     const aiV = aiVoiceMap[key] || {};
     return {
-      username: v.username, platform: v.platform,
+      username: v.username, platform: v.platform || aiV.platform || '',
       followers: v.followers || 0,
       url: v.profile_url || '',
       posts: v.posts_count || 0,
@@ -216,9 +225,48 @@ function buildThemeFromScrapedData(rep) {
     };
   };
 
+  // Enrich an AI-only entry with table metrics when available (never show 0-data entries)
+  const enrichAiVoice = (v, sentiment) => {
+    const key = normKey(v.username);
+    const tbl = tableVoiceMap[key];
+    if (!tbl) return null; // no table data → skip, don't show ghost entry
+    return {
+      username: tbl.username || v.username,
+      platform: tbl.platform || v.platform || '',
+      followers: tbl.followers || v.followers || 0,
+      url: tbl.profile_url || v.url || '',
+      posts: tbl.posts_count || 0,
+      likes: tbl.likes_count || v.likes || 0,
+      comments: tbl.comments_count || v.comments || 0,
+      engagement: tbl.total_engagement || v.engagement || 0,
+      tier: tbl.tier || v.tier || 'micro',
+      sentiment,
+      keywords: tbl.keywords?.length ? tbl.keywords : (v.keywords || []),
+      text: v.text || '',
+      impact: v.impact || '',
+    };
+  };
+
   const byScore = (a, b) => (b.engagement + b.followers * 0.1) - (a.engagement + a.followers * 0.1);
-  const alliesList = voicesList.filter(v => v.sentiment !== 'negative').map(mergeVoice).sort(byScore);
-  const criticsList = voicesList.filter(v => v.sentiment === 'negative').map(mergeVoice).sort(byScore);
+
+  // Primary: use table classification + AI narrative
+  let alliesList = voicesList.filter(v => v.sentiment !== 'negative').map(mergeVoice).sort(byScore);
+  let criticsList = voicesList.filter(v => v.sentiment === 'negative').map(mergeVoice).sort(byScore);
+
+  // If AI identified critics not in table as negative, enrich and add them only if table data exists
+  if (criticsList.length === 0 && aiVoices.critics?.length) {
+    criticsList = aiVoices.critics
+      .map(v => enrichAiVoice(v, 'negative'))
+      .filter(Boolean)
+      .sort(byScore);
+  }
+  // Same for allies fallback
+  if (alliesList.length === 0 && aiVoices.allies?.length) {
+    alliesList = aiVoices.allies
+      .map(v => enrichAiVoice(v, 'positive'))
+      .filter(Boolean)
+      .sort(byScore);
+  }
 
   if (aiSentiment) {
     posPct = aiSentiment.pos;
