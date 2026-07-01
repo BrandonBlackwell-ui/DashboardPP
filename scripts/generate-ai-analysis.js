@@ -11,6 +11,7 @@ function parseArgs() {
     apiKey: args.find(a => !a.startsWith('--')) || process.env.OPENROUTER_API_KEY,
     themeKey: args.find(a => a.startsWith('--theme='))?.split('=')[1] || '',
     reportId: args.find(a => a.startsWith('--report='))?.split('=')[1] || '',
+    model: args.find(a => a.startsWith('--model='))?.split('=')[1] || '',
   };
 }
 
@@ -152,12 +153,23 @@ async function fetchReportData(report) {
   return { posts: posts || [], comments, voices: voices || [] };
 }
 
-async function callOpenRouter({ apiKey, prompt }) {
-  const models = [
-    'anthropic/claude-opus-4.6',
-    'anthropic/claude-3.5-sonnet',
+function modelsForReport({ report, overrideModel }) {
+  if (overrideModel) return [overrideModel];
+  if (report.theme_key === 'resumen') {
+    return [
+      'anthropic/claude-opus-4.6',
+      'anthropic/claude-3.5-sonnet',
+      'google/gemini-3.1-flash-lite',
+    ];
+  }
+  return [
+    'google/gemini-3.1-flash-lite',
     'google/gemini-2.5-flash',
+    'anthropic/claude-3.5-sonnet',
   ];
+}
+
+async function callOpenRouter({ apiKey, prompt, models }) {
 
   for (const model of models) {
     console.log(`Solicitando analisis a ${model}...`);
@@ -208,7 +220,9 @@ async function run() {
   console.log(`Reporte: ${report.theme_key} ${report.date_key}. Datos: ${posts.length} posts, ${comments.length} comentarios, ${voices.length} voces.`);
 
   const prompt = buildPrompt(buildDataPrompt({ report, posts, comments, voices }));
-  const { model, analysis } = await callOpenRouter({ apiKey: args.apiKey, prompt });
+  const models = modelsForReport({ report, overrideModel: args.model });
+  console.log(`Ruta de modelo: ${report.theme_key === 'resumen' ? 'resumen global' : 'red individual'} -> ${models[0]}`);
+  const { model, analysis } = await callOpenRouter({ apiKey: args.apiKey, prompt, models });
 
   const { error } = await supabase
     .from('reports')
