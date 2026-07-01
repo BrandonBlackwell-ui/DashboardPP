@@ -96,9 +96,8 @@ export default function App() {
         const dayKeys = Object.keys(window.CALENDAR_DATA.days).sort();
         const latestKey = dayKeys.pop();
         if (latestKey) {
-          const latestDay = latestKey.slice(8);
-          setDate(latestDay);
-          setPanoramaDate(latestDay);
+          setDate(latestKey);
+          setPanoramaDate(latestKey);
         }
       }
       refreshData();
@@ -215,7 +214,7 @@ export default function App() {
       if (window.PA_DATA?.themes?.[tab] && !todasCache.current[tab]) {
         todasCache.current[tab] = window.PA_DATA.themes[tab];
       }
-      const dateKey = `2026-06-${newDate}`;
+      const dateKey = newDate; // full ISO date key e.g. 2026-07-01
       const loaded = LOCAL_APIFY_MODE
         ? !!window.PA_DATA?.themes?.[tab]
         : await loadThemeByDate(tab, dateKey);
@@ -230,41 +229,40 @@ export default function App() {
 
   const isTheme = !['panorama','historico','aliados','reporte','social_listening'].includes(tab);
 
-  // Build date options dynamically from calData (last 7 days with any data, most recent first)
+  // Build date options from calData — keys are full ISO dates (2026-07-01), labels are dynamic
+  const MONTH_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   const dateOptions = (() => {
     if (!calData) return [['todas', 'Todas']];
-    const dayKeys = Object.keys(calData.days).sort(); // Sort chronological
-    const optsMap = new Map(); // key -> label
-    
+    const dayKeys = Object.keys(calData.days).sort();
+    const optsMap = new Map();
+
     dayKeys.forEach(dk => {
       const dateObj = new Date(dk + 'T12:00:00');
       const dayOfWeek = dateObj.getDay();
       const dayInt = parseInt(dk.slice(8), 10);
-      
-      if (dayOfWeek === 5) { // Friday
-        const key = String(dayInt).padStart(2, '0');
-        optsMap.set(key, `${dayInt}-${dayInt + 2} jun`);
-      } else if (dayOfWeek === 6) { // Saturday
-        const key = String(dayInt - 1).padStart(2, '0');
-        optsMap.set(key, `${dayInt - 1}-${dayInt + 1} jun`);
-      } else if (dayOfWeek === 0) { // Sunday
-        const key = String(dayInt - 2).padStart(2, '0');
-        optsMap.set(key, `${dayInt - 2}-${dayInt} jun`);
+      const mon = MONTH_ES[dateObj.getMonth()];
+
+      if (dayOfWeek === 5) {
+        optsMap.set(dk, `${dayInt}-${dayInt + 2} ${mon}`);
+      } else if (dayOfWeek === 6) {
+        const fridayKey = new Date(dateObj); fridayKey.setDate(fridayKey.getDate() - 1);
+        const fdk = fridayKey.toISOString().slice(0,10);
+        optsMap.set(fdk, `${dayInt - 1}-${dayInt + 1} ${mon}`);
+      } else if (dayOfWeek === 0) {
+        const fridayKey = new Date(dateObj); fridayKey.setDate(fridayKey.getDate() - 2);
+        const fdk = fridayKey.toISOString().slice(0,10);
+        optsMap.set(fdk, `${dayInt - 2}-${dayInt} ${mon}`);
       } else {
-        const key = String(dayInt).padStart(2, '0');
-        optsMap.set(key, `${dayInt} jun`);
+        optsMap.set(dk, `${dayInt} ${mon}`);
       }
     });
 
-    const allOpts = Array.from(optsMap.entries()); // array of [key, label]
-    // Get last 7 options
-    const sliced = allOpts.slice(-7);
-    const opts = [['todas', 'Todas'], ...sliced];
+    const allOpts = Array.from(optsMap.entries()).slice(-7);
+    const opts = [['todas', 'Todas'], ...allOpts];
 
-    // Ensure current date is included if not already
     if (date !== 'todas' && !opts.find(([k]) => k === date)) {
-      const dayInt = parseInt(date, 10);
-      opts.splice(1, 0, [date, `${dayInt} jun`]);
+      const d = new Date(date + 'T12:00:00');
+      opts.splice(1, 0, [date, `${d.getDate()} ${MONTH_ES[d.getMonth()]}`]);
     }
     return opts;
   })();
@@ -281,8 +279,8 @@ export default function App() {
           {isTheme && (
             <motion.div key={tab} initial={{ opacity:0, x:24 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-24 }} transition={{ duration:0.22 }}>
               <ThemeView tab={tab} date={date} plat={plat} data={data} isDesktop={isDesktop}
-                noData={date !== 'todas' && !!window.SUPABASE_KEYS && !window.SUPABASE_KEYS.has(`${tab}:2026-06-${date}`) && !calData?.days?.[`2026-06-${date}`]?.[tab]}
-                calendarSummary={date !== 'todas' && !!window.SUPABASE_KEYS && !window.SUPABASE_KEYS.has(`${tab}:2026-06-${date}`) && !!calData?.days?.[`2026-06-${date}`]?.[tab]} />
+                noData={date !== 'todas' && !!window.SUPABASE_KEYS && !window.SUPABASE_KEYS.has(`${tab}:${date}`) && !calData?.days?.[date]?.[tab]}
+                calendarSummary={date !== 'todas' && !!window.SUPABASE_KEYS && !window.SUPABASE_KEYS.has(`${tab}:${date}`) && !!calData?.days?.[date]?.[tab]} />
             </motion.div>
           )}
           {tab==='historico' && (
@@ -300,8 +298,8 @@ export default function App() {
               <SocialListeningView
                 activeNet={socialNet} onNetChange={handleSocialNetChange}
                 date={date} plat={plat} data={data} isDesktop={isDesktop}
-                noData={date !== 'todas' && !!window.SUPABASE_KEYS && !window.SUPABASE_KEYS.has(`${socialNet}:2026-06-${date}`) && !calData?.days?.[`2026-06-${date}`]?.[socialNet]}
-                calendarSummary={date !== 'todas' && !!window.SUPABASE_KEYS && !window.SUPABASE_KEYS.has(`${socialNet}:2026-06-${date}`) && !!calData?.days?.[`2026-06-${date}`]?.[socialNet]} />
+                noData={date !== 'todas' && !!window.SUPABASE_KEYS && !window.SUPABASE_KEYS.has(`${socialNet}:${date}`) && !calData?.days?.[date]?.[socialNet]}
+                calendarSummary={date !== 'todas' && !!window.SUPABASE_KEYS && !window.SUPABASE_KEYS.has(`${socialNet}:${date}`) && !!calData?.days?.[date]?.[socialNet]} />
             </motion.div>
           )}
           {tab==='reporte' && (
