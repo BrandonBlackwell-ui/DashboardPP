@@ -892,8 +892,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                     <span style={{ ...pill(tierInk, tierBg, tierBd), flexShrink:0 }}>{tierLabel}</span>
                   </div>
                   <div style={{ display:'flex', flexWrap:'wrap', gap:'4px 8px', fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', textTransform:'uppercase', marginBottom:5 }}>
-                    {v.followers ? <span>{fmtK(v.followers)} seg.</span> : null}
-                    {v.posts > 0 && <span>{v.posts} {v.posts === 1 ? 'post' : 'posts'}</span>}
+                    <span>{v.posts || 0} {(v.posts || 0) === 1 ? 'publicación' : 'publicaciones'}</span>
                     {v.likes ? <span>👍 {fmt(v.likes)}</span> : null}
                     {v.comments ? <span>💬 {fmt(v.comments)}</span> : null}
                     {v.engagement ? <span style={{ color:C.goldDeep, fontWeight:600 }}>Alcance: {fmt(v.engagement)}</span> : null}
