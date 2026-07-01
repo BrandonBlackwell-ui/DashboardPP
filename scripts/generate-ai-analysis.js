@@ -209,6 +209,57 @@ async function callOpenRouter({ apiKey, prompt, models }) {
   throw new Error('Todos los modelos fallaron');
 }
 
+// Enrich AI-identified allies/critics with real metrics from Apify scraped posts
+// The AI names who they are; we fill in the numbers directly from the source data.
+function enrichVoicesWithRealMetrics(analysis, posts, voices) {
+  // Build lookup: username (lowercase) -> real metrics from scraped posts
+  const postMetrics = {};
+  for (const p of posts) {
+    const key = (p.username || '').toLowerCase().trim().replace(/^@/, '');
+    if (!key) continue;
+    if (!postMetrics[key]) {
+      postMetrics[key] = { followers: 0, likes: 0, comments: 0, views: 0, engagement: 0 };
+    }
+    const m = postMetrics[key];
+    m.likes += Number(p.likes || 0);
+    m.comments += Number(p.comments_count || 0);
+    m.views += Number(p.views || 0);
+    m.followers = Math.max(m.followers, Number(p.followers || p.author_followers || 0));
+    m.engagement = m.likes + m.comments * 2 + m.views * 0.01;
+  }
+  // Also pull from pre-existing voices table (has follower data for TikTok etc.)
+  for (const v of voices) {
+    const key = (v.username || '').toLowerCase().trim().replace(/^@/, '');
+    if (!key) continue;
+    if (!postMetrics[key]) postMetrics[key] = { followers: 0, likes: 0, comments: 0, views: 0, engagement: 0 };
+    const m = postMetrics[key];
+    m.followers = Math.max(m.followers, Number(v.followers || 0));
+    if (!m.likes) m.likes = Number(v.likes_count || 0);
+    if (!m.engagement) m.engagement = Number(v.total_engagement || 0);
+  }
+
+  const enrich = (entry) => {
+    const key = (entry.username || '').toLowerCase().trim().replace(/^@/, '');
+    const m = postMetrics[key] || {};
+    return {
+      ...entry,
+      followers: m.followers || entry.followers || 0,
+      likes: m.likes || entry.likes || 0,
+      comments: m.comments || entry.comments || 0,
+      views: m.views || entry.views || 0,
+      engagement: m.engagement || entry.engagement || 0,
+    };
+  };
+
+  if (analysis.analisis_voces?.aliados_destacados) {
+    analysis.analisis_voces.aliados_destacados = analysis.analisis_voces.aliados_destacados.map(enrich);
+  }
+  if (analysis.analisis_voces?.criticos_destacados) {
+    analysis.analisis_voces.criticos_destacados = analysis.analisis_voces.criticos_destacados.map(enrich);
+  }
+  return analysis;
+}
+
 async function run() {
   const args = parseArgs();
   if (!args.apiKey) {
@@ -222,7 +273,17 @@ async function run() {
   const prompt = buildPrompt(buildDataPrompt({ report, posts, comments, voices }));
   const models = modelsForReport({ report, overrideModel: args.model });
   console.log(`Ruta de modelo: ${report.theme_key === 'resumen' ? 'resumen global' : 'red individual'} -> ${models[0]}`);
-  const { model, analysis } = await callOpenRouter({ apiKey: args.apiKey, prompt, models });
+  const { model, analysis: rawAnalysis } = await callOpenRouter({ apiKey: args.apiKey, prompt, models });
+
+  // Enrich AI voice entries with real Apify metrics (the AI names them, we fill the numbers)
+  const analysis = enrichVoicesWithRealMetrics(rawAnalysis, posts, voices);
+
+  const enrichedAllies = analysis.analisis_voces?.aliados_destacados || [];
+  const enrichedCritics = analysis.analisis_voces?.criticos_destacados || [];
+  console.log(`Metricas reales inyectadas en ${enrichedAllies.length} aliados y ${enrichedCritics.length} criticos.`);
+  enrichedAllies.concat(enrichedCritics).forEach(v => {
+    console.log(`  ${v.username}: followers=${v.followers} likes=${v.likes} engagement=${Math.round(v.engagement)}`);
+  });
 
   const { error } = await supabase
     .from('reports')
@@ -237,8 +298,8 @@ async function run() {
     date_key: report.date_key,
     sentimiento: analysis.sentimiento,
     nivel_riesgo: analysis.nivel_riesgo,
-    aliados: analysis.analisis_voces?.aliados_destacados?.length || 0,
-    criticos: analysis.analisis_voces?.criticos_destacados?.length || 0,
+    aliados: enrichedAllies.length,
+    criticos: enrichedCritics.length,
   }, null, 2));
 }
 
