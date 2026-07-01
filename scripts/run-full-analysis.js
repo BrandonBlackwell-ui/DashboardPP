@@ -453,51 +453,42 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
 
   const commentJobs = [];
 
-  const ownedIgPosts  = selectTopPosts(ownedPostsByPlatform.instagram);
-  const ownedFbPosts  = selectTopPosts(ownedPostsByPlatform.facebook);
-  const ownedTtPosts  = selectTopPosts(ownedPostsByPlatform.tiktok);
-  const ownedYtPosts  = selectTopPosts(ownedPostsByPlatform.youtube);
-  const ownedXPosts   = selectTopPosts(ownedPostsByPlatform.x);
+  const addCommentJob = (label, posts, actorId, inputFn, maxCharge, normFn) => {
+    if (!posts.length) return;
+    commentJobs.push(
+      Promise.allSettled(posts.map(p =>
+        runActor(apifyToken, actorId, inputFn(p), maxCharge, `cmnt_${label}`)
+          .then(items => {
+            const normed = normFn(items);
+            emit({ type:'comments_scraped', net:label, url:p.url, count:normed.length });
+            summary.comments[label] = (summary.comments[label] || 0) + normed.length;
+            return insertComments(p.id, normed);
+          })
+          .catch(e => emit({ type:'error', msg:`cmnt_${label}: ${e.message}` }))
+      ))
+    );
+  };
 
-  if (ownedIgPosts.length) commentJobs.push(
-    Promise.allSettled(ownedIgPosts.map(p =>
-      runActor(apifyToken, 'apify/instagram-comment-scraper',
-        { directUrls:[p.url], resultsLimit:20, includeNestedComments:false }, 0.08, 'cmnt_ig')
-      .then(items => insertComments(p.id, normCommentIG(items)))
-    ))
-  );
+  const ownedIgPosts = selectTopPosts(ownedPostsByPlatform.instagram);
+  const ownedFbPosts = selectTopPosts(ownedPostsByPlatform.facebook);
+  const ownedTtPosts = selectTopPosts(ownedPostsByPlatform.tiktok);
+  const ownedYtPosts = selectTopPosts(ownedPostsByPlatform.youtube);
+  const ownedXPosts  = selectTopPosts(ownedPostsByPlatform.x);
 
-  if (ownedFbPosts.length) commentJobs.push(
-    Promise.allSettled(ownedFbPosts.map(p =>
-      runActor(apifyToken, 'apify/facebook-comments-scraper',
-        { startUrls:[{url:p.url}], resultsLimit:20, includeNestedComments:false }, 0.05, 'cmnt_fb')
-      .then(items => insertComments(p.id, normCommentFB(items)))
-    ))
-  );
+  addCommentJob('owned_ig', ownedIgPosts, 'apify/instagram-comment-scraper',
+    p => ({ directUrls:[p.url], resultsLimit:20, includeNestedComments:false }), 0.08, normCommentIG);
 
-  if (ownedTtPosts.length) commentJobs.push(
-    Promise.allSettled(ownedTtPosts.map(p =>
-      runActor(apifyToken, 'clockworks/tiktok-comments-scraper',
-        { postURLs:[p.url], commentsPerPost:20, maxRepliesPerComment:0 }, 0.05, 'cmnt_tt')
-      .then(items => insertComments(p.id, normCommentTT(items)))
-    ))
-  );
+  addCommentJob('owned_fb', ownedFbPosts, 'apify/facebook-comments-scraper',
+    p => ({ startUrls:[{url:p.url}], resultsLimit:20, includeNestedComments:false }), 0.05, normCommentFB);
 
-  if (ownedYtPosts.length) commentJobs.push(
-    Promise.allSettled(ownedYtPosts.map(p =>
-      runActor(apifyToken, 'apidojo/youtube-comments-scraper',
-        { startUrls:[p.url], sort:'latest', maxItems:20, includeReplies:false }, 0.03, 'cmnt_yt')
-      .then(items => insertComments(p.id, normCommentYT(items)))
-    ))
-  );
+  addCommentJob('owned_tt', ownedTtPosts, 'clockworks/tiktok-comments-scraper',
+    p => ({ postURLs:[p.url], commentsPerPost:20, maxRepliesPerComment:0 }), 0.05, normCommentTT);
 
-  if (ownedXPosts.length) commentJobs.push(
-    Promise.allSettled(ownedXPosts.map(p =>
-      runActor(apifyToken, 'scraper_one/x-post-replies-scraper',
-        { postUrls:[p.url], maxItems:20 }, 0.05, 'cmnt_x')
-      .then(items => insertComments(p.id, normCommentX(items)))
-    ))
-  );
+  addCommentJob('owned_yt', ownedYtPosts, 'apidojo/youtube-comments-scraper',
+    p => ({ startUrls:[p.url], sort:'latest', maxItems:20, includeReplies:false }), 0.03, normCommentYT);
+
+  addCommentJob('owned_x', ownedXPosts, 'scraper_one/x-post-replies-scraper',
+    p => ({ postUrls:[p.url], maxItems:20 }), 0.05, normCommentX);
 
   // También: top posts de social listening por comentarios (FB, IG, TikTok)
   const selectTopByComments = (posts, n=3) =>
@@ -507,29 +498,14 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
   const slIgPosts  = selectTopByComments(allSavedPosts.instagram);
   const slTtPosts  = selectTopByComments(allSavedPosts.tiktok);
 
-  if (slFbPosts.length) commentJobs.push(
-    Promise.allSettled(slFbPosts.map(p =>
-      runActor(apifyToken, 'apify/facebook-comments-scraper',
-        { startUrls:[{url:p.url}], resultsLimit:20, includeNestedComments:false }, 0.05, 'cmnt_sl_fb')
-      .then(items => insertComments(p.id, normCommentFB(items)))
-    ))
-  );
+  addCommentJob('sl_fb', slFbPosts, 'apify/facebook-comments-scraper',
+    p => ({ startUrls:[{url:p.url}], resultsLimit:20, includeNestedComments:false }), 0.05, normCommentFB);
 
-  if (slIgPosts.length) commentJobs.push(
-    Promise.allSettled(slIgPosts.map(p =>
-      runActor(apifyToken, 'apify/instagram-comment-scraper',
-        { directUrls:[p.url], resultsLimit:20, includeNestedComments:false }, 0.08, 'cmnt_sl_ig')
-      .then(items => insertComments(p.id, normCommentIG(items)))
-    ))
-  );
+  addCommentJob('sl_ig', slIgPosts, 'apify/instagram-comment-scraper',
+    p => ({ directUrls:[p.url], resultsLimit:20, includeNestedComments:false }), 0.08, normCommentIG);
 
-  if (slTtPosts.length) commentJobs.push(
-    Promise.allSettled(slTtPosts.map(p =>
-      runActor(apifyToken, 'clockworks/tiktok-comments-scraper',
-        { postURLs:[p.url], commentsPerPost:20, maxRepliesPerComment:0 }, 0.05, 'cmnt_sl_tt')
-      .then(items => insertComments(p.id, normCommentTT(items)))
-    ))
-  );
+  addCommentJob('sl_tt', slTtPosts, 'clockworks/tiktok-comments-scraper',
+    p => ({ postURLs:[p.url], commentsPerPost:20, maxRepliesPerComment:0 }), 0.05, normCommentTT);
 
   await Promise.allSettled(commentJobs);
   emit({ type:'phase_done', phase:'B', msg:'Comentarios guardados (propios + social listening).' });
