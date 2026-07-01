@@ -579,51 +579,67 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
 
         if (isPublicListening) {
           return (
-            <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, overflow:'hidden', marginTop:10 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', background:'rgba(33,28,23,0.04)', borderBottom:'1px solid rgba(33,28,23,0.10)' }}>
-                {activeNetwork ? <PlatformIcon platform={activeNetwork} size={16} /> : <span style={{ fontSize:12 }}>💬</span>}
+            <div style={{ marginTop:10 }}>
+              {/* Header bar */}
+              <div style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 4px', marginBottom:10 }}>
+                {activeNetwork ? <PlatformIcon platform={activeNetwork} size={16} /> : null}
                 <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:600, fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.ink }}>
-                  {activeNetwork ? `Publicaciones de ${platLabel(activeNetwork)}` : 'Publicaciones relevantes (Todas las redes - Ordenadas por Impacto)'}
+                  {activeNetwork ? `${platLabel(activeNetwork)}` : 'Todas las redes'}
                 </span>
-                <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginLeft:'auto' }}>
-                  {selectedPosts.length} visibles
+                <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A' }}>
+                  · {selectedPosts.length} publicaciones
                 </span>
               </div>
-              {selectedPosts.length > 0 ? selectedPosts.map((p, i) => {
-                const key = postKey(p, i);
-                return (
-                  <div key={key}
-                    style={{ display:'grid', gridTemplateColumns:p.thumbnail && !compact ? '120px 1fr auto' : '1fr auto', gap:16, width:'100%', padding:'16px', textAlign:'left',
-                      background:C.card, borderBottom:i<selectedPosts.length-1?'1px solid rgba(33,28,23,0.08)':'none', alignItems:'start' }}>
-                    {p.thumbnail && !compact && (
-                      <a href={p.url || undefined} target={p.url ? '_blank' : undefined} rel={p.url ? 'noopener noreferrer' : undefined}
-                        style={{ width:120, height:80, borderRadius:3, overflow:'hidden', background:'rgba(33,28,23,0.08)', display:'block', flexShrink: 0 }}>
-                        <img src={p.thumbnail} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} loading="lazy" />
-                      </a>
-                    )}
-                    <div style={{ minWidth:0 }}>
-                      <div style={{ fontSize:14.5, lineHeight:1.45, color:C.ink, wordBreak:'break-word' }}>
-                        {p.text || '[Sin texto]'}
+              {/* Post cards grid */}
+              {selectedPosts.length > 0 ? (
+                <div style={{ display:'grid', gridTemplateColumns: compact || !isDesktop ? '1fr' : 'repeat(2, minmax(0,1fr))', gap:8 }}>
+                  {selectedPosts.map((p, i) => {
+                    const key = postKey(p, i);
+                    const engagement = (p.likes||0) + (p.comments||0)*2 + (p.shares||0)*3;
+                    const engHigh = engagement > 1000;
+                    return (
+                      <div key={key} style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, overflow:'hidden', display:'flex', flexDirection:'column' }}>
+                        {/* Thumbnail */}
+                        {p.thumbnail && (
+                          <a href={p.url || undefined} target={p.url ? '_blank' : undefined} rel="noopener noreferrer"
+                            style={{ display:'block', width:'100%', height:140, overflow:'hidden', background:'rgba(33,28,23,0.06)', flexShrink:0 }}>
+                            <img src={p.thumbnail} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} loading="lazy" />
+                          </a>
+                        )}
+                        {/* Body */}
+                        <div style={{ padding:'12px 14px', flex:1, display:'flex', flexDirection:'column', gap:8 }}>
+                          {/* Author row */}
+                          <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+                            <PlatformIcon platform={p.platform} size={13} />
+                            {p.username && <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:700, fontSize:10.5, color:C.goldDeep, textTransform:'uppercase', letterSpacing:'0.06em', flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>@{p.username}</span>}
+                            {p.date && <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, color:'#8A7E6A', flexShrink:0 }}>{formatSpanishDate(p.date)}</span>}
+                          </div>
+                          {/* Text */}
+                          <p style={{ fontSize:13.5, lineHeight:1.45, color:C.ink, margin:0, wordBreak:'break-word',
+                            display:'-webkit-box', WebkitLineClamp:4, WebkitBoxOrient:'vertical', overflow:'hidden' }}>
+                            {p.text || '[Sin texto]'}
+                          </p>
+                          {/* Metrics + link */}
+                          <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:'auto' }}>
+                            <div style={{ display:'flex', flexWrap:'wrap', gap:'4px 10px', fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', textTransform:'uppercase', flex:1 }}>
+                              {p.likes ? <span style={{ color: engHigh ? C.goldDeep : '#8A7E6A', fontWeight: engHigh ? 700 : 400 }}>{fmt(p.likes)} ♥</span> : null}
+                              {p.comments ? <span>{fmt(p.comments)} 💬</span> : null}
+                              {p.shares ? <span>{fmt(p.shares)} ↗</span> : null}
+                              {p.metric ? <span>{p.metric}</span> : null}
+                            </div>
+                            {p.url && (
+                              <a href={p.url} target="_blank" rel="noopener"
+                                style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:C.goldDeep, fontWeight:700, textDecoration:'none', padding:'5px 10px', border:'1px solid rgba(176,130,47,0.3)', borderRadius:2, whiteSpace:'nowrap', flexShrink:0 }}>
+                                ABRIR ↗
+                              </a>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div style={{ display:'flex', flexWrap:'wrap', gap:'6px 12px', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:8, textTransform:'uppercase', lineHeight:1.4, alignItems:'center' }}>
-                        <PlatformIcon platform={p.platform} size={12} />
-                        {p.username && <span style={{ fontWeight:600, color:C.goldDeep }}>@{p.username}</span>}
-                        {p.likes ? <span>{fmt(p.likes)} Me gusta</span> : null}
-                        {p.comments ? <span>{fmt(p.comments)} com.</span> : null}
-                        {p.shares ? <span>{fmt(p.shares)} compartidos</span> : null}
-                        {p.metric ? <span>{p.metric}</span> : null}
-                        {p.date && <span>{formatSpanishDate(p.date)}</span>}
-                      </div>
-                    </div>
-                    {p.url && (
-                      <a href={p.url} target="_blank" rel="noopener" 
-                        style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:C.goldDeep, fontWeight:700, textDecoration:'none', alignSelf:'center', padding:'6px 12px', border:'1px solid rgba(176,130,47,0.3)', borderRadius:2, whiteSpace: 'nowrap' }}>
-                        ABRIR
-                      </a>
-                    )}
-                  </div>
-                );
-              }) : (
+                    );
+                  })}
+                </div>
+              ) : (
                 <div style={{ padding:'12px', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', textTransform:'uppercase' }}>
                   No hay publicaciones para esta red.
                 </div>
