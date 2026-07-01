@@ -9,6 +9,7 @@ import PanoramaView from './components/PanoramaView';
 import ThemeView from './components/ThemeView';
 import CalendarView from './components/CalendarView';
 import ReporteView from './components/ReporteView';
+import AliadosView from './components/AliadosView';
 import ExportModal from './components/ExportModal';
 import LoginGate from './components/LoginGate';
 import { loadFromSupabase, loadThemeByDate } from './lib/loadFromSupabase';
@@ -143,7 +144,7 @@ export default function App() {
   }
 
   async function handleTabChange(t) {
-    if (t === 'panorama' || t === 'historico' || t === 'reporte') {
+    if (t === 'panorama' || t === 'historico' || t === 'aliados' || t === 'reporte') {
       setTab(t); setDate('todas'); setPlat('todas');
       window.scrollTo(0, 0);
       return;
@@ -204,7 +205,7 @@ export default function App() {
   }
 
 
-  const isTheme = !['panorama','historico','reporte'].includes(tab);
+  const isTheme = !['panorama','historico','aliados','reporte'].includes(tab);
 
   // Build date options dynamically from calData (last 7 days with any data, most recent first)
   const dateOptions = (() => {
@@ -264,6 +265,11 @@ export default function App() {
           {tab==='historico' && (
             <motion.div key="historico" initial={{ opacity:0, x:24 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-24 }} transition={{ duration:0.22 }}>
               <CalendarView calData={calData} onGoTheme={handleGoFromCalendar} isDesktop={isDesktop} supabaseKeys={window.SUPABASE_KEYS} />
+            </motion.div>
+          )}
+          {tab==='aliados' && (
+            <motion.div key="aliados" initial={{ opacity:0, x:24 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-24 }} transition={{ duration:0.22 }}>
+              <AliadosView data={data} isDesktop={isDesktop} />
             </motion.div>
           )}
           {tab==='reporte' && (

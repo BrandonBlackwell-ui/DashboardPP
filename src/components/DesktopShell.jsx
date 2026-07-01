@@ -14,9 +14,10 @@ export default function DesktopShell({ tab, data, pano, onTabChange, onExport, c
     ...order.map(k => ({ key: k, label: T[k]?.label || k })),
     ...(!rawMode ? [
       { key: 'historico', label: 'Histórico' },
+      { key: 'aliados', label: 'Aliados' },
       { key: 'reporte', label: 'Reporte' },
     ] : []),
-  ].filter(t => T[t.key] || t.key === 'panorama' || !rawMode);
+  ].filter(t => T[t.key] || t.key === 'panorama' || t.key === 'aliados' || !rawMode);
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
