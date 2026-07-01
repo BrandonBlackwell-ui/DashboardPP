@@ -159,7 +159,7 @@ export default function CalendarView({ calData, onGoTheme, isDesktop, supabaseKe
                   padding:13, opacity: td ? 1 : 0.55 }}>
 
                 <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                  {td && (td.pos > 0 || td.neg > 0) ? (
+                  {td ? (
                     <Donut pos={td.pos||0} neu={Math.max(0,100-(td.pos||0)-(td.neg||0))} neg={td.neg||0} size={46} />
                   ) : (
                     <div style={{ width:40, height:40, borderRadius:'50%', background:'#E3DAC6', flex:'none' }} />
@@ -168,18 +168,18 @@ export default function CalendarView({ calData, onGoTheme, isDesktop, supabaseKe
                     <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                       <span style={{ fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:14,
                         color: td ? C.ink : '#A9997B' }}>{t.label}</span>
-                      {rm && (td.pos > 0 || td.neg > 0) && <span style={{ display:'inline-flex', alignItems:'center', padding:'1px 6px',
+                      {rm && td && <span style={{ display:'inline-flex', alignItems:'center', padding:'1px 6px',
                         borderRadius:999, fontFamily:"'Geist Mono',monospace", fontSize:11, fontWeight:500,
                         letterSpacing:'0.06em', textTransform:'uppercase', color:rm.ink,
                         background:rm.bg, border:`1px solid ${rm.bd}` }}>{rm.label}</span>}
                     </div>
-                    {td && (td.pos > 0 || td.neg > 0) ? (
+                    {td ? (
                       <SentBar pos={td.pos} neu={Math.max(0,100-td.pos-td.neg)} neg={td.neg} />
                     ) : (
                       <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:'#A9997B',
-                        marginTop:4, letterSpacing:'0.06em' }}>{td ? 'SIN ANÁLISIS DE SENTIMIENTO' : 'SIN DATOS PARA ESTA FECHA'}</div>
+                        marginTop:4, letterSpacing:'0.06em' }}>SIN DATOS PARA ESTA FECHA</div>
                     )}
-                    {td && (td.pos > 0 || td.neg > 0) && (
+                    {td && (
                       <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:'#6B6253',
                         letterSpacing:'0.04em' }}>
                         {(Math.round((td.pos||0)*10)/10).toFixed(1)}% fav · {(Math.round((td.neg||0)*10)/10).toFixed(1)}% crítica · {td.posts||0} posts

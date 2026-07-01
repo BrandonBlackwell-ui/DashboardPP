@@ -906,7 +906,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       {t.rawOnly ? (
         <div style={{ paddingBottom:24 }}>
           {renderNetworkMap(false)}
-          {tab !== 'redes_propias' && (voices.allies.length > 0 || voices.critics.length > 0) && (() => {
+          {tab !== 'redes_propias' && tab !== 'social_listening' && (voices.allies.length > 0 || voices.critics.length > 0) && (() => {
             const VoiceCard = ({ v, side }) => {
               const isAlly = side === 'ally';
               const accentColor = isAlly ? C.teal : C.crim;

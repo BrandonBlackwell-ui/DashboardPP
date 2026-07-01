@@ -424,6 +424,60 @@ export async function loadFromSupabase() {
       }
     }
 
+    // Build ALL_VOICES_DATA: aggregate across all reports and all dates
+    const voiceAgg = {};
+    const addVoiceAgg = (v, sentiment, dateKey) => {
+      if (!v?.username) return;
+      const k = (v.username || '').toLowerCase().trim().replace(/^@/, '');
+      if (!k) return;
+      if (!voiceAgg[k]) {
+        voiceAgg[k] = {
+          username: v.username, platform: v.platform || '',
+          tier: v.tier || 'micro', posts: 0, likes: 0, comments: 0, engagement: 0,
+          keywords: v.keywords || [], text: v.text || '', url: v.url || '',
+          datesSeen: new Set(), positiveCount: 0, negativeCount: 0,
+        };
+      }
+      const e = voiceAgg[k];
+      e.posts     += Number(v.posts || 0);
+      e.likes     += Number(v.likes || 0);
+      e.comments  += Number(v.comments || 0);
+      e.engagement+= Number(v.engagement || 0);
+      e.datesSeen.add(dateKey);
+      if (sentiment === 'negative') e.negativeCount++; else e.positiveCount++;
+      if (!e.keywords.length && v.keywords?.length) e.keywords = v.keywords;
+      if (!e.text && v.text) e.text = v.text;
+      if (!e.url && v.url) e.url = v.url;
+      if (v.tier === 'macro') e.tier = 'macro';
+      else if (v.tier === 'medio' && e.tier === 'micro') e.tier = 'medio';
+    };
+    for (const rep of reports) {
+      const aiV = voicesFromAi(rep.ai_analysis);
+      // Table voices (most accurate, have real metrics)
+      (rep.allies_critics_voices || []).forEach(v => {
+        addVoiceAgg({
+          username: v.username, platform: v.platform, tier: v.tier,
+          posts: v.posts_count, likes: v.likes_count, comments: v.comments_count,
+          engagement: v.total_engagement, keywords: v.keywords, url: v.profile_url,
+        }, v.sentiment === 'negative' ? 'negative' : 'positive', rep.date_key);
+      });
+      // AI voices not in table
+      [...(aiV.allies || []), ...(aiV.critics || [])].forEach(v => {
+        const k = (v.username || '').toLowerCase().trim().replace(/^@/, '');
+        if (!voiceAgg[k]) {
+          addVoiceAgg(v, aiV.critics.some(c => (c.username||'').toLowerCase().replace(/^@/,'') === k) ? 'negative' : 'positive', rep.date_key);
+        }
+      });
+    }
+    const allVoicesArr = Object.values(voiceAgg).map(e => ({
+      ...e, datesSeen: e.datesSeen.size,
+      sentiment: e.negativeCount > e.positiveCount ? 'negative' : 'positive',
+    })).sort((a, b) => b.engagement - a.engagement);
+    window.ALL_VOICES_DATA = {
+      allies:  allVoicesArr.filter(v => v.sentiment !== 'negative'),
+      critics: allVoicesArr.filter(v => v.sentiment === 'negative'),
+    };
+
     if (latestAiReport && window.PA_DATA?.themes && !window.PA_DATA.themes.resumen?.ai_analysis) {
       window.PA_DATA.themes.resumen = {
         ...buildThemeFromScrapedData({

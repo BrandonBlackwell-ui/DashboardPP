@@ -37,7 +37,7 @@ function fmtDateKey(dk) {
 export default function SubBar({ tab, pano, date, data, dateOptions, onPanoChange, onDateChange, onOwnedNetChange, ownedNet, isDesktop, panoramaDate, onPanoramaDateChange }) {
   if (tab === 'panorama') return null;
 
-  const isTheme = tab !== 'historico' && tab !== 'reporte' && tab !== 'redes_propias' && tab !== 'social_listening';
+  const isTheme = tab !== 'historico' && tab !== 'reporte' && tab !== 'redes_propias' && tab !== 'social_listening' && tab !== 'aliados';
   const isHist = tab === 'historico';
   const isOwned = tab === 'redes_propias';
   const isSL = tab === 'social_listening';

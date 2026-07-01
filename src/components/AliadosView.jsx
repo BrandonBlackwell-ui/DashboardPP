@@ -73,11 +73,16 @@ function Tooltip({ v, side }) {
     ? Object.values(v.reactions).reduce((s, n) => s + n, 0)
     : 0;
   const hasReactions = rxTotal > 0;
-
   const activeReactions = isFacebook && v.reactions
-    ? FB_REACTIONS.filter(r => v.reactions[r.key] > 0)
-        .sort((a, b) => v.reactions[b.key] - v.reactions[a.key])
+    ? FB_REACTIONS.filter(r => v.reactions[r.key] > 0).sort((a, b) => v.reactions[b.key] - v.reactions[a.key])
     : [];
+
+  const cols = [
+    { label:'Posts históricos', value: v.posts || 0 },
+    { label: isFacebook ? 'Reacciones' : 'Likes', value: fmt(isFacebook && hasReactions ? rxTotal : (v.likes || 0)) },
+    { label:'Comentarios', value: fmt(v.comments || 0) },
+  ];
+  if (v.datesSeen > 1) cols.push({ label:'Días activo', value: v.datesSeen });
 
   return (
     <motion.div
@@ -89,7 +94,6 @@ function Tooltip({ v, side }) {
         background: '#211C17', borderRadius: 4, padding: '10px 14px', zIndex: 99,
         boxShadow: '0 8px 24px rgba(0,0,0,0.35)', minWidth: hasReactions ? 230 : 200, pointerEvents: 'none',
         border: `1px solid ${accent}40` }}>
-      {/* Arrow */}
       <div style={{ position:'absolute', bottom:-5, left:'50%', transform:'translateX(-50%)',
         width:8, height:8, background:'#211C17', borderRight:`1px solid ${accent}40`,
         borderBottom:`1px solid ${accent}40`, rotate:'45deg' }} />
@@ -100,14 +104,17 @@ function Tooltip({ v, side }) {
           color:'#EFE9DC', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:160 }}>
           {v.username}
         </span>
+        {v.datesSeen > 1 && (
+          <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:8.5, color:accent,
+            background:`${accent}22`, border:`1px solid ${accent}44`, borderRadius:2,
+            padding:'1px 5px', letterSpacing:'0.06em', textTransform:'uppercase', marginLeft:'auto' }}>
+            {v.datesSeen}d
+          </span>
+        )}
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6 }}>
-        {[
-          { label:'Posts', value: v.posts || 0 },
-          { label: isFacebook ? 'Reacciones' : 'Likes', value: fmt(isFacebook && hasReactions ? rxTotal : (v.likes || 0)) },
-          { label:'Comentarios', value: fmt(v.comments || 0) },
-        ].map(m => (
+      <div style={{ display:'grid', gridTemplateColumns: cols.length === 4 ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr', gap:6 }}>
+        {cols.map(m => (
           <div key={m.label} style={{ textAlign:'center' }}>
             <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:15, color:'#EFE9DC', fontWeight:700 }}>{m.value}</div>
             <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, color:'rgba(255,255,255,0.45)',
@@ -116,20 +123,15 @@ function Tooltip({ v, side }) {
         ))}
       </div>
 
-      {/* Facebook reaction breakdown */}
       {hasReactions && activeReactions.length > 0 && (
         <div style={{ borderTop:'1px solid rgba(255,255,255,0.1)', marginTop:8, paddingTop:7 }}>
           <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:8, letterSpacing:'0.1em',
-            textTransform:'uppercase', color:'rgba(255,255,255,0.3)', marginBottom:5 }}>
-            Desglose · Facebook
-          </div>
+            textTransform:'uppercase', color:'rgba(255,255,255,0.3)', marginBottom:5 }}>Desglose · Facebook</div>
           <div style={{ display:'flex', flexWrap:'wrap', gap:'4px 10px' }}>
             {activeReactions.map(r => (
-              <div key={r.key} style={{ display:'flex', alignItems:'center', gap:4 }}
-                title={r.label}>
+              <div key={r.key} style={{ display:'flex', alignItems:'center', gap:4 }} title={r.label}>
                 <span style={{ fontSize:13, lineHeight:1 }}>{r.emoji}</span>
-                <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5,
-                  color:'#EFE9DC', fontWeight:600 }}>
+                <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#EFE9DC', fontWeight:600 }}>
                   {fmt(v.reactions[r.key])}
                 </span>
               </div>
@@ -138,7 +140,7 @@ function Tooltip({ v, side }) {
         </div>
       )}
 
-      {v.networks.length > 1 && (
+      {(v.networks || []).length > 1 && (
         <div style={{ borderTop:'1px solid rgba(255,255,255,0.1)', marginTop:8, paddingTop:6,
           display:'flex', gap:5, flexWrap:'wrap' }}>
           {v.networks.map(net => (
@@ -284,10 +286,14 @@ function ChartSection({ voices, side, label, maxEng }) {
 }
 
 export default function AliadosView({ data, isDesktop }) {
-  const { allies, critics } = buildVoicesFromData(data);
+  // Prefer cross-date aggregate built by loadFromSupabase; fall back to current data
+  const voices = window.ALL_VOICES_DATA || buildVoicesFromData(data);
+  const { allies, critics } = voices;
+  const isHistorical = !!window.ALL_VOICES_DATA;
 
   const coveredNets = PLATFORM_ORDER.filter(k => data?.themes?.[k]?.voices);
   const totalEngagement = [...allies, ...critics].reduce((s, v) => s + v.engagement, 0);
+  const totalPosts = [...allies, ...critics].reduce((s, v) => s + (v.posts || 0), 0);
   const maxEng = Math.max(...[...allies, ...critics].map(v => v.engagement), 1);
 
   const stagger = { hidden:{}, visible:{ transition:{ staggerChildren:0.05 } } };
@@ -300,13 +306,17 @@ export default function AliadosView({ data, isDesktop }) {
       {/* Header */}
       <motion.div variants={item} style={{ padding: px }}>
         <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, letterSpacing:'0.16em',
-          textTransform:'uppercase', color:C.gold, fontWeight:600 }}>Vista · Voces</div>
+          textTransform:'uppercase', color:C.gold, fontWeight:600 }}>
+          Vista · Voces{isHistorical ? ' · Histórico' : ''}
+        </div>
         <h1 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:33, lineHeight:1.02,
           letterSpacing:'-0.025em', color:C.ink, margin:'7px 0 5px' }}>
           Aliados y contrarios<em style={{ fontStyle:'normal', color:C.goldDeep }}>.</em>
         </h1>
         <p style={{ fontSize:13, color:'#6B6253', margin:0 }}>
-          Barras ordenadas por alcance · pasa el cursor para ver likes, comentarios y publicaciones
+          {isHistorical
+            ? 'Acumulado histórico de todas las fechas · pasa el cursor para ver métricas detalladas'
+            : 'Barras ordenadas por alcance · pasa el cursor para ver likes, comentarios y publicaciones'}
         </p>
       </motion.div>
 
@@ -327,14 +337,22 @@ export default function AliadosView({ data, isDesktop }) {
           textTransform:'uppercase', letterSpacing:'0.06em' }}>
           Alcance total: {fmtK(totalEngagement)}
         </span>
-        <div style={{ display:'flex', gap:5, marginLeft:'auto' }}>
-          {coveredNets.map(net => (
-            <span key={net} title={PLATFORM_LABELS[net]}
-              style={{ opacity:0.6, display:'inline-flex', alignItems:'center' }}>
-              <PlatformIcon platform={net} size={15} />
-            </span>
-          ))}
-        </div>
+        {totalPosts > 0 && (
+          <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A',
+            textTransform:'uppercase', letterSpacing:'0.06em' }}>
+            · {fmt(totalPosts)} posts históricos
+          </span>
+        )}
+        {!isHistorical && (
+          <div style={{ display:'flex', gap:5, marginLeft:'auto' }}>
+            {coveredNets.map(net => (
+              <span key={net} title={PLATFORM_LABELS[net]}
+                style={{ opacity:0.6, display:'inline-flex', alignItems:'center' }}>
+                <PlatformIcon platform={net} size={15} />
+              </span>
+            ))}
+          </div>
+        )}
       </motion.div>
 
       {/* Charts */}
