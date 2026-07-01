@@ -893,11 +893,17 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                   </div>
                   <div style={{ display:'flex', flexWrap:'wrap', gap:'4px 8px', fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', textTransform:'uppercase', marginBottom:5 }}>
                     {v.followers ? <span>{fmtK(v.followers)} seg.</span> : null}
-                    <span>{v.posts} {v.posts === 1 ? 'post' : 'posts'}</span>
+                    {v.posts > 0 && <span>{v.posts} {v.posts === 1 ? 'post' : 'posts'}</span>}
                     {v.likes ? <span>👍 {fmt(v.likes)}</span> : null}
                     {v.comments ? <span>💬 {fmt(v.comments)}</span> : null}
                     {v.engagement ? <span style={{ color:C.goldDeep, fontWeight:600 }}>Alcance: {fmt(v.engagement)}</span> : null}
+                    {v.impact ? <span style={{ color: isAlly ? C.teal : C.crim }}>Impacto: {v.impact}</span> : null}
                   </div>
+                  {v.text && (
+                    <div style={{ fontSize:12, lineHeight:1.45, color:'#5A4E3C', fontStyle:'italic', marginBottom:6, paddingLeft:2 }}>
+                      "{v.text.length > 120 ? v.text.slice(0, 120) + '…' : v.text}"
+                    </div>
+                  )}
                   {v.keywords && v.keywords.length > 0 && (
                     <div style={{ borderTop:'1px dotted rgba(33,28,23,0.08)', paddingTop:6, marginTop:4, display:'flex', flexWrap:'wrap', gap:4, alignItems:'center' }}>
                       <span style={{ fontSize:9.5, color:'#8A7E6A', fontFamily:"'Geist Mono',monospace", textTransform:'uppercase' }}>Gatillos:</span>
@@ -1508,26 +1514,6 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
         </Section>
       )}
 
-      {/* Desglose por red */}
-      {!t.rawOnly && tab !== 'redes_propias' && pls.length>0 && (
-        <Section title="Desglose por red" px={sectionPx}>
-          {pls.map((p,i) => (
-            <div key={i} style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:16, marginBottom:8 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:9 }}>
-                <PlatformIcon platform={p.name} size={18} />
-                <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:600, fontSize:11, color:C.ink, flex:1, letterSpacing:'0.06em', textTransform:'uppercase' }}>{p.nameLabel}</span>
-                <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:'#8A7E6A' }}>{p.postsLabel} POSTS · {p.commentsLabel} COM.</span>
-              </div>
-              <SentBar pos={p.pp} neu={p.pu} neg={p.pn} />
-              <div style={{ display:'flex', gap:13, marginTop:8, fontFamily:"'Geist Mono',monospace" }}>
-                <span style={{ fontSize:11, color:C.teal }}>{p.pp}%+</span>
-                <span style={{ fontSize:11, color:'#8A7E6A' }}>{p.pu}% NEU</span>
-                <span style={{ fontSize:11, color:C.crim }}>{p.pn}%-</span>
-              </div>
-            </div>
-          ))}
-        </Section>
-      )}
 
       {/* Temas en comentarios */}
       {ctTopics.length>0 && (
