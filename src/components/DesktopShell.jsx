@@ -4,20 +4,28 @@ import { C } from '../utils/helpers';
 
 const SIDEBAR_W = 240;
 
+const SOCIAL_KEYS = new Set(['facebook', 'instagram', 'x', 'tiktok', 'google_news']);
+
 export default function DesktopShell({ tab, data, pano, onTabChange, onExport, children }) {
   const T = data?.themes || {};
   const order = data?.order || [];
   const rawMode = data?.meta?.source === 'apify_local' || T?.resumen?.rawOnly;
 
+  const hasSocial = order.some(k => SOCIAL_KEYS.has(k));
+  const isActiveSocial = SOCIAL_KEYS.has(tab);
+
   const tabs = [
     { key: 'panorama', label: 'Panorama' },
-    ...order.map(k => ({ key: k, label: T[k]?.label || k })),
+    ...order
+      .filter(k => !SOCIAL_KEYS.has(k))
+      .map(k => ({ key: k, label: T[k]?.label || k })),
+    ...(hasSocial ? [{ key: 'social_listening', label: 'Social Listening' }] : []),
     ...(!rawMode ? [
       { key: 'historico', label: 'Histórico' },
       { key: 'aliados', label: 'Aliados' },
       { key: 'reporte', label: 'Reporte' },
     ] : []),
-  ].filter(t => T[t.key] || t.key === 'panorama' || t.key === 'aliados' || !rawMode);
+  ].filter(t => T[t.key] || t.key === 'panorama' || t.key === 'aliados' || t.key === 'social_listening' || !rawMode);
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
@@ -76,7 +84,7 @@ export default function DesktopShell({ tab, data, pano, onTabChange, onExport, c
           {/* Tabs */}
           <nav style={{ flex: 1, overflowY: 'auto', padding: '0 12px', scrollbarWidth: 'none' }}>
             {tabs.map(t => {
-              const isActive = tab === t.key;
+              const isActive = tab === t.key || (t.key === 'social_listening' && isActiveSocial);
               return (
                 <motion.button
                   key={t.key}
