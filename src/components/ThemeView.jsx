@@ -529,11 +529,15 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
   const sectionPx = isDesktop ? '14px 28px 6px' : '14px 18px 6px';
   const networkMapTitle = networkStrategy.title || 'Mapa por red y aliados';
   const networkMapItemLabel = networkStrategy.itemLabel || 'MENCIONES';
-  const renderNetworkMap = (compact = false) => strategyNetworks.length > 0 && (
-    <Section title={networkMapTitle} px={compact ? '16px 0 6px' : sectionPx}
-      right={<span style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, color:'#8A7E6A' }}>{fmt(networkStrategy.totalPosts||0)} {networkMapItemLabel}</span>}>
-      <div style={{ display:'grid', gridTemplateColumns: compact ? 'repeat(2, minmax(0, 1fr))' : isDesktop ? 'repeat(2, minmax(0, 1fr))' : '1fr', gap:8 }}>
-        {strategyNetworks.map(n => (
+  // For redes_propias: only show selected network in the grid
+  const visibleNetworks = isOwned && ownedNet
+    ? strategyNetworks.filter(n => n.key === ownedNet)
+    : strategyNetworks;
+  const renderNetworkMap = (compact = false) => visibleNetworks.length > 0 && (
+    <Section title={isOwned && ownedNet ? platLabel(ownedNet) : networkMapTitle} px={compact ? '16px 0 6px' : sectionPx}
+      right={<span style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, color:'#8A7E6A' }}>{fmt(isOwned && ownedNet ? (networkPostsByKey[ownedNet]?.length || 0) : (networkStrategy.totalPosts||0))} {networkMapItemLabel}</span>}>
+      {!isOwned && <div style={{ display:'grid', gridTemplateColumns: compact ? 'repeat(2, minmax(0, 1fr))' : isDesktop ? 'repeat(2, minmax(0, 1fr))' : '1fr', gap:8 }}>
+        {visibleNetworks.map(n => (
           <button key={n.key} onClick={() => { setActiveNetwork(activeNetwork === n.key ? null : n.key); setActivePostKey(null); }}
             style={{ textAlign:'left', cursor:'pointer', background:C.card,
               border:selectedNetwork === n.key ? `1px solid ${C.gold}` : '1px solid rgba(33,28,23,0.13)',
@@ -582,7 +586,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
             )}
           </button>
         ))}
-      </div>
+      </div>}
 
       {(() => {
         const allPosts = Object.values(networkPostsByKey).flat().sort((a,b) => {
@@ -590,9 +594,11 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
           const engB = (b.likes||0) + (b.comments||0)*2 + (b.shares||0)*3;
           return engB - engA;
         });
-        if (allPosts.length === 0) return null;
+        // For redes_propias: use only selected network's posts
+        const ownedPosts = isOwned && ownedNet ? (networkPostsByKey[ownedNet] || []) : null;
+        if (!ownedPosts && allPosts.length === 0) return null;
 
-        const selectedPosts = activeNetwork ? (networkPostsByKey[activeNetwork] || []) : allPosts;
+        const selectedPosts = isOwned && ownedNet ? ownedPosts : (activeNetwork ? (networkPostsByKey[activeNetwork] || []) : allPosts);
         const isPublicListening = t.networkStrategy?.title === 'Redes monitoreadas' || tab !== 'redes_propias';
 
         if (isPublicListening) {
