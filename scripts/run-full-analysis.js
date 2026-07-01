@@ -169,11 +169,14 @@ const normOwnedTikTok = (items) => items
   })).filter(p => p.url);
 
 const normOwnedX = (items) => items.slice(0, 5).map(p => ({
-  platform:'x', username: 'PepeAguilar',
-  text: p.text || p.full_text || '', url: p.url || p.permalink || '',
-  published_date: p.created_at || p.createdAt || null,
-  likes: +(p.likeCount || p.likes || 0), comments_count: +(p.replyCount || p.replies || 0),
-  retweets: +(p.retweetCount || p.retweets || 0), views: +(p.viewCount || p.views || 0), shares:0,
+  platform:'x', username: p.author?.screenName || 'PepeAguilar',
+  text: p.postText || p.text || p.full_text || '',
+  url: p.postUrl || p.url || p.permalink || '',
+  published_date: p.timestamp ? new Date(p.timestamp).toISOString() : (p.created_at || p.createdAt || null),
+  likes: +(p.favouriteCount || p.likeCount || p.likes || 0),
+  comments_count: +(p.replyCount || p.replies || 0),
+  retweets: +(p.repostCount || p.retweetCount || p.retweets || 0),
+  views: +(p.viewCount || p.views || 0), shares:0,
 })).filter(p => p.url);
 
 async function fetchYouTubeRSS() {
