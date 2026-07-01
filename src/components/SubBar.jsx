@@ -18,16 +18,52 @@ function Chip({ label, active, onClick }) {
   );
 }
 
-export default function SubBar({ tab, pano, date, data, dateOptions, onPanoChange, onDateChange, isDesktop, panoramaDate, onPanoramaDateChange }) {
+const OWNED_NETS = [
+  { key:'instagram', label:'Instagram' },
+  { key:'facebook',  label:'Facebook' },
+  { key:'tiktok',    label:'TikTok' },
+  { key:'youtube',   label:'YouTube' },
+  { key:'x',         label:'X' },
+];
+
+const MONTH_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function fmtDateKey(dk) {
+  if (!dk || dk === 'todas') return '';
+  const d = new Date(dk + 'T12:00:00');
+  if (isNaN(d)) return dk;
+  return `${d.getDate()} ${MONTH_ES[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+export default function SubBar({ tab, pano, date, data, dateOptions, onPanoChange, onDateChange, onOwnedNetChange, ownedNet, isDesktop, panoramaDate, onPanoramaDateChange }) {
   if (tab === 'panorama') return null;
 
-  const isTheme = tab !== 'historico' && tab !== 'reporte';
+  const isTheme = tab !== 'historico' && tab !== 'reporte' && tab !== 'redes_propias';
   const isHist = tab === 'historico';
+  const isOwned = tab === 'redes_propias';
 
   return (
     <div style={{ position:'sticky', top:0, zIndex:30, background:C.sub,
       borderBottom:'1px solid #E3DAC6', padding: isDesktop ? '10px 24px' : '10px 18px' }}>
       <AnimatePresence mode="wait">
+
+        {isOwned && (
+          <motion.div key="owned"
+            initial={{ opacity:0, y:-6 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-6 }}
+            transition={{ duration:0.2 }}
+            style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.14em',
+                textTransform:'uppercase', color:'#8A7E6A', flex:'none' }}>
+                {date && date !== 'todas' ? fmtDateKey(date) : 'Última actualización'}
+              </span>
+            </div>
+            <div style={{ display:'flex', gap:5, overflowX:'auto', scrollbarWidth:'none' }}>
+              {OWNED_NETS.map(n => (
+                <Chip key={n.key} label={n.label} active={ownedNet === n.key} onClick={() => onOwnedNetChange?.(n.key)} />
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {isTheme && (
           <motion.div key="theme"
@@ -38,7 +74,7 @@ export default function SubBar({ tab, pano, date, data, dateOptions, onPanoChang
               <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.14em',
                 textTransform:'uppercase', color:'#8A7E6A', width:54, flex:'none' }}>Fecha</span>
               <div style={{ display:'flex', gap:5, overflowX:'auto', scrollbarWidth:'none' }}>
-                {(dateOptions || [['todas','Todas'],['13','13 jun'],['14','14 jun'],['15','15 jun']]).map(([k,l]) => (
+                {(dateOptions || []).map(([k,l]) => (
                   <Chip key={k} label={l} active={date===k} onClick={() => onDateChange(k)} />
                 ))}
               </div>

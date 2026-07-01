@@ -330,20 +330,34 @@ function deriveNetworkPosts(themeData) {
   return buckets;
 }
 
-export default function ThemeView({ tab, date, plat, data, isDesktop, noData, calendarSummary }) {
+export default function ThemeView({ tab, date, plat, data, isDesktop, noData, calendarSummary, ownedNet }) {
   const T = data.themes;
   const t = T[tab];
-  const [activeNetwork, setActiveNetwork] = useState(null);
+  const isOwned = tab === 'redes_propias';
+  const [activeNetwork, setActiveNetwork] = useState(ownedNet || null);
   const [activePostKey, setActivePostKey] = useState(null);
+
+  // Sync activeNetwork with ownedNet prop when tab is redes_propias
+  if (isOwned && ownedNet && activeNetwork !== ownedNet) {
+    setActiveNetwork(ownedNet);
+    setActivePostKey(null);
+  }
+
   if (!t) return null;
 
   if (noData) {
-    const dayInt = parseInt(date, 10);
+    const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    const dateLabel = (() => {
+      if (!date || date === 'todas') return '';
+      const d = new Date(date + 'T12:00:00');
+      if (isNaN(d)) return date;
+      return `${d.getDate()} ${MESES[d.getMonth()]} ${d.getFullYear()}`;
+    })();
     return (
       <div style={{ padding:'40px 24px', textAlign:'center' }}>
         <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, letterSpacing:'0.18em',
           textTransform:'uppercase', color:'#B0822F', fontWeight:600, marginBottom:12 }}>
-          {dayInt} jun 2026
+          {dateLabel}
         </div>
         <div style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:22,
           color:'#211C17', marginBottom:8 }}>Sin datos para esta fecha.</div>
@@ -354,19 +368,23 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
     );
   }
 
-  const s = t.sentiment || { pos:0, neu:0, neg:0 };
+  // For redes_propias: use per-network sentiment from desglose_por_red when a network is selected
+  let s = t.sentiment || { pos:0, neu:0, neg:0 };
+  if (isOwned && ownedNet) {
+    const dpr = t.ai_analysis?.desglose_por_red?.[ownedNet];
+    if (dpr?.sentimiento) {
+      const ds = dpr.sentimiento;
+      s = {
+        pos: Number(ds.favorable || ds.positivo || 0),
+        neu: Number(ds.neutral || 0),
+        neg: Number(ds.critico || ds.negativo || 0),
+      };
+    }
+  }
   const hasAiAnalysis = !!t.aiDerived || !!t.ai_analysis;
   const rm = riskMeta(t.risk?.level);
 
-  const targetDays = [date];
-  if (date !== 'todas') {
-    const dateObj = new Date(`2026-06-${date}T12:00:00`);
-    if (dateObj.getDay() === 5) { // 5 is Friday
-      const d1 = parseInt(date, 10);
-      targetDays.push(String(d1 + 1).padStart(2, '0'));
-      targetDays.push(String(d1 + 2).padStart(2, '0'));
-    }
-  }
+  const targetDays = date && date !== 'todas' ? [date] : [];
 
   const platMatch = pl => plat==='todas' || pl===plat;
   const dateMatchTs = ts => { if(date==='todas') return true; const m=/\d{4}-\d{2}-(\d{2})/.exec(ts||''); return m && targetDays.includes(m[1]); };

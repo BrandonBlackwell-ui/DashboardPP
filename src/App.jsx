@@ -63,6 +63,7 @@ export default function App() {
   const isDesktop = useBreakpoint();
   const [tab, setTab] = useState('panorama');
   const [socialNet, setSocialNet] = useState('facebook');
+  const [ownedNet, setOwnedNet] = useState('instagram');
   const [pano, setPano] = useState('editorial');
   const [date, setDate] = useState('todas');
   const [plat, setPlat] = useState('todas');
@@ -276,7 +277,7 @@ export default function App() {
           )}
           {isTheme && (
             <motion.div key={tab} initial={{ opacity:0, x:24 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-24 }} transition={{ duration:0.22 }}>
-              <ThemeView tab={tab} date={date} plat={plat} data={data} isDesktop={isDesktop}
+              <ThemeView tab={tab} date={date} plat={plat} data={data} isDesktop={isDesktop} ownedNet={ownedNet}
                 noData={date !== 'todas' && !!window.SUPABASE_KEYS && !window.SUPABASE_KEYS.has(`${tab}:${date}`) && !calData?.days?.[date]?.[tab]}
                 calendarSummary={date !== 'todas' && !!window.SUPABASE_KEYS && !window.SUPABASE_KEYS.has(`${tab}:${date}`) && !!calData?.days?.[date]?.[tab]} />
             </motion.div>
@@ -331,6 +332,7 @@ export default function App() {
             {/* SubBar as sticky strip inside content */}
             <SubBar tab={tab} pano={pano} date={date} plat={plat} data={data}
               dateOptions={dateOptions} onPanoChange={setPano} onDateChange={handleDateChange} onPlatChange={setPlat} isDesktop
+              ownedNet={ownedNet} onOwnedNetChange={setOwnedNet}
               panoramaDate={panoramaDate} onPanoramaDateChange={setPanoramaDate} />
             {viewContent}
           </DesktopShell>
