@@ -265,14 +265,77 @@ function enrichVoicesWithRealMetrics(analysis, posts, voices) {
   return analysis;
 }
 
+async function upsertResumenReport(dateKey) {
+  const { data: existing } = await supabase
+    .from('reports')
+    .select('id')
+    .eq('date_key', dateKey)
+    .eq('theme_key', 'resumen')
+    .limit(1);
+  if (existing?.length) return existing[0];
+
+  const { data, error } = await supabase
+    .from('reports')
+    .insert({ date_key: dateKey, theme_key: 'resumen', theme_label: 'Panorama Consolidado' })
+    .select('id, date_key, theme_key, theme_label, created_at')
+    .single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+async function fetchAllPostsForDate(dateKey) {
+  const { data: reports } = await supabase
+    .from('reports')
+    .select('id, theme_key')
+    .eq('date_key', dateKey)
+    .neq('theme_key', 'resumen');
+
+  if (!reports?.length) return { posts: [], comments: [], voices: [] };
+
+  const reportIds = reports.map(r => r.id);
+  const { data: posts } = await supabase
+    .from('scraped_posts')
+    .select('*')
+    .in('report_id', reportIds);
+
+  const postIds = (posts || []).map(p => p.id);
+  let comments = [];
+  if (postIds.length) {
+    const { data } = await supabase.from('scraped_comments').select('*').in('post_id', postIds);
+    comments = data || [];
+  }
+
+  const { data: voices } = await supabase
+    .from('allies_critics_voices')
+    .select('*')
+    .in('report_id', reportIds);
+
+  return { posts: posts || [], comments, voices: voices || [] };
+}
+
 async function run() {
   const args = parseArgs();
   if (!args.apiKey) {
     throw new Error('Falta OPENROUTER_API_KEY o pasar la llave como primer argumento');
   }
 
-  const report = await pickReport(args);
-  const { posts, comments, voices } = await fetchReportData(report);
+  let report, posts, comments, voices;
+
+  if (args.themeKey === 'resumen') {
+    // Consolidated cross-network analysis using Opus
+    const dateKey = new Date().toISOString().slice(0, 10);
+    report = await upsertResumenReport(dateKey);
+    const allData = await fetchAllPostsForDate(dateKey);
+    posts = allData.posts;
+    comments = allData.comments;
+    voices = allData.voices;
+  } else {
+    report = await pickReport(args);
+    const data = await fetchReportData(report);
+    posts = data.posts;
+    comments = data.comments;
+    voices = data.voices;
+  }
   console.log(`Reporte: ${report.theme_key} ${report.date_key}. Datos: ${posts.length} posts, ${comments.length} comentarios, ${voices.length} voces.`);
 
   const prompt = buildPrompt(buildDataPrompt({ report, posts, comments, voices }));
