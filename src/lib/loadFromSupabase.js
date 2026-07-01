@@ -47,6 +47,7 @@ function voicesFromAi(ai) {
     keywords: item.keywords || item.gatillos || [],
     text: item.comentario_o_post || item.text || item.mensaje || '',
     impact: item.impacto || item.impact || '',
+    score: Number(item.followers || item.seguidores || 0) * 0.1 + Number(item.total_engagement || item.engagement || 0),
   });
   return {
     allies: (voices.aliados_destacados || voices.aliados || []).map(v => normalize(v, 'positive')),
@@ -188,19 +189,36 @@ function buildThemeFromScrapedData(rep) {
   }
 
   // 4. Voices (Allies/Critics)
-  const alliesList = voicesList.filter(v => v.sentiment !== 'negative')
-    .map(v => ({
-      username: v.username, platform: v.platform, followers: v.followers, url: v.profile_url,
-      posts: v.posts_count, likes: v.likes_count, comments: v.comments_count, engagement: v.total_engagement,
-      tier: v.tier, sentiment: v.sentiment, keywords: v.keywords || []
-    }));
+  // Build lookup from AI analysis voices (has text/impact but no metrics)
+  const aiVoiceMap = {};
+  [...(aiVoices.allies || []), ...(aiVoices.critics || [])].forEach(v => {
+    const key = (v.username || '').toLowerCase().trim();
+    if (key) aiVoiceMap[key] = v;
+  });
 
-  const criticsList = voicesList.filter(v => v.sentiment === 'negative')
-    .map(v => ({
-      username: v.username, platform: v.platform, followers: v.followers, url: v.profile_url,
-      posts: v.posts_count, likes: v.likes_count, comments: v.comments_count, engagement: v.total_engagement,
-      tier: v.tier, sentiment: v.sentiment, keywords: v.keywords || []
-    }));
+  // Merge table data (real metrics) with AI narrative (text, impact)
+  const mergeVoice = (v) => {
+    const key = (v.username || '').toLowerCase().trim();
+    const aiV = aiVoiceMap[key] || {};
+    return {
+      username: v.username, platform: v.platform,
+      followers: v.followers || 0,
+      url: v.profile_url || '',
+      posts: v.posts_count || 0,
+      likes: v.likes_count || 0,
+      comments: v.comments_count || 0,
+      engagement: v.total_engagement || 0,
+      tier: v.tier || aiV.tier || 'micro',
+      sentiment: v.sentiment,
+      keywords: v.keywords?.length ? v.keywords : (aiV.keywords || []),
+      text: aiV.text || '',
+      impact: aiV.impact || '',
+    };
+  };
+
+  const byScore = (a, b) => (b.engagement + b.followers * 0.1) - (a.engagement + a.followers * 0.1);
+  const alliesList = voicesList.filter(v => v.sentiment !== 'negative').map(mergeVoice).sort(byScore);
+  const criticsList = voicesList.filter(v => v.sentiment === 'negative').map(mergeVoice).sort(byScore);
 
   if (aiSentiment) {
     posPct = aiSentiment.pos;
@@ -255,8 +273,8 @@ function buildThemeFromScrapedData(rep) {
     voices: {
       segmentos: [],
       alertas: [],
-      allies: aiVoices.allies.length ? aiVoices.allies : alliesList,
-      critics: aiVoices.critics.length ? aiVoices.critics : criticsList
+      allies: alliesList.length ? alliesList : aiVoices.allies,
+      critics: criticsList.length ? criticsList : aiVoices.critics
     },
     networkStrategy: {
       title: rep.theme_key === 'redes_propias' ? 'Redes y publicaciones' : 'Mapa por red y aliados',

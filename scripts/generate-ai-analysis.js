@@ -96,10 +96,10 @@ Devuelve EXCLUSIVAMENTE JSON valido con esta forma:
   ],
   "analisis_voces": {
     "aliados_destacados": [
-      { "username": "usuario_real", "platform": "red", "comentario_o_post": "texto base", "impacto": "Alto|Medio|Bajo", "tier": "micro|medio|macro", "keywords": ["tema"] }
+      { "username": "usuario_real", "platform": "red", "comentario_o_post": "texto base", "impacto": "Alto|Medio|Bajo", "tier": "micro|medio|macro", "keywords": ["tema"], "followers": 0, "likes": 0, "engagement": 0 }
     ],
     "criticos_destacados": [
-      { "username": "usuario_real", "platform": "red", "comentario_o_post": "texto base", "impacto": "Alto|Medio|Bajo", "tier": "micro|medio|macro", "keywords": ["tema"] }
+      { "username": "usuario_real", "platform": "red", "comentario_o_post": "texto base", "impacto": "Alto|Medio|Bajo", "tier": "micro|medio|macro", "keywords": ["tema"], "followers": 0, "likes": 0, "engagement": 0 }
     ]
   }
 }
