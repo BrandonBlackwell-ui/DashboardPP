@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { C, fmt, fmtK } from '../utils/helpers';
 import PlatformIcon from './PlatformIcon';
+import { supabase } from '../lib/supabase';
 
 const PLATFORM_ORDER = ['facebook', 'instagram', 'tiktok', 'x', 'google_news', 'redes_propias'];
 const PLATFORM_LABELS = {
@@ -65,105 +66,179 @@ const FB_REACTIONS = [
   { key: 'care',  emoji: '🤗', label: 'Cariño' },
 ];
 
-function Tooltip({ v, side }) {
+function formatDate(str) {
+  if (!str) return '';
+  try {
+    const d = new Date(str);
+    if (isNaN(d)) return str;
+    const ms = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    return `${d.getDate()} ${ms[d.getMonth()]} ${d.getFullYear()}`;
+  } catch { return str; }
+}
+
+// ── Detail panel ─────────────────────────────────────────────────────────────
+function VoiceDetail({ v, side, onClose, isDesktop }) {
+  const [posts, setPosts] = useState(null);
+  const [loading, setLoading] = useState(true);
   const isAlly = side !== 'negative';
   const accent = isAlly ? C.teal : C.crim;
-  const isFacebook = v.platform === 'facebook' || v.networks?.includes('facebook');
-  const rxTotal = isFacebook && v.reactions
-    ? Object.values(v.reactions).reduce((s, n) => s + n, 0)
-    : 0;
-  const hasReactions = rxTotal > 0;
-  const activeReactions = isFacebook && v.reactions
-    ? FB_REACTIONS.filter(r => v.reactions[r.key] > 0).sort((a, b) => v.reactions[b.key] - v.reactions[a.key])
-    : [];
 
-  const cols = [
-    { label:'Posts históricos', value: v.posts || 0 },
-    { label: isFacebook ? 'Reacciones' : 'Likes', value: fmt(isFacebook && hasReactions ? rxTotal : (v.likes || 0)) },
-    { label:'Comentarios', value: fmt(v.comments || 0) },
-  ];
-  if (v.datesSeen > 1) cols.push({ label:'Días activo', value: v.datesSeen });
+  // Load posts on mount
+  useState(() => {
+    (async () => {
+      try {
+        const username = (v.username || '').replace(/^@/, '');
+        const { data } = await supabase
+          .from('scraped_posts')
+          .select('url, text, platform, published_date, likes, comments_count, shares, views, retweets')
+          .ilike('username', username)
+          .order('published_date', { ascending: false })
+          .limit(30);
+        setPosts(data || []);
+      } catch {
+        setPosts([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [v.username]);
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 4, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 2, scale: 0.97 }}
-      transition={{ duration: 0.13 }}
-      style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)',
-        background: '#211C17', borderRadius: 4, padding: '10px 14px', zIndex: 99,
-        boxShadow: '0 8px 24px rgba(0,0,0,0.35)', minWidth: hasReactions ? 230 : 200, pointerEvents: 'none',
-        border: `1px solid ${accent}40` }}>
-      <div style={{ position:'absolute', bottom:-5, left:'50%', transform:'translateX(-50%)',
-        width:8, height:8, background:'#211C17', borderRight:`1px solid ${accent}40`,
-        borderBottom:`1px solid ${accent}40`, rotate:'45deg' }} />
+      initial={{ opacity: 0, x: 40 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 40 }}
+      transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+      style={{ position: 'fixed', top: 0, right: 0, bottom: 0,
+        width: isDesktop ? 420 : '100vw', background: C.card,
+        borderLeft: `1px solid rgba(33,28,23,0.13)`,
+        boxShadow: '-8px 0 32px rgba(0,0,0,0.18)', zIndex: 200,
+        display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
 
-      <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8 }}>
-        <PlatformIcon platform={v.platform} size={13} />
-        <span style={{ fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:13,
-          color:'#EFE9DC', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:160 }}>
-          {v.username}
-        </span>
-        {v.datesSeen > 1 && (
-          <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:8.5, color:accent,
-            background:`${accent}22`, border:`1px solid ${accent}44`, borderRadius:2,
-            padding:'1px 5px', letterSpacing:'0.06em', textTransform:'uppercase', marginLeft:'auto' }}>
-            {v.datesSeen}d
-          </span>
+      {/* Header */}
+      <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid rgba(33,28,23,0.10)',
+        position: 'sticky', top: 0, background: C.card, zIndex: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <PlatformIcon platform={v.platform} size={18} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: "'Geist',sans-serif", fontWeight: 700, fontSize: 16,
+              color: C.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {v.username}
+            </div>
+            <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 9.5,
+              color: accent, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 2 }}>
+              {isAlly ? 'Aliado' : 'Contrario'} · {v.tier === 'macro' ? 'Macro' : v.tier === 'medio' ? 'Medio' : 'Micro'}
+              {v.datesSeen > 1 ? ` · ${v.datesSeen} días activo` : ''}
+            </div>
+          </div>
+          <button onClick={onClose}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer',
+              fontFamily: "'Geist Mono',monospace", fontSize: 11, color: '#8A7E6A',
+              padding: '4px 8px', letterSpacing: '0.06em' }}>
+            CERRAR ×
+          </button>
+        </div>
+
+        {/* Aggregate stats */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 14 }}>
+          {[
+            { label: 'Posts totales', value: fmt(v.posts || 0) },
+            { label: 'Engagement', value: fmtK(v.engagement || 0) },
+            { label: 'Comentarios', value: fmt(v.comments || 0) },
+          ].map(m => (
+            <div key={m.label} style={{ background: 'rgba(33,28,23,0.04)',
+              border: '1px solid rgba(33,28,23,0.08)', borderRadius: 3, padding: '8px 10px' }}>
+              <div style={{ fontFamily: "'Geist Mono',monospace", fontWeight: 700,
+                fontSize: 17, color: C.ink }}>{m.value}</div>
+              <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 8.5,
+                color: '#8A7E6A', textTransform: 'uppercase', letterSpacing: '0.07em',
+                marginTop: 2 }}>{m.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {v.keywords?.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 10 }}>
+            <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 9, color: '#8A7E6A',
+              textTransform: 'uppercase', letterSpacing: '0.08em', alignSelf: 'center' }}>Gatillos:</span>
+            {v.keywords.map((kw, i) => (
+              <span key={i} style={{ fontFamily: "'Geist Mono',monospace", fontSize: 9.5,
+                padding: '2px 6px', borderRadius: 2, letterSpacing: '0.04em',
+                background: isAlly ? 'rgba(40,167,69,0.08)' : 'rgba(220,53,69,0.08)',
+                color: accent, border: `1px solid ${accent}30` }}>{kw}</span>
+            ))}
+          </div>
         )}
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns: cols.length === 4 ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr', gap:6 }}>
-        {cols.map(m => (
-          <div key={m.label} style={{ textAlign:'center' }}>
-            <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:15, color:'#EFE9DC', fontWeight:700 }}>{m.value}</div>
-            <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, color:'rgba(255,255,255,0.45)',
-              textTransform:'uppercase', letterSpacing:'0.08em', marginTop:1 }}>{m.label}</div>
-          </div>
-        ))}
-      </div>
+      {/* Post list */}
+      <div style={{ flex: 1, padding: '14px 20px 24px' }}>
+        <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10, letterSpacing: '0.14em',
+          textTransform: 'uppercase', color: C.goldDeep, fontWeight: 600, marginBottom: 12 }}>
+          Publicaciones históricas
+        </div>
 
-      {hasReactions && activeReactions.length > 0 && (
-        <div style={{ borderTop:'1px solid rgba(255,255,255,0.1)', marginTop:8, paddingTop:7 }}>
-          <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:8, letterSpacing:'0.1em',
-            textTransform:'uppercase', color:'rgba(255,255,255,0.3)', marginBottom:5 }}>Desglose · Facebook</div>
-          <div style={{ display:'flex', flexWrap:'wrap', gap:'4px 10px' }}>
-            {activeReactions.map(r => (
-              <div key={r.key} style={{ display:'flex', alignItems:'center', gap:4 }} title={r.label}>
-                <span style={{ fontSize:13, lineHeight:1 }}>{r.emoji}</span>
-                <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#EFE9DC', fontWeight:600 }}>
-                  {fmt(v.reactions[r.key])}
+        {loading && (
+          <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10.5,
+            color: '#8A7E6A', textTransform: 'uppercase', padding: '20px 0' }}>
+            Cargando…
+          </div>
+        )}
+
+        {!loading && posts?.length === 0 && (
+          <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10.5,
+            color: '#8A7E6A', textTransform: 'uppercase', padding: '20px 0' }}>
+            No se encontraron publicaciones individuales.
+          </div>
+        )}
+
+        {!loading && posts?.map((p, i) => {
+          const eng = (p.likes || 0) + (p.comments_count || 0) * 2 + (p.shares || 0) * 3 + (p.retweets || 0) * 3;
+          return (
+            <div key={i} style={{ marginBottom: 10, padding: '11px 13px',
+              background: 'rgba(33,28,23,0.035)', border: '1px solid rgba(33,28,23,0.08)',
+              borderLeft: `3px solid ${accent}`, borderRadius: 3 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}>
+                <PlatformIcon platform={p.platform} size={11} />
+                <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 9.5,
+                  color: '#8A7E6A', textTransform: 'uppercase', flex: 1 }}>
+                  {formatDate(p.published_date)}
                 </span>
+                {p.url && (
+                  <a href={p.url} target="_blank" rel="noopener"
+                    style={{ fontFamily: "'Geist Mono',monospace", fontSize: 9,
+                      color: C.goldDeep, fontWeight: 700, textDecoration: 'none',
+                      letterSpacing: '0.06em' }}>
+                    ABRIR ↗
+                  </a>
+                )}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {(v.networks || []).length > 1 && (
-        <div style={{ borderTop:'1px solid rgba(255,255,255,0.1)', marginTop:8, paddingTop:6,
-          display:'flex', gap:5, flexWrap:'wrap' }}>
-          {v.networks.map(net => (
-            <span key={net} style={{ display:'inline-flex', alignItems:'center', gap:3,
-              fontFamily:"'Geist Mono',monospace", fontSize:8.5, color:'rgba(255,255,255,0.5)',
-              textTransform:'uppercase', letterSpacing:'0.06em' }}>
-              <PlatformIcon platform={net} size={9} />{PLATFORM_LABELS[net] || net}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {v.impact && (
-        <div style={{ marginTop:6, fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.08em',
-          textTransform:'uppercase', color: accent }}>
-          Impacto: {v.impact}
-        </div>
-      )}
+              <p style={{ fontSize: 13, lineHeight: 1.45, color: C.ink, margin: '0 0 8px',
+                wordBreak: 'break-word',
+                display: '-webkit-box', WebkitLineClamp: 4,
+                WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                {p.text || '[Sin texto]'}
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px 10px',
+                fontFamily: "'Geist Mono',monospace", fontSize: 9.5,
+                color: '#8A7E6A', textTransform: 'uppercase' }}>
+                {p.likes     ? <span>{fmt(p.likes)} ♥</span> : null}
+                {p.comments_count ? <span>{fmt(p.comments_count)} 💬</span> : null}
+                {p.shares    ? <span>{fmt(p.shares)} ↗</span> : null}
+                {p.retweets  ? <span>{fmt(p.retweets)} RT</span> : null}
+                {p.views     ? <span>{fmtK(p.views)} views</span> : null}
+                {eng > 0     ? <span style={{ color: accent, fontWeight: 600 }}>Eng: {fmtK(eng)}</span> : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </motion.div>
   );
 }
 
-function BarRow({ v, side, maxEng, index }) {
+// ── Bar row ───────────────────────────────────────────────────────────────────
+function BarRow({ v, side, maxEng, index, onSelect }) {
   const [hovered, setHovered] = useState(false);
   const isAlly = side !== 'negative';
   const accent = isAlly ? C.teal : C.crim;
@@ -181,8 +256,9 @@ function BarRow({ v, side, maxEng, index }) {
       transition={{ type: 'spring', stiffness: 320, damping: 26, delay: index * 0.025 }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={() => onSelect(v)}
       style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8,
-        padding: '5px 0', cursor: 'default' }}>
+        padding: '5px 0', cursor: 'pointer' }}>
 
       {/* Name column */}
       <div style={{ display:'flex', alignItems:'center', gap:5, width: 150, flex:'none' }}>
@@ -212,7 +288,7 @@ function BarRow({ v, side, maxEng, index }) {
             paddingLeft:8, gap:8, pointerEvents:'none' }}>
             <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, color:'#fff',
               fontWeight:600, textShadow:'0 1px 3px rgba(0,0,0,0.6)', letterSpacing:'0.04em' }}>
-              {fmtK(v.engagement)}
+              {fmtK(v.engagement)} · click para ver historial
             </span>
           </div>
         )}
@@ -224,24 +300,19 @@ function BarRow({ v, side, maxEng, index }) {
         transition:'all 0.15s', letterSpacing:'0.04em' }}>
         {fmtK(v.engagement)}
       </span>
-
-      {/* Tooltip */}
-      <AnimatePresence>
-        {hovered && <Tooltip v={v} side={side} />}
-      </AnimatePresence>
     </motion.div>
   );
 }
 
-function ChartSection({ voices, side, label, maxEng }) {
+// ── Chart section ─────────────────────────────────────────────────────────────
+function ChartSection({ voices, side, label, maxEng, onSelect }) {
   const isAlly = side !== 'negative';
   const accent = isAlly ? C.teal : C.crim;
-  const TOP = 20;
+  const TOP = 10;
   const shown = voices.slice(0, TOP);
 
   return (
     <div>
-      {/* Section header */}
       <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10, paddingBottom:8,
         borderBottom:`2px solid ${accent}` }}>
         <span style={{ width:8, height:8, borderRadius:'50%', background:accent, flex:'none' }} />
@@ -255,8 +326,7 @@ function ChartSection({ voices, side, label, maxEng }) {
         </span>
       </div>
 
-      {/* Column labels */}
-      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4, paddingBottom:4 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
         <div style={{ width:150, flex:'none' }} />
         <div style={{ flex:1, fontFamily:"'Geist Mono',monospace", fontSize:8.5, color:'#A9997B',
           letterSpacing:'0.08em', textTransform:'uppercase' }}>
@@ -268,7 +338,9 @@ function ChartSection({ voices, side, label, maxEng }) {
 
       <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
         {shown.length > 0
-          ? shown.map((v, i) => <BarRow key={v.username} v={v} side={side} maxEng={maxEng} index={i} />)
+          ? shown.map((v, i) => (
+              <BarRow key={v.username} v={v} side={side} maxEng={maxEng} index={i} onSelect={onSelect} />
+            ))
           : <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A',
               textTransform:'uppercase', padding:'12px 0' }}>
               Sin datos detectados.
@@ -277,7 +349,7 @@ function ChartSection({ voices, side, label, maxEng }) {
         {voices.length > TOP && (
           <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, color:'#A9997B',
             textTransform:'uppercase', marginTop:6, letterSpacing:'0.06em' }}>
-            + {voices.length - TOP} voces adicionales no mostradas
+            + {voices.length - TOP} voces adicionales
           </div>
         )}
       </div>
@@ -285,84 +357,99 @@ function ChartSection({ voices, side, label, maxEng }) {
   );
 }
 
+// ── Main component ─────────────────────────────────────────────────────────────
 export default function AliadosView({ data, isDesktop }) {
-  // Prefer cross-date aggregate built by loadFromSupabase; fall back to current data
   const voices = window.ALL_VOICES_DATA || buildVoicesFromData(data);
   const { allies, critics } = voices;
   const isHistorical = !!window.ALL_VOICES_DATA;
 
-  const coveredNets = PLATFORM_ORDER.filter(k => data?.themes?.[k]?.voices);
+  const [selectedVoice, setSelectedVoice] = useState(null);
+  const [selectedSide, setSelectedSide] = useState('positive');
+
   const totalEngagement = [...allies, ...critics].reduce((s, v) => s + v.engagement, 0);
   const totalPosts = [...allies, ...critics].reduce((s, v) => s + (v.posts || 0), 0);
   const maxEng = Math.max(...[...allies, ...critics].map(v => v.engagement), 1);
+
+  const handleSelect = (v, side) => { setSelectedVoice(v); setSelectedSide(side); };
 
   const stagger = { hidden:{}, visible:{ transition:{ staggerChildren:0.05 } } };
   const item = { hidden:{ opacity:0, y:10 }, visible:{ opacity:1, y:0, transition:{ type:'spring', stiffness:300, damping:24 } } };
   const px = isDesktop ? '24px 28px 6px' : '20px 18px 6px';
 
   return (
-    <motion.div variants={stagger} initial="hidden" animate="visible" style={{ paddingBottom:40 }}>
+    <>
+      <motion.div variants={stagger} initial="hidden" animate="visible" style={{ paddingBottom:40 }}>
 
-      {/* Header */}
-      <motion.div variants={item} style={{ padding: px }}>
-        <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, letterSpacing:'0.16em',
-          textTransform:'uppercase', color:C.gold, fontWeight:600 }}>
-          Vista · Voces{isHistorical ? ' · Histórico' : ''}
-        </div>
-        <h1 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:33, lineHeight:1.02,
-          letterSpacing:'-0.025em', color:C.ink, margin:'7px 0 5px' }}>
-          Aliados y contrarios<em style={{ fontStyle:'normal', color:C.goldDeep }}>.</em>
-        </h1>
-        <p style={{ fontSize:13, color:'#6B6253', margin:0 }}>
-          {isHistorical
-            ? 'Acumulado histórico de todas las fechas · pasa el cursor para ver métricas detalladas'
-            : 'Barras ordenadas por alcance · pasa el cursor para ver likes, comentarios y publicaciones'}
-        </p>
-      </motion.div>
+        {/* Header */}
+        <motion.div variants={item} style={{ padding: px }}>
+          <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, letterSpacing:'0.16em',
+            textTransform:'uppercase', color:C.gold, fontWeight:600 }}>
+            Vista · Voces{isHistorical ? ' · Histórico' : ''}
+          </div>
+          <h1 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:33, lineHeight:1.02,
+            letterSpacing:'-0.025em', color:C.ink, margin:'7px 0 5px' }}>
+            Aliados y contrarios<em style={{ fontStyle:'normal', color:C.goldDeep }}>.</em>
+          </h1>
+          <p style={{ fontSize:13, color:'#6B6253', margin:0 }}>
+            {isHistorical
+              ? 'Top 10 por alcance · acumulado histórico · click en un nombre para ver sus publicaciones'
+              : 'Top 10 por alcance · click en un nombre para ver sus publicaciones'}
+          </p>
+        </motion.div>
 
-      {/* Summary chips */}
-      <motion.div variants={item} style={{ padding: isDesktop ? '8px 28px 20px' : '8px 18px 20px',
-        display:'flex', flexWrap:'wrap', gap:8, alignItems:'center' }}>
-        <span style={{ display:'inline-flex', alignItems:'center', padding:'3px 10px', borderRadius:999,
-          fontFamily:"'Geist Mono',monospace", fontSize:10, fontWeight:600, letterSpacing:'0.06em',
-          textTransform:'uppercase', color:C.teal, background:C.tealBg, border:`1px solid ${C.tealBd}` }}>
-          {allies.length} Aliados
-        </span>
-        <span style={{ display:'inline-flex', alignItems:'center', padding:'3px 10px', borderRadius:999,
-          fontFamily:"'Geist Mono',monospace", fontSize:10, fontWeight:600, letterSpacing:'0.06em',
-          textTransform:'uppercase', color:C.crim, background:C.crimBg, border:`1px solid ${C.crimBd}` }}>
-          {critics.length} Contrarios
-        </span>
-        <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A',
-          textTransform:'uppercase', letterSpacing:'0.06em' }}>
-          Alcance total: {fmtK(totalEngagement)}
-        </span>
-        {totalPosts > 0 && (
+        {/* Summary chips */}
+        <motion.div variants={item} style={{ padding: isDesktop ? '8px 28px 20px' : '8px 18px 20px',
+          display:'flex', flexWrap:'wrap', gap:8, alignItems:'center' }}>
+          <span style={{ display:'inline-flex', alignItems:'center', padding:'3px 10px', borderRadius:999,
+            fontFamily:"'Geist Mono',monospace", fontSize:10, fontWeight:600, letterSpacing:'0.06em',
+            textTransform:'uppercase', color:C.teal, background:C.tealBg, border:`1px solid ${C.tealBd}` }}>
+            {allies.length} Aliados
+          </span>
+          <span style={{ display:'inline-flex', alignItems:'center', padding:'3px 10px', borderRadius:999,
+            fontFamily:"'Geist Mono',monospace", fontSize:10, fontWeight:600, letterSpacing:'0.06em',
+            textTransform:'uppercase', color:C.crim, background:C.crimBg, border:`1px solid ${C.crimBd}` }}>
+            {critics.length} Contrarios
+          </span>
           <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A',
             textTransform:'uppercase', letterSpacing:'0.06em' }}>
-            · {fmt(totalPosts)} posts históricos
+            Alcance total: {fmtK(totalEngagement)}
           </span>
-        )}
-        {!isHistorical && (
-          <div style={{ display:'flex', gap:5, marginLeft:'auto' }}>
-            {coveredNets.map(net => (
-              <span key={net} title={PLATFORM_LABELS[net]}
-                style={{ opacity:0.6, display:'inline-flex', alignItems:'center' }}>
-                <PlatformIcon platform={net} size={15} />
-              </span>
-            ))}
+          {totalPosts > 0 && (
+            <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A',
+              textTransform:'uppercase', letterSpacing:'0.06em' }}>
+              · {fmt(totalPosts)} posts históricos
+            </span>
+          )}
+        </motion.div>
+
+        {/* Charts */}
+        <motion.div variants={item} style={{ padding: isDesktop ? '0 28px' : '0 18px' }}>
+          <div style={{ display:'grid', gridTemplateColumns: isDesktop ? '1fr 1fr' : '1fr', gap:32 }}>
+            <ChartSection voices={allies} side="positive" label="Aliados" maxEng={maxEng}
+              onSelect={v => handleSelect(v, 'positive')} />
+            <ChartSection voices={critics} side="negative" label="Contrarios" maxEng={maxEng}
+              onSelect={v => handleSelect(v, 'negative')} />
           </div>
+        </motion.div>
+
+      </motion.div>
+
+      {/* Detail panel overlay */}
+      <AnimatePresence>
+        {selectedVoice && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setSelectedVoice(null)}
+              style={{ position: 'fixed', inset: 0, background: 'rgba(33,28,23,0.35)', zIndex: 199 }} />
+            <VoiceDetail
+              v={selectedVoice} side={selectedSide}
+              onClose={() => setSelectedVoice(null)}
+              isDesktop={isDesktop} />
+          </>
         )}
-      </motion.div>
-
-      {/* Charts */}
-      <motion.div variants={item} style={{ padding: isDesktop ? '0 28px' : '0 18px' }}>
-        <div style={{ display:'grid', gridTemplateColumns: isDesktop ? '1fr 1fr' : '1fr', gap:32 }}>
-          <ChartSection voices={allies} side="positive" label="Aliados" maxEng={maxEng} />
-          <ChartSection voices={critics} side="negative" label="Contrarios" maxEng={maxEng} />
-        </div>
-      </motion.div>
-
-    </motion.div>
+      </AnimatePresence>
+    </>
   );
 }
