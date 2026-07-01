@@ -453,13 +453,18 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
 
   const commentJobs = [];
 
-  const addCommentJob = (label, posts, actorId, inputFn, maxCharge, normFn) => {
+  // Filtra comentarios al día de análisis (para redes propias)
+  const filterCommentsByDate = (comments, dateKey) =>
+    comments.filter(c => !c.published_time || c.published_time.slice(0,10) === dateKey);
+
+  const addCommentJob = (label, posts, actorId, inputFn, maxCharge, normFn, filterByDate = false) => {
     if (!posts.length) return;
     commentJobs.push(
       Promise.allSettled(posts.map(p =>
         runActor(apifyToken, actorId, inputFn(p), maxCharge, `cmnt_${label}`)
           .then(items => {
-            const normed = normFn(items);
+            let normed = normFn(items);
+            if (filterByDate) normed = filterCommentsByDate(normed, DATE);
             emit({ type:'comments_scraped', net:label, url:p.url, count:normed.length });
             summary.comments[label] = (summary.comments[label] || 0) + normed.length;
             return insertComments(p.id, normed);
@@ -475,37 +480,41 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
   const ownedYtPosts = selectTopPosts(ownedPostsByPlatform.youtube);
   const ownedXPosts  = selectTopPosts(ownedPostsByPlatform.x);
 
+  // Propios: solo comentarios de hoy (filterByDate = true)
   addCommentJob('owned_ig', ownedIgPosts, 'apify/instagram-comment-scraper',
-    p => ({ directUrls:[p.url], resultsLimit:20, includeNestedComments:false }), 0.08, normCommentIG);
+    p => ({ directUrls:[p.url], resultsLimit:50, includeNestedComments:false }), 0.08, normCommentIG, true);
 
   addCommentJob('owned_fb', ownedFbPosts, 'apify/facebook-comments-scraper',
-    p => ({ startUrls:[{url:p.url}], resultsLimit:20, includeNestedComments:false }), 0.05, normCommentFB);
+    p => ({ startUrls:[{url:p.url}], resultsLimit:50, includeNestedComments:false }), 0.05, normCommentFB, true);
 
   addCommentJob('owned_tt', ownedTtPosts, 'clockworks/tiktok-comments-scraper',
-    p => ({ postURLs:[p.url], commentsPerPost:20, maxRepliesPerComment:0 }), 0.05, normCommentTT);
+    p => ({ postURLs:[p.url], commentsPerPost:50, maxRepliesPerComment:0 }), 0.05, normCommentTT, true);
 
+  // YouTube no devuelve fecha en comentarios — tomamos los 20 más recientes sin filtro
   addCommentJob('owned_yt', ownedYtPosts, 'apidojo/youtube-comments-scraper',
-    p => ({ startUrls:[p.url], sort:'latest', maxItems:20, includeReplies:false }), 0.03, normCommentYT);
+    p => ({ startUrls:[p.url], sort:'latest', maxItems:20, includeReplies:false }), 0.03, normCommentYT, false);
 
   addCommentJob('owned_x', ownedXPosts, 'scraper_one/x-post-replies-scraper',
-    p => ({ postUrls:[p.url], maxItems:20 }), 0.05, normCommentX);
+    p => ({ postUrls:[p.url], maxItems:50 }), 0.05, normCommentX, true);
 
   // También: top posts de social listening por comentarios (FB, IG, TikTok)
   const selectTopByComments = (posts, n=3) =>
     [...(posts||[])].sort((a,b) => b.comments_count - a.comments_count).slice(0, n);
 
-  const slFbPosts  = selectTopByComments(allSavedPosts.facebook);
-  const slIgPosts  = selectTopByComments(allSavedPosts.instagram);
-  const slTtPosts  = selectTopByComments(allSavedPosts.tiktok);
+  // SL: top 3 por engagement (likes + comentarios×2), max 20 comentarios c/u
+  const slFbPosts  = selectTopPosts(allSavedPosts.facebook);
+  const slIgPosts  = selectTopPosts(allSavedPosts.instagram);
+  const slTtPosts  = selectTopPosts(allSavedPosts.tiktok);
 
+  // SL: sin filtro de fecha — queremos los 20 comentarios más recientes del post
   addCommentJob('sl_fb', slFbPosts, 'apify/facebook-comments-scraper',
-    p => ({ startUrls:[{url:p.url}], resultsLimit:20, includeNestedComments:false }), 0.05, normCommentFB);
+    p => ({ startUrls:[{url:p.url}], resultsLimit:20, includeNestedComments:false }), 0.05, normCommentFB, false);
 
   addCommentJob('sl_ig', slIgPosts, 'apify/instagram-comment-scraper',
-    p => ({ directUrls:[p.url], resultsLimit:20, includeNestedComments:false }), 0.08, normCommentIG);
+    p => ({ directUrls:[p.url], resultsLimit:20, includeNestedComments:false }), 0.08, normCommentIG, false);
 
   addCommentJob('sl_tt', slTtPosts, 'clockworks/tiktok-comments-scraper',
-    p => ({ postURLs:[p.url], commentsPerPost:20, maxRepliesPerComment:0 }), 0.05, normCommentTT);
+    p => ({ postURLs:[p.url], commentsPerPost:20, maxRepliesPerComment:0 }), 0.05, normCommentTT, false);
 
   await Promise.allSettled(commentJobs);
   emit({ type:'phase_done', phase:'B', msg:'Comentarios guardados (propios + social listening).' });
