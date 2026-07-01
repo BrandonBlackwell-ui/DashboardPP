@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import ParticleBackground from './ParticleBackground';
 import { C } from '../utils/helpers';
 
-const SERVER = 'http://localhost:3001';
+const SERVER = import.meta.env.VITE_ANALIZAR_SERVER || 'http://localhost:3001';
 
 function AnalizarModal({ onClose, onDone }) {
   const [logs, setLogs] = useState([]);
@@ -70,14 +70,12 @@ function AnalizarModal({ onClose, onDone }) {
             {serverOk === null && <div style={{ color:'rgba(255,255,255,0.4)', fontSize:13 }}>Verificando servidor local...</div>}
             {serverOk === false && (
               <div>
-                <div style={{ color:'#FF6B6B', fontSize:13, marginBottom:12 }}>
-                  Servidor no detectado en localhost:3001
+                <div style={{ color:'#FF6B6B', fontSize:13, marginBottom:8 }}>
+                  No se pudo conectar con el servidor de análisis.
                 </div>
-                <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, color:'rgba(255,255,255,0.5)',
-                  background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:3, padding:'10px 14px', textAlign:'left', marginBottom:16 }}>
-                  node scripts/analizar-server.js APIFY_TOKEN AI_KEY
+                <div style={{ fontSize:12, color:'rgba(255,255,255,0.35)', lineHeight:1.6 }}>
+                  Verifica que el servicio en Railway esté activo, o revisa la variable <code style={{ background:'rgba(255,255,255,0.08)', padding:'1px 5px', borderRadius:2 }}>VITE_ANALIZAR_SERVER</code> en Vercel.
                 </div>
-                <div style={{ fontSize:12, color:'rgba(255,255,255,0.3)' }}>Corre ese comando en una terminal y vuelve a intentarlo.</div>
               </div>
             )}
             {serverOk === true && (

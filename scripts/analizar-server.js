@@ -13,13 +13,12 @@ import http from 'http';
 import { URL } from 'url';
 import { runFullAnalysis } from './run-full-analysis.js';
 
-const args = process.argv.slice(2);
-const APIFY_TOKEN = args[0] || process.env.APIFY_TOKEN;
-const AI_KEY      = args[1] || process.env.OPENROUTER_API_KEY;
-const PORT        = 3001;
+const APIFY_TOKEN = process.env.APIFY_TOKEN;
+const AI_KEY      = process.env.OPENROUTER_API_KEY;
+const PORT        = process.env.PORT || 3001;
 
 if (!APIFY_TOKEN || !AI_KEY) {
-  console.error('Uso: node scripts/analizar-server.js <APIFY_TOKEN> <OPENROUTER_KEY>');
+  console.error('Faltan variables de entorno: APIFY_TOKEN y OPENROUTER_API_KEY');
   process.exit(1);
 }
 
@@ -28,8 +27,8 @@ let running = false;
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
 
-  // CORS para el dashboard local/Vercel
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // CORS — permite Vercel + local
+  res.setHeader('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGIN || '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
 
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
@@ -82,12 +81,8 @@ const server = http.createServer((req, res) => {
   res.writeHead(404); res.end('Not found');
 });
 
-server.listen(PORT, () => {
-  console.log(`\n╔══════════════════════════════════════════════════╗`);
-  console.log(`║  Analizar Server — Blackwell Dashboard            ║`);
-  console.log(`║  Escuchando en http://localhost:${PORT}             ║`);
-  console.log(`║                                                  ║`);
-  console.log(`║  Presiona Ctrl+C para detener                    ║`);
-  console.log(`╚══════════════════════════════════════════════════╝\n`);
-  console.log(`  Listo. Abre el dashboard y presiona "Analizar".\n`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Analizar Server escuchando en puerto ${PORT}`);
+  console.log(`APIFY_TOKEN: ${APIFY_TOKEN ? '✓' : '✗'}`);
+  console.log(`OPENROUTER_API_KEY: ${AI_KEY ? '✓' : '✗'}`);
 });
