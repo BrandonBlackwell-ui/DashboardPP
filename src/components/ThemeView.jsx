@@ -1253,7 +1253,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       )}
 
       {/* Aliados y contrarios (mobile / non-rawOnly) */}
-      {!t.rawOnly && tab !== 'redes_propias' && (voices.allies.length > 0 || voices.critics.length > 0) && (() => {
+      {!t.rawOnly && tab !== 'redes_propias' && tab !== 'social_listening' && (voices.allies.length > 0 || voices.critics.length > 0) && (() => {
         const VoiceCard = ({ v, side }) => {
           const isAlly = side === 'ally';
           const accentColor = isAlly ? C.teal : C.crim;
