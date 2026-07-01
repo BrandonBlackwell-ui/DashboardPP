@@ -439,7 +439,7 @@ export async function loadFromSupabase() {
         };
       }
       const e = voiceAgg[k];
-      e.posts     += Number(v.posts || 0);
+      e.posts      = Math.max(e.posts, Number(v.posts || 0));
       e.likes     += Number(v.likes || 0);
       e.comments  += Number(v.comments || 0);
       e.engagement+= Number(v.engagement || 0);
