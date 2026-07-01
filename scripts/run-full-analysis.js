@@ -176,12 +176,12 @@ const normOwnedX = (items) => items.slice(0, 5).map(p => ({
   retweets: +(p.retweetCount || p.retweets || 0), views: +(p.viewCount || p.views || 0), shares:0,
 })).filter(p => p.url);
 
-async function fetchYouTubeRSS(from, to) {
+async function fetchYouTubeRSS() {
   const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${OWNED.youtube}`;
   const res = await fetch(feedUrl);
   const xml = await res.text();
   const entries = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].map(m => m[1]);
-  return entries.map(e => {
+  return entries.slice(0, 5).map(e => {
     const videoId = (e.match(/<yt:videoId>(.*?)<\/yt:videoId>/) || [])[1] || '';
     const title   = (e.match(/<title>(.*?)<\/title>/)           || [])[1] || '';
     const pub     = (e.match(/<published>(.*?)<\/published>/)    || [])[1] || '';
@@ -190,7 +190,7 @@ async function fetchYouTubeRSS(from, to) {
       text: title, url: `https://www.youtube.com/watch?v=${videoId}`,
       published_date: pub, likes:0, comments_count:0, shares:0, retweets:0, views:0,
     };
-  }).filter(p => p.url && p.text && inDate(p.published_date, from, to));
+  }).filter(p => p.url && p.text);
 }
 
 // ─── Comment normalizers ──────────────────────────────────────────────────────
@@ -387,7 +387,7 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
       { mode:'profile', sources:[OWNED.facebook], maxPosts:5, includeTopComments:false, fetchAllComments:false, fetchCommentReplies:false, enrichSinglePostFields:false }, 0.05, 'own_fb'),
     runActor(apifyToken, 'clockworks/tiktok-profile-scraper',
       { profiles:[OWNED.tiktok], resultsPerPage:13, shouldDownloadCovers:false, shouldDownloadSlideshowImages:false, shouldDownloadSubtitles:false, shouldDownloadVideos:false }, 0.04, 'own_tt'),
-    fetchYouTubeRSS(OWNED_FROM, DNEXT),
+    fetchYouTubeRSS(),
     runActor(apifyToken, 'scraper_one/x-profile-posts-scraper',
       { profileUrls:[OWNED.x], resultsLimit:10, skipPinnedPosts:true }, 0.05, 'own_x'),
   ]);
@@ -427,9 +427,15 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
   const reportIdOwned = await upsertReport('redes_propias', 'Redes Propias', DATE);
 
   for (const { key, result, norm } of ownedNorms) {
-    if (result.status === 'rejected') { summary.posts[`owned_${key}`] = { error: result.reason?.message }; continue; }
+    if (result.status === 'rejected') {
+      const errMsg = result.reason?.message || String(result.reason);
+      summary.posts[`owned_${key}`] = { error: errMsg };
+      emit({ type:'error', msg:`owned_${key}: ${errMsg}` });
+      continue;
+    }
+    const rawCount = Array.isArray(result.value) ? result.value.length : 0;
     const posts = norm(result.value);
-    summary.posts[`owned_${key}`] = { count: posts.length };
+    summary.posts[`owned_${key}`] = { count: posts.length, raw: rawCount };
     emit({ type:'saved', net:`owned_${key}`, count:posts.length });
     if (!posts.length) continue;
     const saved = await insertPosts(reportIdOwned, 'redes_propias', posts);
