@@ -80,52 +80,28 @@ function buildThemeFromScrapedData(rep) {
   const aiVoices = voicesFromAi(ai);
   const aiNetworks = platformAiMap(ai);
 
-  // 1. Sentiment counts (calculated from comments if redes_propias, otherwise from posts)
-  let posC = posts.filter(p => p.sentiment === 'positive').length;
-  let negC = posts.filter(p => p.sentiment === 'negative').length;
-  let neuC = posts.filter(p => p.sentiment === 'neutral' || !p.sentiment).length;
-  let total = posC + negC + neuC || 1;
-  let posPct = Math.round(posC / total * 100);
-  let negPct = Math.round(negC / total * 100);
-  let neuPct = 100 - posPct - negPct;
-
+  // 1. Sentiment — only from AI. Keyword scoring removed.
+  let posC = 0, negC = 0, neuC = 0;
+  let posPct = 0, negPct = 0, neuPct = 0;
   let riskLevel = 'bajo';
-  if (negPct > 40) riskLevel = 'muy_alto';
-  else if (negPct > 25) riskLevel = 'alto';
-  else if (negPct > 15) riskLevel = 'medio';
 
-  // 2. Platform breakdown (calculated from comments if redes_propias, otherwise from posts)
+  // 2. Platform breakdown — counts from scraped posts, sentiment only from AI per-network breakdown
   const platformMap = {};
   posts.forEach(p => {
     const plat = p.platform || 'unknown';
-    if (!platformMap[plat]) platformMap[plat] = { posts: 0, comments: 0, pos: 0, neu: 0, neg: 0 };
-    const pm = platformMap[plat];
-    pm.posts += 1;
-    pm.comments += p.comments_count || (p.scraped_comments?.length || 0);
-
-    if (rep.theme_key === 'redes_propias' && p.scraped_comments?.length) {
-      p.scraped_comments.forEach(c => {
-        const tone = scoreText(c.text);
-        if (tone === 'positive') pm.pos += 1;
-        else if (tone === 'negative') pm.neg += 1;
-        else pm.neu += 1;
-      });
-    } else {
-      if (p.sentiment === 'positive') pm.pos += 1;
-      else if (p.sentiment === 'negative') pm.neg += 1;
-      else pm.neu += 1;
-    }
+    if (!platformMap[plat]) platformMap[plat] = { posts: 0, comments: 0 };
+    platformMap[plat].posts += 1;
+    platformMap[plat].comments += p.comments_count || (p.scraped_comments?.length || 0);
   });
 
   const platforms = Object.entries(platformMap).map(([name, pm]) => {
-    const tot = pm.pos + pm.neu + pm.neg || 1;
     const aiRow = aiNetworks[String(name).toLowerCase()];
     const aiRowSent = aiRow ? sentimentFromAi({ sentimiento: aiRow.sentimiento || aiRow.sentiment || aiRow }) : null;
     return {
       name, posts: pm.posts, comments: pm.comments, users: pm.posts,
       sent: aiRowSent
         ? { positivo: aiRowSent.pos, neutral: aiRowSent.neu, negativo: aiRowSent.neg }
-        : { positivo: Math.round(pm.pos/tot*100), neutral: Math.round(pm.neu/tot*100), negativo: Math.round(pm.neg/tot*100) }
+        : { positivo: 0, neutral: 0, negativo: 0 }
     };
   });
 
@@ -148,45 +124,7 @@ function buildThemeFromScrapedData(rep) {
       engagement: p.likes || 0, username: p.username
     }));
 
-  // Special handling for owned networks (redes_propias): compute metrics from comments
-  if (rep.theme_key === 'redes_propias') {
-    const allComments = [];
-    posts.forEach(p => {
-      if (p.scraped_comments) {
-        p.scraped_comments.forEach(c => {
-          allComments.push({ ...c, postUrl: p.url, postPlatform: p.platform });
-        });
-      }
-    });
-
-    if (allComments.length > 0) {
-      const commPos = allComments.filter(c => scoreText(c.text) === 'positive');
-      const commNeg = allComments.filter(c => scoreText(c.text) === 'negative');
-      const commNeu = allComments.filter(c => scoreText(c.text) === 'neutral');
-      const commTotal = allComments.length;
-
-      posPct = Math.round(commPos.length / commTotal * 100);
-      negPct = Math.round(commNeg.length / commTotal * 100);
-      neuPct = 100 - posPct - negPct;
-
-      posC = commPos.length;
-      negC = commNeg.length;
-      neuC = commNeu.length;
-
-      if (negPct > 40) riskLevel = 'muy_alto';
-      else if (negPct > 25) riskLevel = 'alto';
-      else if (negPct > 15) riskLevel = 'medio';
-      else riskLevel = 'bajo';
-
-      alertPosts = commNeg.sort((a,b) => (b.likes||0) - (a.likes||0))
-        .slice(0, 10)
-        .map(c => ({
-          url: c.url || c.postUrl, text: c.text, tipo: 'Comentario Crítico', platform: c.postPlatform,
-          time: c.published_time, score: '85', razon: `Comentario negativo de @${c.author} en publicación propia`,
-          engagement: c.likes || 0, username: c.author
-        }));
-    }
-  }
+  // redes_propias: sentiment and alerts come exclusively from AI (see aiSentiment block below)
 
   // 4. Voices (Allies/Critics)
   // Normalize username: strip leading @, lowercase
