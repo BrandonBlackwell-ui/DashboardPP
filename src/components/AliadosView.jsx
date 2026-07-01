@@ -23,7 +23,8 @@ function buildVoicesFromData(data) {
       if (!allMap[key]) {
         allMap[key] = { username: v.username, platform: v.platform || themeKey,
           networks: [], side, likes: 0, comments: 0, engagement: 0, posts: 0,
-          tier: v.tier || 'micro', keywords: [], text: v.text || '', impact: v.impact || '', url: v.url || '' };
+          tier: v.tier || 'micro', keywords: [], text: v.text || '', impact: v.impact || '', url: v.url || '',
+          reactions: { like: 0, love: 0, haha: 0, wow: 0, sad: 0, angry: 0, care: 0 } };
       }
       const e = allMap[key];
       if (!e.networks.includes(themeKey)) e.networks.push(themeKey);
@@ -31,6 +32,11 @@ function buildVoicesFromData(data) {
       e.comments += v.comments || 0;
       e.engagement += v.engagement || 0;
       e.posts += v.posts || 0;
+      if (v.reactions && typeof v.reactions === 'object') {
+        ['like','love','haha','wow','sad','angry','care'].forEach(r => {
+          e.reactions[r] += v.reactions[r] || 0;
+        });
+      }
       if (v.keywords?.length && !e.keywords.length) e.keywords = v.keywords;
       if (v.text && !e.text) e.text = v.text;
       if (v.impact && !e.impact) e.impact = v.impact;
@@ -49,9 +55,30 @@ function buildVoicesFromData(data) {
   };
 }
 
+const FB_REACTIONS = [
+  { key: 'haha',  emoji: '😂', label: 'Jaja' },
+  { key: 'love',  emoji: '❤️', label: 'Me encanta' },
+  { key: 'like',  emoji: '👍', label: 'Me gusta' },
+  { key: 'wow',   emoji: '😮', label: 'Asombro' },
+  { key: 'sad',   emoji: '😢', label: 'Tristeza' },
+  { key: 'angry', emoji: '😡', label: 'Enojo' },
+  { key: 'care',  emoji: '🤗', label: 'Cariño' },
+];
+
 function Tooltip({ v, side }) {
   const isAlly = side !== 'negative';
   const accent = isAlly ? C.teal : C.crim;
+  const isFacebook = v.platform === 'facebook' || v.networks?.includes('facebook');
+  const rxTotal = isFacebook && v.reactions
+    ? Object.values(v.reactions).reduce((s, n) => s + n, 0)
+    : 0;
+  const hasReactions = rxTotal > 0;
+
+  const activeReactions = isFacebook && v.reactions
+    ? FB_REACTIONS.filter(r => v.reactions[r.key] > 0)
+        .sort((a, b) => v.reactions[b.key] - v.reactions[a.key])
+    : [];
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 4, scale: 0.96 }}
@@ -60,7 +87,7 @@ function Tooltip({ v, side }) {
       transition={{ duration: 0.13 }}
       style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)',
         background: '#211C17', borderRadius: 4, padding: '10px 14px', zIndex: 99,
-        boxShadow: '0 8px 24px rgba(0,0,0,0.35)', minWidth: 200, pointerEvents: 'none',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.35)', minWidth: hasReactions ? 230 : 200, pointerEvents: 'none',
         border: `1px solid ${accent}40` }}>
       {/* Arrow */}
       <div style={{ position:'absolute', bottom:-5, left:'50%', transform:'translateX(-50%)',
@@ -77,9 +104,9 @@ function Tooltip({ v, side }) {
 
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6 }}>
         {[
-          { label:'Posts', value: v.posts || 0, icon:'📄' },
-          { label:'Likes', value: fmt(v.likes || 0), icon:'♥' },
-          { label:'Comentarios', value: fmt(v.comments || 0), icon:'💬' },
+          { label:'Posts', value: v.posts || 0 },
+          { label: isFacebook ? 'Reacciones' : 'Likes', value: fmt(isFacebook && hasReactions ? rxTotal : (v.likes || 0)) },
+          { label:'Comentarios', value: fmt(v.comments || 0) },
         ].map(m => (
           <div key={m.label} style={{ textAlign:'center' }}>
             <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:15, color:'#EFE9DC', fontWeight:700 }}>{m.value}</div>
@@ -88,6 +115,28 @@ function Tooltip({ v, side }) {
           </div>
         ))}
       </div>
+
+      {/* Facebook reaction breakdown */}
+      {hasReactions && activeReactions.length > 0 && (
+        <div style={{ borderTop:'1px solid rgba(255,255,255,0.1)', marginTop:8, paddingTop:7 }}>
+          <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:8, letterSpacing:'0.1em',
+            textTransform:'uppercase', color:'rgba(255,255,255,0.3)', marginBottom:5 }}>
+            Desglose · Facebook
+          </div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:'4px 10px' }}>
+            {activeReactions.map(r => (
+              <div key={r.key} style={{ display:'flex', alignItems:'center', gap:4 }}
+                title={r.label}>
+                <span style={{ fontSize:13, lineHeight:1 }}>{r.emoji}</span>
+                <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5,
+                  color:'#EFE9DC', fontWeight:600 }}>
+                  {fmt(v.reactions[r.key])}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {v.networks.length > 1 && (
         <div style={{ borderTop:'1px solid rgba(255,255,255,0.1)', marginTop:8, paddingTop:6,
