@@ -93,8 +93,16 @@ function VoiceDetail({ v, side, onClose, isDesktop }) {
           .select('url, text, platform, published_date, likes, comments_count, shares, views, retweets')
           .ilike('username', username)
           .order('published_date', { ascending: false })
-          .limit(30);
-        setPosts(data || []);
+          .limit(60);
+        // Deduplicate by URL (same post scraped across multiple reports)
+        const seen = new Set();
+        const unique = (data || []).filter(p => {
+          const key = p.url || p.text?.slice(0, 80) || Math.random();
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        }).slice(0, 30);
+        setPosts(unique);
       } catch {
         setPosts([]);
       } finally {
