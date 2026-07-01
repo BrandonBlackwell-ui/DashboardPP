@@ -56,7 +56,7 @@ async function runActor(token, actorId, input, maxCharge, label) {
 // ─── Relevancia ───────────────────────────────────────────────────────────────
 const RELEVANT_KW = ['pepe aguilar','pepeaguilar','angela aguilar','angelaaguilar',
   'leonardo aguilar','leonardoaguilar','emiliano aguilar','aneliz','antonio aguilar',
-  'familia aguilar','familiaaguilar','dinast','aguilar'];
+  'familia aguilar','familiaaguilar','dinast','los aguilar','losaguilar','aguilar'];
 const isRelevant = t => RELEVANT_KW.some(k => (t||'').toLowerCase().includes(k));
 
 const nextDay = d => { const dt = new Date(d+'T12:00:00Z'); dt.setDate(dt.getDate()+1); return dt.toISOString().slice(0,10); };
@@ -362,17 +362,19 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
   const [fbR, igR, xR, ttR, gnR, ownIgR, ownFbR, ownTtR, ownYtR, ownXR] = await Promise.allSettled([
     // Público
     runActor(apifyToken, 'igview-owner/facebook-old-posts-search',
-      { query:'"Pepe Aguilar"', startDate:DATE, endDate:DATE, maxResults:50 }, 0.12, 'fb_search'),
+      { query:'"Pepe Aguilar" OR "los Aguilar"', startDate:DATE, endDate:DATE, maxResults:50 }, 0.12, 'fb_search'),
     runActor(apifyToken, 'apidojo/instagram-hashtag-scraper',
       { keyword:'pepeaguilar', until:DATE, getPosts:true, getReels:false, maxItems:10 }, 0.05, 'ig_hash1').then(async r1 => {
         const r2 = await runActor(apifyToken, 'apidojo/instagram-hashtag-scraper',
           { keyword:'angelaaguilar', until:DATE, getPosts:true, getReels:false, maxItems:10 }, 0.05, 'ig_hash2');
-        return [...r1, ...r2];
+        const r3 = await runActor(apifyToken, 'apidojo/instagram-hashtag-scraper',
+          { keyword:'losaguilar', until:DATE, getPosts:true, getReels:false, maxItems:10 }, 0.05, 'ig_hash3');
+        return [...r1, ...r2, ...r3];
       }),
     runActor(apifyToken, 'igolaizola/x-twitter-scraper-ppe',
-      { query:'"Pepe Aguilar"', maxItems:100, minDate:DATE, maxDate:DNEXT, replies:'exclude', retweets:'exclude', quotes:'exclude' }, 1.00, 'x_search'),
+      { query:'"Pepe Aguilar" OR "los Aguilar"', maxItems:100, minDate:DATE, maxDate:DNEXT, replies:'exclude', retweets:'exclude', quotes:'exclude' }, 1.00, 'x_search'),
     runActor(apifyToken, 'sentry/tiktok-search-api',
-      { keywords:['Pepe Aguilar'], maxVideosPerKeyword:15, maxVideosTotal:15, sortOrder:'mostViews', datePosted:'today', includePhotoPosts:false }, 0.10, 'tt_search'),
+      { keywords:['Pepe Aguilar', 'los Aguilar'], maxVideosPerKeyword:10, maxVideosTotal:20, sortOrder:'mostViews', datePosted:'today', includePhotoPosts:false }, 0.10, 'tt_search'),
     runActor(apifyToken, 'sourabhbgp/google-news-scraper',
       { urls:['"Pepe Aguilar"'], mode:'search', maxResults:20, dateFrom:DATE, dateTo:DATE, language:'es', country:'MX', includeFullText:false, fullCoverage:false }, 0.04, 'gn'),
     // Propios
@@ -485,8 +487,40 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
     ))
   );
 
+  // También: top posts de social listening por comentarios (FB, IG, TikTok)
+  const selectTopByComments = (posts, n=3) =>
+    [...(posts||[])].sort((a,b) => b.comments_count - a.comments_count).slice(0, n);
+
+  const slFbPosts  = selectTopByComments(allSavedPosts.facebook);
+  const slIgPosts  = selectTopByComments(allSavedPosts.instagram);
+  const slTtPosts  = selectTopByComments(allSavedPosts.tiktok);
+
+  if (slFbPosts.length) commentJobs.push(
+    Promise.allSettled(slFbPosts.map(p =>
+      runActor(apifyToken, 'apify/facebook-comments-scraper',
+        { startUrls:[{url:p.url}], resultsLimit:20, includeNestedComments:false }, 0.05, 'cmnt_sl_fb')
+      .then(items => insertComments(p.id, normCommentFB(items)))
+    ))
+  );
+
+  if (slIgPosts.length) commentJobs.push(
+    Promise.allSettled(slIgPosts.map(p =>
+      runActor(apifyToken, 'apify/instagram-comment-scraper',
+        { directUrls:[p.url], resultsLimit:20, includeNestedComments:false }, 0.08, 'cmnt_sl_ig')
+      .then(items => insertComments(p.id, normCommentIG(items)))
+    ))
+  );
+
+  if (slTtPosts.length) commentJobs.push(
+    Promise.allSettled(slTtPosts.map(p =>
+      runActor(apifyToken, 'clockworks/tiktok-comments-scraper',
+        { postURLs:[p.url], commentsPerPost:20, maxRepliesPerComment:0 }, 0.05, 'cmnt_sl_tt')
+      .then(items => insertComments(p.id, normCommentTT(items)))
+    ))
+  );
+
   await Promise.allSettled(commentJobs);
-  emit({ type:'phase_done', phase:'B', msg:'Comentarios guardados.' });
+  emit({ type:'phase_done', phase:'B', msg:'Comentarios guardados (propios + social listening).' });
 
   // ── FASE C: AI por red en paralelo (Gemini) ───────────────────────────────
   emit({ type:'phase', phase:'C', msg:'Análisis IA por red (paralelo)...' });
