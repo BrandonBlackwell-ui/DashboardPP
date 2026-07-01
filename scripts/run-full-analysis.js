@@ -59,8 +59,9 @@ const RELEVANT_KW = ['pepe aguilar','pepeaguilar','angela aguilar','angelaaguila
   'familia aguilar','familiaaguilar','dinast','los aguilar','losaguilar','aguilar'];
 const isRelevant = t => RELEVANT_KW.some(k => (t||'').toLowerCase().includes(k));
 
-const nextDay = d => { const dt = new Date(d+'T12:00:00Z'); dt.setDate(dt.getDate()+1); return dt.toISOString().slice(0,10); };
-const inDate  = (dateStr, from, to) => { if (!dateStr) return true; const d = dateStr.slice(0,10); return d >= from && d < to; };
+const nextDay  = d => { const dt = new Date(d+'T12:00:00Z'); dt.setDate(dt.getDate()+1); return dt.toISOString().slice(0,10); };
+const daysAgo  = (d, n) => { const dt = new Date(d+'T12:00:00Z'); dt.setDate(dt.getDate()-n); return dt.toISOString().slice(0,10); };
+const inDate   = (dateStr, from, to) => { if (!dateStr) return true; const d = dateStr.slice(0,10); return d >= from && d < to; };
 
 // ─── Supabase helpers ─────────────────────────────────────────────────────────
 async function upsertReport(themeKey, themeLabel, dateKey) {
@@ -350,8 +351,9 @@ async function enrichAndSaveAI(apiKey, themeKey, dateKey, allPostsByTheme) {
 
 // ─── Exportable orchestrator ──────────────────────────────────────────────────
 export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.log }) {
-  const DATE  = date || new Date().toISOString().slice(0,10);
-  const DNEXT = nextDay(DATE);
+  const DATE       = date || new Date().toISOString().slice(0,10);
+  const DNEXT      = nextDay(DATE);
+  const OWNED_FROM = daysAgo(DATE, 7); // propios: últimos 7 días
 
   const summary = { date: DATE, phases: {}, posts: {}, comments: {}, ai: {}, startedAt: new Date().toISOString() };
   const allSavedPosts = {}; // themeKey → array of saved post records {id, url, likes, comments_count}
@@ -384,7 +386,7 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
       { mode:'profile', sources:[OWNED.facebook], maxPosts:5, includeTopComments:false, fetchAllComments:false, fetchCommentReplies:false, enrichSinglePostFields:false }, 0.05, 'own_fb'),
     runActor(apifyToken, 'clockworks/tiktok-profile-scraper',
       { profiles:[OWNED.tiktok], resultsPerPage:13, shouldDownloadCovers:false, shouldDownloadSlideshowImages:false, shouldDownloadSubtitles:false, shouldDownloadVideos:false }, 0.04, 'own_tt'),
-    fetchYouTubeRSS(DATE, DNEXT),
+    fetchYouTubeRSS(OWNED_FROM, DNEXT),
     runActor(apifyToken, 'scraper_one/x-profile-posts-scraper',
       { profileUrls:[OWNED.x], resultsLimit:10, skipPinnedPosts:true }, 0.05, 'own_x'),
   ]);
@@ -413,11 +415,11 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
 
   // Normalizar y guardar — propios
   const ownedNorms = [
-    { key:'instagram', result:ownIgR, norm: items => normOwnedInstagram(items, DATE, DNEXT) },
-    { key:'facebook',  result:ownFbR, norm: items => normOwnedFacebook(items, DATE, DNEXT) },
-    { key:'tiktok',    result:ownTtR, norm: items => normOwnedTikTok(items, DATE, DNEXT) },
-    { key:'youtube',   result:ownYtR, norm: items => items }, // already normalized
-    { key:'x',         result:ownXR,  norm: items => normOwnedX(items, DATE, DNEXT) },
+    { key:'instagram', result:ownIgR, norm: items => normOwnedInstagram(items, OWNED_FROM, DNEXT) },
+    { key:'facebook',  result:ownFbR, norm: items => normOwnedFacebook(items, OWNED_FROM, DNEXT) },
+    { key:'tiktok',    result:ownTtR, norm: items => normOwnedTikTok(items, OWNED_FROM, DNEXT) },
+    { key:'youtube',   result:ownYtR, norm: items => items }, // already normalized by fetchYouTubeRSS
+    { key:'x',         result:ownXR,  norm: items => normOwnedX(items, OWNED_FROM, DNEXT) },
   ];
 
   const ownedPostsByPlatform = {};
