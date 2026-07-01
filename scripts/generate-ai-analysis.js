@@ -57,7 +57,8 @@ Reglas duras:
 - No inventes publicaciones, urls, autores, followers ni metricas.
 - Los porcentajes globales deben sumar 100.
 - Los porcentajes por red deben sumar 100.
-- Si una red no tiene muestra suficiente, usa 0 favorable, 100 neutral, 0 critico y explica "sin muestra suficiente".
+- NUNCA uses 0/100/0 como fallback. Si una red no tiene muestra suficiente para clasificar con certeza, OMITELA del desglose_por_red por completo. Solo incluye redes con evidencia real en los datos.
+- Todo porcentaje de sentimiento debe estar respaldado por posts o comentarios concretos de los datos provistos.
 - Aliados y contrarios deben salir de autores presentes en posts, comentarios o voces provistas.
 - Clasifica como aliado a quien defiende, apoya, celebra, amplifica positivamente o abre oportunidad reputacional.
 - Clasifica como contrario a quien critica, ridiculiza, acusa, amplifica riesgo o instala narrativa negativa.
@@ -78,12 +79,9 @@ Devuelve EXCLUSIVAMENTE JSON valido con esta forma:
   },
   "nivel_riesgo": "bajo | medio | alto | muy_alto",
   "desglose_por_red": {
-    "x": { "sentimiento": { "favorable": 0, "neutral": 100, "critico": 0 }, "lectura": "..." },
-    "instagram": { "sentimiento": { "favorable": 0, "neutral": 100, "critico": 0 }, "lectura": "..." },
-    "facebook": { "sentimiento": { "favorable": 0, "neutral": 100, "critico": 0 }, "lectura": "..." },
-    "tiktok": { "sentimiento": { "favorable": 0, "neutral": 100, "critico": 0 }, "lectura": "..." },
-    "youtube": { "sentimiento": { "favorable": 0, "neutral": 100, "critico": 0 }, "lectura": "..." },
-    "google_news": { "sentimiento": { "favorable": 0, "neutral": 100, "critico": 0 }, "lectura": "..." }
+    "INSTRUCCION": "Solo incluye redes con evidencia real en los datos. Si una red no tiene posts/comentarios suficientes para clasificar, OMITELA. No pongas 0/100/0 como placeholder.",
+    "x": { "sentimiento": { "favorable": 12, "neutral": 71, "critico": 17 }, "lectura": "Lectura basada en evidencia concreta de los datos..." },
+    "instagram": { "sentimiento": { "favorable": 45, "neutral": 40, "critico": 15 }, "lectura": "..." }
   },
   "alertas": [
     "Alerta concreta + por que ocurre..."
