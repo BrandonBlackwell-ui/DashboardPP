@@ -996,6 +996,51 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
           </motion.div>
           {renderNetworkMap(false)}
         </div>
+      ) : isOwned ? (
+        /* ── Redes Propias layout: sentiment+alertómetro top, posts below ── */
+        <div style={{ padding:'0 28px', paddingBottom:24 }}>
+          {/* Top row */}
+          <motion.div variants={item} style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, paddingTop:16, paddingBottom:14 }}>
+            {/* Donut card */}
+            <div style={{ display:'flex', alignItems:'center', gap:16, background:C.card,
+              border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:18 }}>
+              <Donut pos={s.pos} neu={s.neu} neg={s.neg} size={100} showLabel />
+              <div style={{ flex:1 }}>
+                <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, letterSpacing:'0.14em',
+                  textTransform:'uppercase', color:'#6B6253', marginBottom:10 }}>Sentimiento general</div>
+                {[{color:C.teal,label:'Favorable',pct:Math.round(s.pos)+'%'},{color:C.slate,label:'Neutral',pct:Math.round(s.neu)+'%'},{color:C.crim,label:'Crítica',pct:Math.round(s.neg)+'%'}].map(l => (
+                  <div key={l.label} style={{ display:'flex', alignItems:'center', gap:9, marginBottom:8 }}>
+                    <span style={{ width:8,height:8,borderRadius:'50%',flex:'none',background:l.color }} />
+                    <span style={{ fontSize:12, color:'#2A241C', flex:1 }}>{l.label}</span>
+                    <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:600, fontSize:14, color:C.ink }}>{l.pct}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Alertómetro card */}
+            <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderLeft:`3px solid ${rm.c}`, borderRadius:3, padding:18 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+                <span style={{ fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:16, color:C.ink }}>Alertómetro &amp; riesgo</span>
+                <Pill rm={rm} />
+              </div>
+              <div style={{ display:'flex', gap:0, marginBottom:12 }}>
+                <div style={{ flex:1, borderRight:'1px solid rgba(33,28,23,0.10)', paddingRight:12 }}>
+                  <div style={{ fontSize:24, fontWeight:600, color:C.ink, lineHeight:1 }}>{Math.round(t.risk?.negPct||s.neg||0)}<span style={{ fontSize:13 }}>%</span></div>
+                  <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'#6B6253', marginTop:5 }}>Conv. crítica</div>
+                </div>
+                <div style={{ flex:1, paddingLeft:14 }}>
+                  <div style={{ fontSize:24, fontWeight:600, color:C.ink, lineHeight:1 }}>{al.total||0}</div>
+                  <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase', color:'#6B6253', marginTop:5 }}>Posts con alerta / {al.analizados||0}</div>
+                </div>
+              </div>
+              <div style={{ fontSize:13, lineHeight:1.5, color:'#2A241C', paddingTop:10, borderTop:'1px solid rgba(33,28,23,0.10)' }}>
+                {al.recomendacion||'No se encontraron posts negativos'}
+              </div>
+            </div>
+          </motion.div>
+          {/* Posts full width */}
+          {renderNetworkMap(false)}
+        </div>
       ) : isDesktop ? (
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:0, padding:'0 28px' }}>
           {/* Left col */}
