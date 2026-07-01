@@ -331,8 +331,14 @@ async function enrichAndSaveAI(apiKey, themeKey, dateKey, allPostsByTheme) {
     const ownedOnly = (ownedPosts || []).filter(p => !posts.find(sp => sp.url === p.url));
     posts = [...posts, ...ownedOnly];
   } else {
-    const postRecs = await supabase.from('scraped_posts').select('id').eq('report_id', report.id);
-    postIds = (postRecs.data || []).map(p => p.id);
+    const { data: postRecs } = await supabase.from('scraped_posts')
+      .select('id,platform,username,text,url,published_date,likes,comments_count,views,followers')
+      .eq('report_id', report.id);
+    postIds = (postRecs || []).map(p => p.id);
+    // For redes_propias: posts come from Supabase (not allPostsByTheme which is social only)
+    if (themeKey === 'redes_propias' && postRecs?.length) {
+      posts = postRecs;
+    }
   }
 
   if (postIds.length) {
