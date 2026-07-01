@@ -11,10 +11,73 @@ function scoreText(text) {
   return neg > pos ? 'negative' : pos > neg ? 'positive' : 'neutral';
 }
 
+function cleanPct(value, fallback = 0) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+function sentimentFromAi(ai) {
+  if (!ai?.sentimiento) return null;
+  const raw = ai.sentimiento;
+  const pos = cleanPct(raw.favorable ?? raw.positivo ?? raw.positive);
+  const neg = cleanPct(raw.critico ?? raw.critica ?? raw.negativo ?? raw.negative);
+  const neu = cleanPct(raw.neutral, Math.max(0, 100 - pos - neg));
+  const total = pos + neu + neg || 1;
+  return {
+    pos: Math.round(pos / total * 100),
+    neu: Math.round(neu / total * 100),
+    neg: Math.max(0, 100 - Math.round(pos / total * 100) - Math.round(neu / total * 100)),
+  };
+}
+
+function voicesFromAi(ai) {
+  const voices = ai?.analisis_voces || ai?.voces || {};
+  const normalize = (item, sentiment) => ({
+    username: item.username || item.usuario || item.author || 'Sin usuario',
+    platform: item.platform || item.red || '',
+    followers: Number(item.followers || item.seguidores || 0),
+    url: item.url || item.link || item.profile_url || '',
+    posts: Number(item.posts_count || item.posts || 0),
+    likes: Number(item.likes_count || item.likes || 0),
+    comments: Number(item.comments_count || item.comments || 0),
+    engagement: Number(item.total_engagement || item.engagement || 0),
+    tier: item.tier || item.tamano || item.tamaño || 'micro',
+    sentiment,
+    keywords: item.keywords || item.gatillos || [],
+    text: item.comentario_o_post || item.text || item.mensaje || '',
+    impact: item.impacto || item.impact || '',
+  });
+  return {
+    allies: (voices.aliados_destacados || voices.aliados || []).map(v => normalize(v, 'positive')),
+    critics: (voices.criticos_destacados || voices.contrarios_destacados || voices.criticos || voices.contrarios || []).map(v => normalize(v, 'negative')),
+  };
+}
+
+function platformAiMap(ai) {
+  const raw = ai?.desglose_por_red || ai?.desglose_redes || ai?.redes || ai?.sentimiento_por_red;
+  if (!raw) return {};
+  if (Array.isArray(raw)) {
+    return raw.reduce((acc, row) => {
+      const key = String(row.platform || row.red || row.name || '').toLowerCase();
+      if (key) acc[key] = row;
+      return acc;
+    }, {});
+  }
+  return Object.entries(raw).reduce((acc, [key, value]) => {
+    acc[String(key).toLowerCase()] = value || {};
+    return acc;
+  }, {});
+}
+
 // Helper function to build themeData dynamically from raw scraped posts and voices
 function buildThemeFromScrapedData(rep) {
   const posts = rep.scraped_posts || [];
   const voicesList = rep.allies_critics_voices || [];
+  const ai = rep.ai_analysis || null;
+  const aiSentiment = sentimentFromAi(ai);
+  const aiVoices = voicesFromAi(ai);
+  const aiNetworks = platformAiMap(ai);
 
   // 1. Sentiment counts (calculated from comments if redes_propias, otherwise from posts)
   let posC = posts.filter(p => p.sentiment === 'positive').length;
@@ -55,9 +118,13 @@ function buildThemeFromScrapedData(rep) {
 
   const platforms = Object.entries(platformMap).map(([name, pm]) => {
     const tot = pm.pos + pm.neu + pm.neg || 1;
+    const aiRow = aiNetworks[String(name).toLowerCase()];
+    const aiRowSent = aiRow ? sentimentFromAi({ sentimiento: aiRow.sentimiento || aiRow.sentiment || aiRow }) : null;
     return {
       name, posts: pm.posts, comments: pm.comments, users: pm.posts,
-      sent: { positivo: Math.round(pm.pos/tot*100), neutral: Math.round(pm.neu/tot*100), negativo: Math.round(pm.neg/tot*100) }
+      sent: aiRowSent
+        ? { positivo: aiRowSent.pos, neutral: aiRowSent.neu, negativo: aiRowSent.neg }
+        : { positivo: Math.round(pm.pos/tot*100), neutral: Math.round(pm.neu/tot*100), negativo: Math.round(pm.neg/tot*100) }
     };
   });
 
@@ -135,16 +202,42 @@ function buildThemeFromScrapedData(rep) {
       tier: v.tier, sentiment: v.sentiment, keywords: v.keywords || []
     }));
 
+  if (aiSentiment) {
+    posPct = aiSentiment.pos;
+    neuPct = aiSentiment.neu;
+    negPct = aiSentiment.neg;
+    riskLevel = ai.nivel_riesgo || ai.riesgo || riskLevel;
+    alertPosts = (ai.alertas || []).map((text, idx) => ({
+      url: '',
+      text: typeof text === 'string' ? text : (text.text || text.alerta || ''),
+      tipo: 'Alerta IA',
+      platform: '',
+      time: rep.date_key,
+      score: String(text.score || text.peligrosidad || ''),
+      razon: typeof text === 'string' ? text : (text.razon || text.porque || ''),
+      engagement: 0,
+      username: 'IA',
+      id: `ai-alert-${idx}`,
+    }));
+  }
+
+  const hasAi = !!aiSentiment;
+
   return {
     label: rep.theme_label,
     es: esLabel(rep.theme_key),
-    ai_analysis: rep.ai_analysis || null,
+    ai_analysis: ai,
+    aiDerived: hasAi,
     sentiment: { pos: posPct, neu: neuPct, neg: negPct, posC: posC, neuC: neuC, negC: negC },
     risk: { level: riskLevel, negPct: negPct, attention: negPct > 20 },
     totals: { posts: posts.length },
     platforms,
-    alertometro: { total: alertPosts.length, analizados: alertPosts.length, nivel: riskLevel, recomendacion: '', posts: alertPosts },
-    oportunometro: { total: oppPosts.length, analizados: oppPosts.length, nivel: 'bajo', recomendacion: '', posts: oppPosts },
+    alertometro: hasAi
+      ? { total: alertPosts.length, analizados: posts.length, nivel: riskLevel, recomendacion: ai.recomendacion_riesgo || '', posts: alertPosts }
+      : { total: 0, analizados: 0, nivel: '', recomendacion: '', posts: [] },
+    oportunometro: hasAi
+      ? { total: ai.oportunidades?.length || 0, analizados: posts.length, nivel: 'ia', recomendacion: (ai.oportunidades || []).join(' '), posts: oppPosts }
+      : { total: 0, analizados: 0, nivel: '', recomendacion: '', posts: [] },
     complaints: { total: 0, categories: [] },
     news: null,
     trending: [],
@@ -158,8 +251,8 @@ function buildThemeFromScrapedData(rep) {
     voices: {
       segmentos: [],
       alertas: [],
-      allies: alliesList,
-      critics: criticsList
+      allies: aiVoices.allies.length ? aiVoices.allies : alliesList,
+      critics: aiVoices.critics.length ? aiVoices.critics : criticsList
     },
     networkStrategy: {
       totalPosts: posts.length,
@@ -167,7 +260,7 @@ function buildThemeFromScrapedData(rep) {
         key: p.name, label: platLabel(p.name), posts: p.posts, comments: p.comments, views: 0, likes: 0,
         sent: p.sent, tone: p.sent.negativo > p.sent.positivo ? 'critica' : 'favorable'
       })),
-      allies: alliesList
+      allies: aiVoices.allies.length ? aiVoices.allies : alliesList
     },
     scraped_posts: posts
   };

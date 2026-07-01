@@ -5,235 +5,230 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_AN
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-async function run() {
-  const apiKey = process.argv[2] || process.env.OPENROUTER_API_KEY;
+function parseArgs() {
+  const args = process.argv.slice(2);
+  return {
+    apiKey: args.find(a => !a.startsWith('--')) || process.env.OPENROUTER_API_KEY,
+    themeKey: args.find(a => a.startsWith('--theme='))?.split('=')[1] || '',
+    reportId: args.find(a => a.startsWith('--report='))?.split('=')[1] || '',
+  };
+}
 
-  if (!apiKey) {
-    console.error('ERROR: Por favor, proporciona tu API Key de OpenRouter.');
-    console.error('Ejemplo: npx tsx scripts/generate-ai-analysis.js <TU_OPENROUTER_KEY>');
-    process.exit(1);
-  }
+function truncate(text, max = 420) {
+  const clean = String(text || '').replace(/\s+/g, ' ').trim();
+  return clean.length > max ? `${clean.slice(0, max)}...` : clean;
+}
 
-  console.log('Conectando a Supabase para extraer posts, comentarios y voces del último reporte...');
+function buildDataPrompt({ report, posts, comments, voices }) {
+  let out = `DATOS EXTRAIDOS PARA ANALISIS POST-APIFY\n`;
+  out += `Reporte: ${report.theme_key} / ${report.theme_label || ''} / ${report.date_key}\n\n`;
 
-  // 1. Obtener el último reporte del tema "resumen"
-  const { data: latestRep, error: repErr } = await supabase
-    .from('reports')
-    .select('id, date_key')
-    .eq('theme_key', 'resumen')
-    .order('date_key', { ascending: false })
-    .limit(1)
-    .single();
-
-  if (repErr || !latestRep) {
-    console.error('Error al obtener el último reporte:', repErr?.message || 'No se encontraron reportes');
-    process.exit(1);
-  }
-
-  const reportId = latestRep.id;
-  const dateKey = latestRep.date_key;
-  console.log(`Procesando reporte del tema "resumen" para la fecha: ${dateKey} (ID: ${reportId})`);
-
-  // 2. Extraer todos los posts de ese reporte
-  const { data: posts, error: postErr } = await supabase
-    .from('scraped_posts')
-    .select('*')
-    .eq('report_id', reportId);
-
-  if (postErr) {
-    console.error('Error al obtener los posts:', postErr.message);
-    process.exit(1);
-  }
-
-  // 3. Extraer comentarios asociados a los posts de ese reporte
-  const postIds = posts.map(p => p.id);
-  let comments = [];
-  if (postIds.length > 0) {
-    const { data: comms, error: commErr } = await supabase
-      .from('scraped_comments')
-      .select('*')
-      .in('post_id', postIds);
-    if (commErr) {
-      console.warn('Error al obtener comentarios:', commErr.message);
-    } else {
-      comments = comms || [];
-    }
-  }
-
-  // 4. Extraer voces de la audiencia (aliados y contrarios) para esta fecha
-  const { data: voices, error: voiceErr } = await supabase
-    .from('allies_critics_voices')
-    .select('*')
-    .eq('report_id', reportId);
-
-  if (voiceErr) {
-    console.warn('Error al obtener voces:', voiceErr.message);
-  }
-
-  console.log(`Datos cargados: ${posts.length} posts, ${comments.length} comentarios, ${voices?.length || 0} perfiles de audiencia.`);
-
-  // 5. Armar el Prompt con los datos crudos para Claude
-  let dataPrompt = `DATOS EXTRAÍDOS PARA ANÁLISIS DE CRISIS (FECHA: ${dateKey}):\n\n`;
-  dataPrompt += `--- PUBLICACIONES DETECTADAS ---\n`;
-  posts.forEach((p, i) => {
-    dataPrompt += `${i+1}. [Post] Red: ${p.platform}, Autor: @${p.username}, Likes: ${p.likes || 0}, Comentarios: ${p.comments_count || 0}, Sentimiento Preliminar: ${p.sentiment || 'neutral'}, Texto: "${p.text}"\n`;
+  out += `--- PUBLICACIONES ---\n`;
+  posts.forEach((p, index) => {
+    out += `${index + 1}. Red: ${p.platform || 'sin red'} | Autor: @${p.username || 'sin autor'} | URL: ${p.url || 'sin url'} | Fecha: ${p.published_date || 'sin fecha'} | Likes: ${p.likes || 0} | Comentarios declarados: ${p.comments_count || 0} | Views: ${p.views || 0} | Texto: "${truncate(p.text)}"\n`;
   });
 
-  dataPrompt += `\n--- COMENTARIOS RECIENTES DE LA AUDIENCIA ---\n`;
-  comments.slice(0, 80).forEach((c, i) => {
-    dataPrompt += `${i+1}. [Comentario] Autor: @${c.author}, Likes: ${c.likes || 0}, Texto: "${c.text}"\n`;
+  out += `\n--- COMENTARIOS EXTRAIDOS ---\n`;
+  comments.slice(0, 180).forEach((c, index) => {
+    out += `${index + 1}. Autor: @${c.author || 'sin autor'} | Fecha: ${c.published_time || 'sin fecha'} | Likes: ${c.likes || 0} | URL: ${c.url || 'sin url'} | Texto: "${truncate(c.text, 320)}"\n`;
   });
 
-  dataPrompt += `\n--- LÍDERES DE OPINIÓN / PARTICIPANTES CLAVE ---\n`;
-  (voices || []).forEach((v, i) => {
-    dataPrompt += `${i+1}. [Perfil] @${v.username}, Plataforma: ${v.platform}, Postura: ${v.sentiment}, Seguidores: ${v.followers || 0}, Interacción Generada: ${v.total_engagement || 0}, Gatillos asociados: ${(v.keywords || []).join(', ')}\n`;
+  out += `\n--- VOCES YA DETECTADAS EN SUPABASE ---\n`;
+  voices.forEach((v, index) => {
+    out += `${index + 1}. @${v.username} | Red: ${v.platform || 'sin red'} | Sentimiento previo: ${v.sentiment || 'sin clasificar'} | Followers: ${v.followers || 0} | Engagement: ${v.total_engagement || 0} | Keywords: ${Array.isArray(v.keywords) ? v.keywords.join(', ') : ''}\n`;
   });
 
-  const prompt = `Actúa como un analista y estratega senior de manejo de crisis y reputación de marca corporativa. Analiza la conversación de las redes sociales sobre Pepe Aguilar provista abajo.
-  
-Tu objetivo es redactar un análisis estratégico extremadamente objetivo, factual, de pocas palabras pero de alto impacto. 
-NO uses lenguaje romántico, poético, metafórico o florido. Di las cosas como son, de forma directa y clara.
-Explica de manera concisa el "POR QUÉ" ocurre cada foco crítico y qué hacer al respecto.
+  return out;
+}
 
-Debes devolver EXACTAMENTE un objeto JSON estructurado con el siguiente formato, sin explicaciones ni markdown fuera del JSON:
+function buildPrompt(dataPrompt) {
+  return `Actua como analista senior de reputacion y crisis para Pepe Aguilar.
 
+Tu trabajo empieza DESPUES de Apify. Apify solo entrega posts, comentarios y metricas raw. Tu debes clasificar:
+- sentimiento global
+- sentimiento por red
+- alertometro y riesgo
+- aliados potenciales
+- contrarios / criticos relevantes
+- recomendaciones de accion
+
+Reglas duras:
+- No inventes publicaciones, urls, autores, followers ni metricas.
+- Los porcentajes globales deben sumar 100.
+- Los porcentajes por red deben sumar 100.
+- Si una red no tiene muestra suficiente, usa 0 favorable, 100 neutral, 0 critico y explica "sin muestra suficiente".
+- Aliados y contrarios deben salir de autores presentes en posts, comentarios o voces provistas.
+- Clasifica como aliado a quien defiende, apoya, celebra, amplifica positivamente o abre oportunidad reputacional.
+- Clasifica como contrario a quien critica, ridiculiza, acusa, amplifica riesgo o instala narrativa negativa.
+- Se factual y directo. Nada poetico.
+
+Devuelve EXCLUSIVAMENTE JSON valido con esta forma:
 {
   "resumen_ejecutivo": [
-    "Punto factual 1: Explicar qué ocurre exactamente y por qué (basado en hechos)...",
-    "Punto factual 2: Explicar qué ocurre exactamente y por qué (basado en hechos)...",
-    "Punto factual 3: Explicar qué ocurre exactamente y por qué (basado en hechos)...",
-    "Punto factual 4: Explicar qué ocurre exactamente y por qué (basado en hechos)..."
+    "Punto factual 1...",
+    "Punto factual 2...",
+    "Punto factual 3...",
+    "Punto factual 4..."
   ],
   "sentimiento": {
     "favorable": 15,
     "neutral": 68,
     "critico": 17
   },
-  "nivel_riesgo": "medio", // Opciones válidas: bajo, medio, alto, muy_alto
+  "nivel_riesgo": "bajo | medio | alto | muy_alto",
+  "desglose_por_red": {
+    "x": { "sentimiento": { "favorable": 0, "neutral": 100, "critico": 0 }, "lectura": "..." },
+    "instagram": { "sentimiento": { "favorable": 0, "neutral": 100, "critico": 0 }, "lectura": "..." },
+    "facebook": { "sentimiento": { "favorable": 0, "neutral": 100, "critico": 0 }, "lectura": "..." },
+    "tiktok": { "sentimiento": { "favorable": 0, "neutral": 100, "critico": 0 }, "lectura": "..." },
+    "youtube": { "sentimiento": { "favorable": 0, "neutral": 100, "critico": 0 }, "lectura": "..." },
+    "google_news": { "sentimiento": { "favorable": 0, "neutral": 100, "critico": 0 }, "lectura": "..." }
+  },
   "alertas": [
-    "Alerta 1: Riesgo o amenaza directa + por qué ocurre...",
-    "Alerta 2: Riesgo o amenaza directa + por qué ocurre...",
-    "Alerta 3: Riesgo o amenaza directa + por qué ocurre...",
-    "Alerta 4: Riesgo o amenaza directa + por qué ocurre..."
+    "Alerta concreta + por que ocurre..."
   ],
   "plan_accion": [
-    "Acción 1: Qué hacer de forma inmediata para mitigar...",
-    "Acción 2: Qué hacer de forma inmediata para mitigar...",
-    "Acción 3: Qué hacer de forma inmediata para mitigar...",
-    "Acción 4: Qué hacer de forma inmediata para mitigar..."
+    "Accion inmediata..."
   ],
   "oportunidades": [
-    "Mejora 1: Área de mejora clara y cómo capitalizarla...",
-    "Mejora 2: Área de mejora clara y cómo capitalizarla...",
-    "Mejora 3: Área de mejora clara y cómo capitalizarla..."
+    "Oportunidad concreta..."
   ],
   "analisis_voces": {
     "aliados_destacados": [
-      { "username": "PepeAguilar", "comentario_o_post": "Mensaje principal", "impacto": "Alto" }
+      { "username": "usuario_real", "platform": "red", "comentario_o_post": "texto base", "impacto": "Alto|Medio|Bajo", "tier": "micro|medio|macro", "keywords": ["tema"] }
     ],
     "criticos_destacados": [
-      { "username": "CriticoFiel", "comentario_o_post": "Mensaje principal", "impacto": "Moderado" }
+      { "username": "usuario_real", "platform": "red", "comentario_o_post": "texto base", "impacto": "Alto|Medio|Bajo", "tier": "micro|medio|macro", "keywords": ["tema"] }
     ]
   }
 }
 
-Calcula los porcentajes de sentimiento y el nivel de riesgo de forma lógica basándote en la fuerza y volumen de las críticas de la audiencia y comentarios negativos provistos.
-
-Aquí están los datos recopilados:
+Datos:
 ${dataPrompt}`;
+}
 
+async function pickReport({ themeKey, reportId }) {
+  let query = supabase
+    .from('reports')
+    .select('id, date_key, theme_key, theme_label, created_at')
+    .order('date_key', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (reportId) query = query.eq('id', reportId);
+  if (themeKey) query = query.eq('theme_key', themeKey);
+
+  const { data, error } = await query;
+  if (error || !data?.length) {
+    throw new Error(error?.message || 'No se encontro reporte para analizar');
+  }
+  return data[0];
+}
+
+async function fetchReportData(report) {
+  const { data: posts, error: postsError } = await supabase
+    .from('scraped_posts')
+    .select('*')
+    .eq('report_id', report.id);
+  if (postsError) throw new Error(postsError.message);
+
+  const postIds = (posts || []).map(p => p.id);
+  let comments = [];
+  if (postIds.length) {
+    const { data, error } = await supabase
+      .from('scraped_comments')
+      .select('*')
+      .in('post_id', postIds);
+    if (error) throw new Error(error.message);
+    comments = data || [];
+  }
+
+  const { data: voices, error: voicesError } = await supabase
+    .from('allies_critics_voices')
+    .select('*')
+    .eq('report_id', report.id);
+  if (voicesError) throw new Error(voicesError.message);
+
+  return { posts: posts || [], comments, voices: voices || [] };
+}
+
+async function callOpenRouter({ apiKey, prompt }) {
   const models = [
     'anthropic/claude-opus-4.6',
     'anthropic/claude-3.5-sonnet',
     'google/gemini-2.5-flash',
-    'meta-llama/llama-3.3-70b-instruct',
-    'meta-llama/llama-3.1-8b-instruct:free'
   ];
 
-  let parsedAnalysis = null;
-  let successModel = '';
-
   for (const model of models) {
-    console.log(`Enviando solicitud a ${model} a través de OpenRouter...`);
-    try {
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://github.com/BrandonBlackwell-ui/DashboardPP',
-          'X-Title': 'Blackwell Dashboard'
-        },
-        body: JSON.stringify({
-          model: model,
-          messages: [
-            {
-              role: 'system',
-              content: 'Eres un analista experto en reputación de marca y manejo de crisis de comunicación. Tu salida debe ser exclusivamente un JSON válido bien formateado.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          response_format: { type: 'json_object' }
-        })
-      });
+    console.log(`Solicitando analisis a ${model}...`);
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://github.com/BrandonBlackwell-ui/DashboardPP',
+        'X-Title': 'Blackwell Dashboard',
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: 'system',
+            content: 'Eres un analista experto en reputacion, opinion publica y crisis. Responde solo JSON valido.',
+          },
+          { role: 'user', content: prompt },
+        ],
+        response_format: { type: 'json_object' },
+      }),
+    });
 
-      const resJson = await response.json();
-      if (resJson.error) {
-        console.warn(`Error con el modelo ${model}:`, resJson.error.message || JSON.stringify(resJson.error));
-        continue;
-      }
-
-      const aiText = resJson.choices?.[0]?.message?.content;
-      if (!aiText) {
-        console.warn(`No se recibió contenido para el modelo ${model}`);
-        continue;
-      }
-
-      let cleanText = aiText.trim();
-      if (cleanText.startsWith('```json')) {
-        cleanText = cleanText.substring(7, cleanText.length - 3).trim();
-      } else if (cleanText.startsWith('```')) {
-        cleanText = cleanText.substring(3, cleanText.length - 3).trim();
-      }
-
-      parsedAnalysis = JSON.parse(cleanText);
-      successModel = model;
-      break;
-    } catch (err) {
-      console.warn(`Error al procesar con el modelo ${model}:`, err.message);
-    }
-  }
-
-  if (!parsedAnalysis) {
-    console.error('ERROR: Todos los modelos de OpenRouter fallaron. Verifica tu saldo o configuración.');
-    process.exit(1);
-  }
-
-  console.log(`Análisis generado exitosamente por ${successModel}.`);
-
-  try {
-    // 6. Guardar el análisis en la columna `ai_analysis` del reporte
-    console.log('Guardando el análisis de IA en la tabla de reports de Supabase...');
-    const { error: updateErr } = await supabase
-      .from('reports')
-      .update({ ai_analysis: parsedAnalysis })
-      .eq('id', reportId);
-
-    if (updateErr) {
-      throw new Error(`Supabase update error: ${updateErr.message}`);
+    const json = await response.json();
+    if (json.error) {
+      console.warn(`${model} fallo: ${json.error.message || JSON.stringify(json.error)}`);
+      continue;
     }
 
-    console.log('¡ÉXITO TOTAL! El análisis consolidado por IA ha sido guardado correctamente en Supabase.');
-    console.log('Estructura guardada:');
-    console.log(JSON.stringify(parsedAnalysis, null, 2));
-
-  } catch (err) {
-    console.error('ERROR DURANTE EL GUARDADO EN SUPABASE:', err.message);
-    process.exit(1);
+    const text = json.choices?.[0]?.message?.content;
+    if (!text) continue;
+    const clean = text.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '');
+    return { model, analysis: JSON.parse(clean) };
   }
+
+  throw new Error('Todos los modelos fallaron');
 }
 
-run().catch(console.error);
+async function run() {
+  const args = parseArgs();
+  if (!args.apiKey) {
+    throw new Error('Falta OPENROUTER_API_KEY o pasar la llave como primer argumento');
+  }
+
+  const report = await pickReport(args);
+  const { posts, comments, voices } = await fetchReportData(report);
+  console.log(`Reporte: ${report.theme_key} ${report.date_key}. Datos: ${posts.length} posts, ${comments.length} comentarios, ${voices.length} voces.`);
+
+  const prompt = buildPrompt(buildDataPrompt({ report, posts, comments, voices }));
+  const { model, analysis } = await callOpenRouter({ apiKey: args.apiKey, prompt });
+
+  const { error } = await supabase
+    .from('reports')
+    .update({ ai_analysis: analysis })
+    .eq('id', report.id);
+  if (error) throw new Error(error.message);
+
+  console.log(`Analisis guardado en Supabase con ${model}.`);
+  console.log(JSON.stringify({
+    report_id: report.id,
+    theme_key: report.theme_key,
+    date_key: report.date_key,
+    sentimiento: analysis.sentimiento,
+    nivel_riesgo: analysis.nivel_riesgo,
+    aliados: analysis.analisis_voces?.aliados_destacados?.length || 0,
+    criticos: analysis.analisis_voces?.criticos_destacados?.length || 0,
+  }, null, 2));
+}
+
+run().catch(error => {
+  console.error(error.message);
+  process.exit(1);
+});

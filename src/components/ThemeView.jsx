@@ -345,6 +345,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
   }
 
   const s = t.sentiment || { pos:0, neu:0, neg:0 };
+  const hasAiAnalysis = !!t.aiDerived || !!t.ai_analysis;
   const rm = riskMeta(t.risk?.level);
 
   const targetDays = [date];
@@ -874,6 +875,20 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
               </Section>
             );
           })()}
+        </div>
+      ) : !hasAiAnalysis ? (
+        <div style={{ paddingBottom:24 }}>
+          <motion.div variants={item} style={{ padding:sectionPx }}>
+            <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:18 }}>
+              <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, letterSpacing:'0.12em', textTransform:'uppercase', color:C.goldDeep, fontWeight:600 }}>
+                Analisis IA pendiente
+              </div>
+              <div style={{ fontSize:14, lineHeight:1.5, color:'#2A241C', marginTop:8 }}>
+                Aqui solo se muestran publicaciones y comentarios extraidos. Sentimiento, riesgo, alertas, aliados y contrarios se llenan cuando el analisis IA queda guardado en Supabase.
+              </div>
+            </div>
+          </motion.div>
+          {renderNetworkMap(false)}
         </div>
       ) : isDesktop ? (
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:0, padding:'0 28px' }}>
@@ -1500,7 +1515,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       )}
 
       {/* Desglose por red */}
-      {!t.rawOnly && pls.length>0 && (
+      {!t.rawOnly && tab !== 'redes_propias' && pls.length>0 && (
         <Section title="Desglose por red" px={sectionPx}>
           {pls.map((p,i) => (
             <div key={i} style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:16, marginBottom:8 }}>
