@@ -173,7 +173,6 @@ export default function App() {
     }
     const latestDateKey = LOCAL_APIFY_MODE ? LOCAL_APIFY_DATE_KEY : (calData ? Object.keys(calData.days).sort().pop() : null);
     const targetDateKey = latestDateKey ? getFridayDateKey(latestDateKey) : null;
-    const latestDay = targetDateKey?.slice(8) || 'todas';
     const hasDataForLatest = targetDateKey && window.SUPABASE_KEYS?.has(`${t}:${targetDateKey}`);
     if (hasDataForLatest) {
       // Cache "todas" state before overwriting with latest date
@@ -183,19 +182,18 @@ export default function App() {
       if (!LOCAL_APIFY_MODE) await loadThemeByDate(t, targetDateKey);
       refreshData();
     }
-    setTab(t); setDate(latestDay); setPlat('todas');
+    setTab(t); setDate(targetDateKey || 'todas'); setPlat('todas');
     window.scrollTo(0, 0);
   }
   async function handleGoFromCalendar(themeKey, dateKey) {
     const targetDateKey = getFridayDateKey(dateKey);
-    const dayNum = targetDateKey.slice(8);
     const loaded = LOCAL_APIFY_MODE
       ? !!window.PA_DATA?.themes?.[themeKey]
       : await loadThemeByDate(themeKey, targetDateKey);
     if (!loaded) buildThemeFromCalendar(themeKey, targetDateKey);
     refreshData();
     setTab(themeKey);
-    setDate(dayNum);
+    setDate(targetDateKey);
     setPlat('todas');
     window.scrollTo(0, 0);
   }
