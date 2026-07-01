@@ -275,7 +275,7 @@ async function runFacebook() {
   console.log('\n📘 FACEBOOK');
   const raw = await runAndFetch(
     'igview-owner/facebook-old-posts-search',
-    { query: '"Pepe Aguilar"', startDate: TARGET_DATE, endDate: TARGET_DATE, maxResults: 100 },
+    { query: '"Pepe Aguilar"', startDate: TARGET_DATE, endDate: TARGET_DATE, maxResults: 50 },
     0.12,
   );
   const posts = normalizeFacebook(raw);
@@ -326,7 +326,7 @@ async function runX() {
       retweets: 'exclude',
       quotes: 'exclude',
     },
-    0.08,
+    1.00,
   );
   const posts = normalizeX(raw);
   console.log(`  ↳ Posts relevantes post-filtro: ${posts.length}`);
