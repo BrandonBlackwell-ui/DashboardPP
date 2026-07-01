@@ -202,7 +202,12 @@ async function callOpenRouter({ apiKey, prompt, models }) {
 
     const text = json.choices?.[0]?.message?.content;
     if (!text) continue;
-    const clean = text.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '');
+    // Strip markdown fences, then extract only the outermost JSON object
+    const stripped = text.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '');
+    const start = stripped.indexOf('{');
+    const end = stripped.lastIndexOf('}');
+    if (start === -1 || end === -1) { console.warn(`${model}: no JSON object found`); continue; }
+    const clean = stripped.slice(start, end + 1);
     return { model, analysis: JSON.parse(clean) };
   }
 
