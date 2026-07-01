@@ -137,43 +137,44 @@ const normGoogleNews = (items, from, to) => items.map(p => ({
   likes:0, comments_count:0, shares:0, retweets:0, views:0,
 })).filter(p => p.text && p.url && inDate(p.published_date, from, to) && isRelevant(p.text));
 
-// Owned normalizers (no relevance filter — these ARE Pepe's own content)
-const normOwnedInstagram = (items, from, to) => {
+// Owned normalizers — sin filtro de fecha, últimos 5 posts del perfil
+const normOwnedInstagram = (items) => {
   const posts = items.flatMap(profile => (profile.latestPosts || []));
-  return posts.map(p => ({
+  return posts.slice(0, 5).map(p => ({
     platform:'instagram', username: items[0]?.username || 'pepeaguilar_oficial',
     text: p.caption || p.alt || '', url: p.url || '',
     published_date: p.timestamp || p.taken_at_date || null,
     likes: +(p.likesCount || p.likeCount || 0), comments_count: +(p.commentsCount || p.commentCount || 0),
     views: +(p.videoViewCount || 0), shares:0, retweets:0,
-  })).filter(p => p.url && inDate(p.published_date, from, to));
+  })).filter(p => p.url);
 };
 
-const normOwnedFacebook = (items, from, to) => items.map(p => ({
+const normOwnedFacebook = (items) => items.slice(0, 5).map(p => ({
   platform:'facebook', username: p.authorName || 'Pepe Aguilar',
   text: p.text || p.message || '', url: p.permalink || p.url || '',
   published_date: p.publishTimeIso || p.date || null,
   likes: +(p.reactionCount || p.reactionsCount || 0),
   comments_count: +(p.commentCount || 0), shares:0, retweets:0, views:0,
-})).filter(p => p.url && inDate(p.published_date, from, to));
+})).filter(p => p.url);
 
-const normOwnedTikTok = (items, from, to) => items
+const normOwnedTikTok = (items) => items
   .filter(p => !p.isPinned)
+  .slice(0, 5)
   .map(p => ({
     platform:'tiktok', username: p.authorMeta?.name || 'pepeaguilar_oficial',
     text: p.text || p.desc || '', url: p.webVideoUrl || '',
     published_date: p.createTimeISO || (p.createTime ? new Date(p.createTime*1000).toISOString() : null),
     likes: +(p.diggCount || 0), comments_count: +(p.commentCount || 0),
     shares: +(p.shareCount || 0), views: +(p.playCount || 0), retweets:0,
-  })).filter(p => p.url && inDate(p.published_date, from, to));
+  })).filter(p => p.url);
 
-const normOwnedX = (items, from, to) => items.map(p => ({
+const normOwnedX = (items) => items.slice(0, 5).map(p => ({
   platform:'x', username: 'PepeAguilar',
   text: p.text || p.full_text || '', url: p.url || p.permalink || '',
   published_date: p.created_at || p.createdAt || null,
   likes: +(p.likeCount || p.likes || 0), comments_count: +(p.replyCount || p.replies || 0),
   retweets: +(p.retweetCount || p.retweets || 0), views: +(p.viewCount || p.views || 0), shares:0,
-})).filter(p => p.url && inDate(p.published_date, from, to));
+})).filter(p => p.url);
 
 async function fetchYouTubeRSS(from, to) {
   const feedUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${OWNED.youtube}`;
@@ -415,11 +416,11 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
 
   // Normalizar y guardar — propios
   const ownedNorms = [
-    { key:'instagram', result:ownIgR, norm: items => normOwnedInstagram(items, OWNED_FROM, DNEXT) },
-    { key:'facebook',  result:ownFbR, norm: items => normOwnedFacebook(items, OWNED_FROM, DNEXT) },
-    { key:'tiktok',    result:ownTtR, norm: items => normOwnedTikTok(items, OWNED_FROM, DNEXT) },
+    { key:'instagram', result:ownIgR, norm: items => normOwnedInstagram(items) },
+    { key:'facebook',  result:ownFbR, norm: items => normOwnedFacebook(items) },
+    { key:'tiktok',    result:ownTtR, norm: items => normOwnedTikTok(items) },
     { key:'youtube',   result:ownYtR, norm: items => items }, // already normalized by fetchYouTubeRSS
-    { key:'x',         result:ownXR,  norm: items => normOwnedX(items, OWNED_FROM, DNEXT) },
+    { key:'x',         result:ownXR,  norm: items => normOwnedX(items) },
   ];
 
   const ownedPostsByPlatform = {};
