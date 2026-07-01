@@ -296,49 +296,6 @@ export default function PanoramaView({ data, isDesktop }) {
 
       </motion.div>
 
-      {/* Voices Summary (Allies and Critics) */}
-      {ai.analisis_voces && (
-        <motion.div variants={item}>
-          <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:20 }}>
-            <h2 style={{ fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:19, color:C.ink, margin:'0 0 16px 0', borderBottom:'1px solid rgba(33,28,23,0.08)', paddingBottom:8 }}>
-              Líderes de Opinión Relevantes (Resumen de Voces)
-            </h2>
-            <div style={{ display:'grid', gridTemplateColumns:isDesktop ? '1fr 1fr' : '1fr', gap:16 }}>
-              
-              {/* Allies */}
-              <div>
-                <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:10 }}>
-                  <span style={{ width:7, height:7, borderRadius:'50%', background:C.teal }} />
-                  <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, fontWeight:700, color:C.teal, textTransform:'uppercase' }}>Aliados Destacados</span>
-                </div>
-                {ai.analisis_voces.aliados_destacados?.map((v, i) => (
-                  <div key={i} style={{ background:'#F8F4EA', border:'1px solid rgba(33,28,23,0.06)', borderRadius:3, padding:12, marginBottom:8 }}>
-                    <div style={{ fontWeight:600, fontSize:13, color:C.ink }}>@{v.username}</div>
-                    <div style={{ fontSize:12.5, color:'#6B6253', marginTop:4, fontStyle:'italic' }}>"{v.comentario_o_post}"</div>
-                    <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:C.teal, marginTop:6, textTransform:'uppercase' }}>IMPACTO: {v.impacto}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Critics */}
-              <div>
-                <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:10 }}>
-                  <span style={{ width:7, height:7, borderRadius:'50%', background:C.crim }} />
-                  <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, fontWeight:700, color:C.crim, textTransform:'uppercase' }}>Críticos Destacados</span>
-                </div>
-                {ai.analisis_voces.criticos_destacados?.map((v, i) => (
-                  <div key={i} style={{ background:'#FAF0EE', border:'1px solid rgba(220,53,69,0.06)', borderRadius:3, padding:12, marginBottom:8 }}>
-                    <div style={{ fontWeight:600, fontSize:13, color:C.ink }}>@{v.username}</div>
-                    <div style={{ fontSize:12.5, color:'#6B6253', marginTop:4, fontStyle:'italic' }}>"{v.comentario_o_post}"</div>
-                    <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:C.crim, marginTop:6, textTransform:'uppercase' }}>IMPACTO: {v.impacto}</div>
-                  </div>
-                ))}
-              </div>
-
-            </div>
-          </div>
-        </motion.div>
-      )}
 
     </motion.div>
   );
