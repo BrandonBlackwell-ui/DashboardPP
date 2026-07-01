@@ -63,6 +63,7 @@ export default function App() {
   const [plat, setPlat] = useState('todas');
   const [panoramaDate, setPanoramaDate] = useState('todas');
   const [showExport, setShowExport] = useState(false);
+  const [bootLoading, setBootLoading] = useState(true);
   const [dataVersion, setDataVersion] = useState(0);
   const initialLoadDone = useRef(false);
   const todasCache = useRef({});
@@ -80,6 +81,7 @@ export default function App() {
 
     if (LOCAL_APIFY_MODE) {
       setDataVersion(v => v+1);
+      setBootLoading(false);
       return;
     }
     
@@ -96,10 +98,21 @@ export default function App() {
       }
       refreshData();
       setDataVersion(v => v+1);
+    }).finally(() => {
+      setBootLoading(false);
     });
   }, [authed, data, calData]);
 
   if (!authed) return <LoginGate onAuth={() => setAuthed(true)} />;
+
+  if (bootLoading || !data) {
+    return (
+      <div style={{ minHeight:'100vh', background:'#EFE9DC', position:'relative', fontFamily:"'Geist', system-ui, sans-serif" }}>
+        <div dangerouslySetInnerHTML={{ __html: INK_SVG }} />
+        <Loading />
+      </div>
+    );
+  }
 
   // Build a minimal themeData from CALENDAR_DATA when no Supabase record exists
   // (e.g. weekend consolidated reports that weren't uploaded per-day)

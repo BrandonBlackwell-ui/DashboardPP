@@ -222,6 +222,13 @@ export async function loadFromSupabase() {
         latestByTheme[rep.theme_key] = rep;
       }
     }
+    const latestAiReport = reports
+      .filter(rep => rep.ai_analysis)
+      .sort((a, b) => {
+        const aTime = new Date(a.created_at || `${a.date_key}T00:00:00`).getTime();
+        const bTime = new Date(b.created_at || `${b.date_key}T00:00:00`).getTime();
+        return bTime - aTime;
+      })[0];
 
     for (const rep of reports) {
       const themeData = buildThemeFromScrapedData(rep);
@@ -251,6 +258,20 @@ export async function loadFromSupabase() {
       }
     }
 
+    if (latestAiReport && window.PA_DATA?.themes && !window.PA_DATA.themes.resumen?.ai_analysis) {
+      window.PA_DATA.themes.resumen = {
+        ...buildThemeFromScrapedData({
+          ...latestAiReport,
+          theme_key: 'resumen',
+          theme_label: 'Panorama',
+        }),
+        label: 'Panorama',
+        es: 'Ultimo analisis reputacional generado por IA en Supabase.',
+        sourceThemeKey: latestAiReport.theme_key,
+        sourceThemeLabel: latestAiReport.theme_label,
+      };
+    }
+
     // Update PA_DATA.meta with the latest date_key found across all themes
     if (window.PA_DATA?.meta) {
       const latestDateKey = Object.values(latestByTheme).map(r => r.date_key).sort().pop();
@@ -266,6 +287,15 @@ export async function loadFromSupabase() {
         const d = new Date(endKey + 'T12:00:00');
         const ms = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
         window.PA_DATA.meta.range_label = `${d.getDate()} ${ms[d.getMonth()]} ${d.getFullYear()}`;
+      }
+      if (latestAiReport) {
+        window.PA_DATA.meta.latest_ai_report = {
+          id: latestAiReport.id,
+          date_key: latestAiReport.date_key,
+          theme_key: latestAiReport.theme_key,
+          theme_label: latestAiReport.theme_label,
+          created_at: latestAiReport.created_at,
+        };
       }
     }
   } catch (e) {

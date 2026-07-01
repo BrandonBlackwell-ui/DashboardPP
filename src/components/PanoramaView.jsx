@@ -12,6 +12,43 @@ export default function PanoramaView({ data, isDesktop }) {
   // Fallback if no AI analysis is generated yet
   if (!ai) {
     return (
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: 'easeOut' }}
+        style={{
+          padding: isDesktop ? '40px 36px' : '24px 20px',
+          minHeight: '70vh',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          textAlign: 'center'
+        }}
+      >
+        <h1 style={{
+          fontFamily: "'Geist',sans-serif",
+          fontWeight: 500,
+          fontSize: isDesktop ? 32 : 28,
+          letterSpacing: '-0.025em',
+          color: C.ink,
+          margin: '0 0 8px 0'
+        }}>
+          Panorama General.
+        </h1>
+        <p style={{
+          fontSize: 14.5,
+          lineHeight: 1.55,
+          color: '#8A7E6A',
+          maxWidth: 440,
+          margin: 0,
+          fontFamily: "'Geist',sans-serif"
+        }}>
+          Todavia no hay un analisis reputacional consolidado guardado en Supabase para mostrar aqui.
+        </p>
+      </motion.div>
+    );
+    return (
       <motion.div 
         initial={{ opacity: 0, y: 15 }} 
         animate={{ opacity: 1, y: 0 }} 
@@ -104,7 +141,7 @@ export default function PanoramaView({ data, isDesktop }) {
               color: C.ink,
               wordBreak: 'break-all'
             }}>
-              npx tsx scripts/generate-ai-analysis.js TU_OPENROUTER_KEY
+              Analisis pendiente
             </code>
           </div>
         </div>
