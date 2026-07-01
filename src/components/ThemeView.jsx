@@ -465,7 +465,10 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
 
   const networkStrategy = deriveNetworkStrategy(t);
   const networkPostsByKey = deriveNetworkPosts(t);
-  const voices = deriveVoices(t, networkPostsByKey);
+  const aiVoices = t.voices?.allies?.length || t.voices?.critics?.length;
+  const voices = aiVoices
+    ? { allies: t.voices.allies || [], critics: t.voices.critics || [] }
+    : deriveVoices(t, networkPostsByKey);
   const strategyNetworks = (networkStrategy.networks||[]).map(n => {
     const toneMeta = n.tone === 'favorable' ? sentMeta('positivo') : n.tone === 'critica' ? sentMeta('negativo') : sentMeta('neutral');
     return {
@@ -520,7 +523,6 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
               borderRadius:3, padding:compact ? 12 : 16, font:'inherit' }}>
             <div style={{ display:'flex', alignItems:'center', gap:9, marginBottom:compact ? 8 : 10 }}>
               <PlatformIcon platform={n.key} size={compact ? 22 : 24} />
-              <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:700, fontSize:compact ? 20 : 22, color:C.ink, lineHeight:1 }}>{n.share}%</span>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontFamily:"'Geist Mono',monospace", fontWeight:600, fontSize:10.5, color:C.ink, letterSpacing:'0.08em', textTransform:'uppercase', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{n.label}</div>
                 <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:compact ? 9.5 : 10.5, color:'#8A7E6A', marginTop:2 }}>
@@ -636,8 +638,10 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
         const networkPosts = networkPostsByKey[currentNetwork] || [];
         const selectedPost = networkPosts.find((p, idx) => postKey(p, idx) === activePostKey) || networkPosts[0];
         const selectedComments = selectedPost?.commentsList || [];
+        const showCommentsPanel = isDesktop && !compact && t.networkStrategy?.title !== 'Redes monitoreadas';
         return (
-        <div style={{ marginTop:10, display:'grid', gridTemplateColumns:isDesktop && !compact ? 'minmax(0, 0.95fr) minmax(0, 1.05fr)' : '1fr', gap:10 }}>
+        <div style={{ marginTop:10, display:'grid', gridTemplateColumns: showCommentsPanel ? 'minmax(0,1fr) minmax(0,1.1fr) minmax(0,1fr)' : isDesktop && !compact ? 'minmax(0, 0.95fr) minmax(0, 1.05fr)' : '1fr', gap:10 }}>
+          {/* Column 1: Posts list */}
           <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, overflow:'hidden' }}>
             <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', background:'rgba(33,28,23,0.04)', borderBottom:'1px solid rgba(33,28,23,0.10)' }}>
               <PlatformIcon platform={currentNetwork} size={16} />
@@ -675,25 +679,37 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
             )}
           </div>
 
+          {/* Column 2: Post detail */}
           <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, overflow:'hidden' }}>
             {selectedPost ? (
               <>
-                <div style={{ display:'grid', gridTemplateColumns:selectedPost.thumbnail && !compact ? '104px 1fr auto' : '1fr auto', gap:12, padding:12, borderBottom:'1px solid rgba(33,28,23,0.10)', alignItems:'center' }}>
-                  {selectedPost.thumbnail && !compact && (
-                    <span style={{ width:104, height:64, borderRadius:3, overflow:'hidden', background:'rgba(33,28,23,0.08)', display:'block' }}>
-                      <img src={selectedPost.thumbnail} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }} loading="lazy" />
-                    </span>
-                  )}
-                  <span style={{ minWidth:0 }}>
-                    <span style={{ display:'block', fontSize:14.5, lineHeight:1.35, color:C.ink }}>{selectedPost.text || selectedPost.url}</span>
-                    <span style={{ display:'block', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:6, textTransform:'uppercase' }}>
-                      {[selectedPost.username, selectedPost.metric, selectedPost.likes ? `${fmt(selectedPost.likes)} Me gusta` : '', selectedPost.comments ? `${fmt(selectedPost.comments)} com.` : '', selectedPost.commentsExtracted ? `${fmt(selectedPost.commentsExtracted)} extraídos` : '', selectedPost.shares ? `${fmt(selectedPost.shares)} compartidos` : '', selectedPost.bookmarks ? `${fmt(selectedPost.bookmarks)} guardados` : '', formatSpanishDate(selectedPost.date)].filter(Boolean).join(' - ')}
-                    </span>
+                <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', background:'rgba(33,28,23,0.04)', borderBottom:'1px solid rgba(33,28,23,0.10)' }}>
+                  <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:600, fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.ink }}>
+                    Publicación seleccionada
                   </span>
-                  {selectedPost.url && <a href={selectedPost.url} target="_blank" rel="noopener" style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:C.goldDeep, fontWeight:700, textDecoration:'none' }}>ABRIR</a>}
+                  {selectedPost.url && <a href={selectedPost.url} target="_blank" rel="noopener" style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:C.goldDeep, fontWeight:700, textDecoration:'none', marginLeft:'auto' }}>ABRIR ↗</a>}
                 </div>
-                {(selectedComments.length > 0 || t.networkStrategy?.title !== 'Redes monitoreadas') && (
-                <div style={{ padding:12 }}>
+                {selectedPost.thumbnail && !compact && (
+                  <div style={{ width:'100%', maxHeight:220, overflow:'hidden', background:'rgba(33,28,23,0.06)' }}>
+                    <img src={selectedPost.thumbnail} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', display:'block', maxHeight:220 }} loading="lazy" />
+                  </div>
+                )}
+                <div style={{ padding:'12px 14px' }}>
+                  <p style={{ fontSize:14.5, lineHeight:1.5, color:C.ink, margin:'0 0 10px', wordBreak:'break-word' }}>{selectedPost.text || selectedPost.url}</p>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:'5px 10px', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', textTransform:'uppercase' }}>
+                    {selectedPost.username && <span style={{ fontWeight:600, color:C.goldDeep }}>@{selectedPost.username}</span>}
+                    {selectedPost.likes ? <span>{fmt(selectedPost.likes)} Me gusta</span> : null}
+                    {selectedPost.comments ? <span>{fmt(selectedPost.comments)} comentarios</span> : null}
+                    {selectedPost.commentsExtracted ? <span>{fmt(selectedPost.commentsExtracted)} extraídos</span> : null}
+                    {selectedPost.shares ? <span>{fmt(selectedPost.shares)} compartidos</span> : null}
+                    {selectedPost.bookmarks ? <span>{fmt(selectedPost.bookmarks)} guardados</span> : null}
+                    {selectedPost.metric && <span>{selectedPost.metric}</span>}
+                    {selectedPost.date && <span>{formatSpanishDate(selectedPost.date)}</span>}
+                  </div>
+                </div>
+                {/* Comments inline (mobile / monitored) */}
+                {!showCommentsPanel && (selectedComments.length > 0 || t.networkStrategy?.title !== 'Redes monitoreadas') && (
+                <div style={{ padding:'0 14px 14px' }}>
                   <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.goldDeep, marginBottom:8 }}>
                     {selectedComments.length ? `${selectedComments.length} comentarios extraidos` : 'Sin comentarios extraidos'}
                   </div>
@@ -702,11 +718,11 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                       style={{ display:'block', marginBottom:8, padding:'9px 10px', background:'rgba(33,28,23,0.035)', border:'1px solid rgba(33,28,23,0.07)', borderRadius:3, textDecoration:'none' }}>
                       <span style={{ display:'block', fontSize:12.8, lineHeight:1.38, color:'#2A241C' }}>{comment.text || '[Sin texto]'}</span>
                       <span style={{ display:'block', marginTop:5, fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', textTransform:'uppercase' }}>
-                        {[comment.author, formatSpanishDate(comment.publishedTime), comment.likes ? `${fmt(comment.likes)} Me gusta` : '', comment.replies ? `${fmt(comment.replies)} respuestas` : '', comment.views ? `${fmt(comment.views)} vistas` : '', comment.url ? 'abrir comentario' : ''].filter(Boolean).join(' - ')}
+                        {[comment.author, formatSpanishDate(comment.publishedTime), comment.likes ? `${fmt(comment.likes)} Me gusta` : '', comment.replies ? `${fmt(comment.replies)} respuestas` : '', comment.url ? 'abrir comentario' : ''].filter(Boolean).join(' - ')}
                       </span>
                     </a>
                   )) : (
-                    <div style={{ padding:'16px 0 4px', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', textTransform:'uppercase' }}>
+                    <div style={{ padding:'8px 0 4px', fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', textTransform:'uppercase' }}>
                       Esta publicacion aun no tiene comentarios raspados en la muestra local.
                     </div>
                   )}
@@ -717,6 +733,41 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
               <div style={{ padding:12, fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', textTransform:'uppercase' }}>Selecciona una publicacion.</div>
             )}
           </div>
+
+          {/* Column 3: Comments panel (desktop, redes propias only) */}
+          {showCommentsPanel && (
+          <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, overflow:'hidden', display:'flex', flexDirection:'column' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', background:'rgba(33,28,23,0.04)', borderBottom:'1px solid rgba(33,28,23,0.10)', flexShrink:0 }}>
+              <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:600, fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.ink }}>
+                Comentarios
+              </span>
+              {selectedComments.length > 0 && (
+                <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginLeft:'auto' }}>
+                  {selectedComments.length} extraídos
+                </span>
+              )}
+            </div>
+            <div style={{ overflowY:'auto', flex:1, padding:'10px 12px' }}>
+              {!selectedPost ? (
+                <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', textTransform:'uppercase', paddingTop:4 }}>
+                  Selecciona una publicación para ver sus comentarios.
+                </div>
+              ) : selectedComments.length ? selectedComments.slice(0, 20).map(comment => (
+                <a key={comment.id} href={comment.url || undefined} target={comment.url ? '_blank' : undefined} rel={comment.url ? 'noopener' : undefined}
+                  style={{ display:'block', marginBottom:8, padding:'9px 10px', background:'rgba(33,28,23,0.035)', border:'1px solid rgba(33,28,23,0.07)', borderRadius:3, textDecoration:'none' }}>
+                  <span style={{ display:'block', fontSize:12.8, lineHeight:1.38, color:'#2A241C' }}>{comment.text || '[Sin texto]'}</span>
+                  <span style={{ display:'block', marginTop:5, fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', textTransform:'uppercase' }}>
+                    {[comment.author, formatSpanishDate(comment.publishedTime), comment.likes ? `${fmt(comment.likes)} Me gusta` : '', comment.replies ? `${fmt(comment.replies)} respuestas` : '', comment.url ? 'abrir' : ''].filter(Boolean).join(' - ')}
+                  </span>
+                </a>
+              )) : (
+                <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', textTransform:'uppercase', paddingTop:4 }}>
+                  Esta publicación aún no tiene comentarios raspados.
+                </div>
+              )}
+            </div>
+          </div>
+          )}
         </div>
         );
       })()}
@@ -969,72 +1020,6 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
           <div style={{ paddingLeft:14 }}>
             {renderNetworkMap(true)}
 
-            {/* Aliados y contrarios */}
-            {tab !== 'redes_propias' && (voices.allies.length > 0 || voices.critics.length > 0) && (() => {
-              const VoiceCard = ({ v, side }) => {
-                const isAlly = side === 'ally';
-                const accentColor = isAlly ? C.teal : C.crim;
-                const Tag = v.url ? 'a' : 'div';
-                const tierLabel = v.tier === 'macro' ? 'Macro' : v.tier === 'medio' ? 'Medio' : 'Micro';
-                const tierInk = v.tier === 'macro' ? C.crim : v.tier === 'medio' ? C.goldDeep : C.teal;
-                const tierBg = v.tier === 'macro' ? C.crimBg : v.tier === 'medio' ? C.amberBg : C.tealBg;
-                const tierBd = v.tier === 'macro' ? C.crimBd : v.tier === 'medio' ? C.amberBd : C.tealBd;
-                return (
-                  <Tag href={v.url || undefined} target={v.url ? '_blank' : undefined} rel={v.url ? 'noopener' : undefined}
-                    style={{ display:'block', padding:'12px 14px', textDecoration:'none',
-                      background:C.card, borderRadius:3, marginBottom:8,
-                      border:`1px solid rgba(33,28,23,0.10)`, borderLeftWidth:3, borderLeftColor:accentColor, borderLeftStyle:'solid' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
-                      <PlatformIcon platform={v.platform} size={15} />
-                      <span style={{ fontWeight:600, fontSize:13.5, color:C.ink, flex:1, minWidth:0, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{v.username}</span>
-                      <span style={{ ...pill(tierInk, tierBg, tierBd), flexShrink:0 }}>{tierLabel}</span>
-                    </div>
-                    <div style={{ display:'flex', flexWrap:'wrap', gap:'4px 8px', fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A', textTransform:'uppercase', marginBottom:5 }}>
-                      {v.followers ? <span>{fmtK(v.followers)} seg.</span> : null}
-                      <span>{v.posts} {v.posts === 1 ? 'post' : 'posts'}</span>
-                      {v.likes ? <span>👍 {fmt(v.likes)}</span> : null}
-                      {v.comments ? <span>💬 {fmt(v.comments)}</span> : null}
-                      {v.engagement ? <span style={{ color:C.goldDeep, fontWeight:600 }}>Alcance: {fmt(v.engagement)}</span> : null}
-                    </div>
-                    {v.keywords && v.keywords.length > 0 && (
-                      <div style={{ borderTop:'1px dotted rgba(33,28,23,0.08)', paddingTop:6, marginTop:4, display:'flex', flexWrap:'wrap', gap:4, alignItems:'center' }}>
-                        <span style={{ fontSize:9.5, color:'#8A7E6A', fontFamily:"'Geist Mono',monospace", textTransform:'uppercase' }}>Gatillos:</span>
-                        {v.keywords.map((kw, idx) => (
-                          <span key={idx} style={{ fontSize:9.5, background:isAlly ? 'rgba(40,167,69,0.08)' : 'rgba(220,53,69,0.08)', color:accentColor, padding:'2px 5px', borderRadius:2, border:`1px solid ${isAlly ? 'rgba(40,167,69,0.15)' : 'rgba(220,53,69,0.15)'}`, fontFamily:"'Geist Mono',monospace" }}>
-                            {kw}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </Tag>
-                );
-              };
-              return (
-                <motion.div variants={item} style={{ paddingTop:16, paddingBottom:6 }}>
-                  <h2 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:22, letterSpacing:'-0.015em', color:C.ink, margin:'0 0 11px' }}>Aliados y contrarios</h2>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-                    {voices.allies.length > 0 && (
-                      <div>
-                        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
-                          <span style={{ width:10, height:10, borderRadius:'50%', background:C.teal, display:'inline-block', flexShrink:0 }} />
-                          <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.teal, fontWeight:700 }}>Aliados · {voices.allies.length}</span>
-                        </div>
-                        {voices.allies.map((v,i) => <VoiceCard key={`ally-${i}`} v={v} side="ally" />)}
-                      </div>
-                    )}
-                    {voices.critics.length > 0 && (
-                      <div>
-                        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
-                          <span style={{ width:10, height:10, borderRadius:'50%', background:C.crim, display:'inline-block', flexShrink:0 }} />
-                          <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.crim, fontWeight:700 }}>Contrarios · {voices.critics.length}</span>
-                        </div>
-                        {voices.critics.map((v,i) => <VoiceCard key={`critic-${i}`} v={v} side="critic" />)}
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              );
-            })()}
 
 
             {/* Pros y contras */}
@@ -1454,7 +1439,6 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
               <div key={n.key} style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:16 }}>
                 <div style={{ display:'flex', alignItems:'center', gap:9, marginBottom:10 }}>
                   <PlatformIcon platform={n.key} size={24} />
-                  <span style={{ fontFamily:"'Geist Mono',monospace", fontWeight:700, fontSize:22, color:C.ink, lineHeight:1 }}>{n.share}%</span>
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontFamily:"'Geist Mono',monospace", fontWeight:600, fontSize:11, color:C.ink, letterSpacing:'0.08em', textTransform:'uppercase' }}>{n.label}</div>
                     <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:2 }}>{n.postsLabel} POSTS · {n.viewsLabel} VIEWS · {n.commentsLabel} COM.</div>

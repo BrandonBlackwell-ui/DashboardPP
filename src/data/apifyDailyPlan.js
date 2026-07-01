@@ -50,7 +50,17 @@ export const APIFY_DAILY_ANALYZE_PLAN = {
         { key: 'google_news', actor: 'sourabhbgp/google-news-scraper', capUsd: 0.02, maxItems: 10 },
         { key: 'tiktok_search', actor: 'sentry/tiktok-search-api', capUsd: 0.08, maxItems: 10 },
         { key: 'facebook_search', actor: 'igview-owner/facebook-old-posts-search', capUsd: 0.08, maxItems: 10 },
-        { key: 'instagram_hashtags', actor: 'apidojo/instagram-hashtag-scraper', capUsd: 0.10, maxItems: 10 },
+        {
+          key: 'instagram_hashtags',
+          actor: 'apify/instagram-scraper',
+          capUsd: 0.10,
+          maxItems: 15,
+          params: {
+            hashtags: ['pepeaguilar', 'pepeaguilarmusica', 'pepeaguilarvive'],
+            onlyPostsNewerThan: '1 day',
+            resultsType: 'posts',
+          },
+        },
       ],
     },
     {

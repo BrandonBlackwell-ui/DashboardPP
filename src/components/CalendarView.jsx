@@ -3,12 +3,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Donut from './Donut';
 import { C, riskMeta } from '../utils/helpers';
 
-const TOPICS = [
-  { key:'musica',      label:'Música',      color:'#4E7351' },
-  { key:'entrevistas', label:'Entrevistas', color:'#B0822F' },
-  { key:'empresas',    label:'Empresas',    color:'#9B3331' },
-  { key:'familia',     label:'Familia',     color:'#A9997B' },
-];
+const TOPIC_META = {
+  musica:       { label:'Música',        color:'#4E7351' },
+  entrevistas:  { label:'Entrevistas',   color:'#B0822F' },
+  empresas:     { label:'Empresas',      color:'#9B3331' },
+  familia:      { label:'Familia',       color:'#A9997B' },
+  redes_propias:{ label:'Redes Propias', color:'#3D3426' },
+  facebook:     { label:'Facebook',      color:'#1877F2' },
+  instagram:    { label:'Instagram',     color:'#D62976' },
+  x:            { label:'X / Twitter',   color:'#111111' },
+  tiktok:       { label:'TikTok',        color:'#FE2C55' },
+  google_news:  { label:'Google News',   color:'#4285F4' },
+  youtube:      { label:'YouTube',       color:'#FF0000' },
+};
 
 const DAYS_ES = ['dom','lun','mar','mié','jue','vie','sáb'];
 const MONTHS_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
@@ -34,6 +41,12 @@ function SentBar({ pos, neu, neg }) {
 export default function CalendarView({ calData, onGoTheme, isDesktop, supabaseKeys }) {
   const CD = calData;
   const days = CD?.days || {};
+
+  // Derive topic list dynamically from whatever keys are actually in the data
+  const allTopicKeys = [...new Set(Object.values(days).flatMap(d => Object.keys(d || {})))];
+  const TOPICS = allTopicKeys.length
+    ? allTopicKeys.map(key => ({ key, ...(TOPIC_META[key] || { label: key, color: '#8A7E6A' }) }))
+    : Object.entries(TOPIC_META).slice(0, 4).map(([key, meta]) => ({ key, ...meta }));
 
   // Build sorted day list from earliest known data to latest (dynamic, not hardcoded)
   const allDays = [];
@@ -132,7 +145,7 @@ export default function CalendarView({ calData, onGoTheme, isDesktop, supabaseKe
             {(() => { const d=new Date(selected+'T12:00:00'); return d.getDate()+' '+MONTHS_ES[d.getMonth()]+' 2026'; })()}
           </div>
 
-          <div style={{ display:'grid', gridTemplateColumns: isDesktop ? '1fr 1fr' : '1fr', gap:8 }}>
+          <div style={{ display:'grid', gridTemplateColumns: isDesktop && TOPICS.length <= 4 ? '1fr 1fr' : '1fr', gap:8 }}>
           {TOPICS.map(t => {
             const td = (days[selected]||{})[t.key];
             const rm = td ? riskMeta(td.risk) : null;
