@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import Donut from './Donut';
 import TiltCard from './TiltCard';
 import PlatformIcon from './PlatformIcon';
+import TrendChart from './TrendChart';
 import { C, fmt, fmtK, platLabel, cap, riskMeta, sentMeta, sevMeta, pill } from '../utils/helpers';
 
 const stagger = { hidden:{}, visible:{ transition:{ staggerChildren:0.06 } } };
@@ -1111,6 +1112,17 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       ) : isOwned ? (
         /* ── Redes Propias layout: sentiment+alertómetro top, posts below ── */
         <div style={{ padding:'0 28px', paddingBottom:24 }}>
+          {/* Tendencia — solo redes propias */}
+          {window.CALENDAR_DATA?.days && (
+            <motion.div variants={item} style={{ paddingTop:16 }}>
+              <TrendChart
+                days={window.CALENDAR_DATA.days}
+                topics={[{ key:'redes_propias', label:'Redes Propias', color:'#3D3426' }]}
+                aggregateKeys={['redes_propias']}
+                showChips={false}
+                title="Evolución del sentimiento · Redes Propias" />
+            </motion.div>
+          )}
           {/* Top row */}
           <motion.div variants={item} style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, paddingTop:16, paddingBottom:14 }}>
             {/* Donut card */}

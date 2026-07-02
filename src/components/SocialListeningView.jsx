@@ -2,13 +2,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { C } from '../utils/helpers';
 import PlatformIcon from './PlatformIcon';
 import ThemeView from './ThemeView';
+import TrendChart from './TrendChart';
 
 const SOCIAL_NETS = [
-  { key: 'facebook',    label: 'Facebook' },
-  { key: 'instagram',   label: 'Instagram' },
-  { key: 'x',          label: 'X' },
-  { key: 'tiktok',     label: 'TikTok' },
-  { key: 'google_news',label: 'Google News' },
+  { key: 'facebook',    label: 'Facebook',    color:'#1877F2' },
+  { key: 'instagram',   label: 'Instagram',   color:'#D62976' },
+  { key: 'x',          label: 'X',            color:'#111111' },
+  { key: 'tiktok',     label: 'TikTok',       color:'#FE2C55' },
+  { key: 'google_news',label: 'Google News',  color:'#4285F4' },
 ];
 
 export default function SocialListeningView({ activeNet, onNetChange, date, plat, data, isDesktop, noData, calendarSummary }) {
@@ -41,6 +42,16 @@ export default function SocialListeningView({ activeNet, onNetChange, date, plat
           })}
         </div>
       </div>
+
+      {/* Tendencia — solo redes de social listening */}
+      {window.CALENDAR_DATA?.days && (
+        <div style={{ padding: isDesktop ? '16px 28px 0' : '14px 18px 0' }}>
+          <TrendChart
+            days={window.CALENDAR_DATA.days}
+            topics={SOCIAL_NETS}
+            title="Evolución del sentimiento · Social Listening" />
+        </div>
+      )}
 
       {/* Network content */}
       <AnimatePresence mode="wait">
