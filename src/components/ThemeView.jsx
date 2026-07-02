@@ -871,11 +871,16 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
             all:a.all+(p.likes||0),
           }), { like:0, love:0, haha:0, wow:0, sad:0, angry:0, all:0 });
           const hasBreakdown = tot.like||tot.love||tot.haha||tot.wow||tot.sad||tot.angry;
-          const items = hasBreakdown
-            ? [['👍',tot.like,'Me gusta'],['❤️',tot.love,'Me encanta'],['😂',tot.haha,'Me divierte'],
-               ['😮',tot.wow,'Me asombra'],['😢',tot.sad,'Me entristece'],['😡',tot.angry,'Me enoja']].filter(([,n])=>n>0)
-            : [['👍',tot.all,'Reacciones']];
-          if (!items.length) return null;
+          // Siempre mostrar las 6 reacciones (en 0 si no hay desglose todavía);
+          // si solo existe el total, mostrarlo en 👍
+          const items = [
+            ['👍', hasBreakdown ? tot.like : tot.all, 'Me gusta'],
+            ['❤️', tot.love, 'Me encanta'],
+            ['😂', tot.haha, 'Me divierte'],
+            ['😮', tot.wow, 'Me asombra'],
+            ['😢', tot.sad, 'Me entristece'],
+            ['😡', tot.angry, 'Me enoja'],
+          ];
           return (
             <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3,
               padding:'10px 14px', flex:'none' }}>
