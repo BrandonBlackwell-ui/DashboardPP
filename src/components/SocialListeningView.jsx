@@ -50,7 +50,8 @@ export default function SocialListeningView({ activeNet, onNetChange, date, plat
           transition={{ duration:0.18 }}>
           <ThemeView
             tab={activeNet} date={date} plat={plat} data={data}
-            isDesktop={isDesktop} noData={noData} calendarSummary={calendarSummary} />
+            isDesktop={isDesktop} noData={noData} calendarSummary={calendarSummary}
+            isSocialListening={true} />
         </motion.div>
       </AnimatePresence>
     </div>

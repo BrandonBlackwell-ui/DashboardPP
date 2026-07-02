@@ -336,7 +336,7 @@ function deriveNetworkPosts(themeData) {
   return buckets;
 }
 
-export default function ThemeView({ tab, date, plat, data, isDesktop, noData, calendarSummary, ownedNet }) {
+export default function ThemeView({ tab, date, plat, data, isDesktop, noData, calendarSummary, ownedNet, isSocialListening }) {
   const T = data.themes;
   const t = T[tab];
   const isOwned = tab === 'redes_propias';
@@ -924,7 +924,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       {t.rawOnly ? (
         <div style={{ paddingBottom:24 }}>
           {renderNetworkMap(false)}
-          {tab !== 'redes_propias' && tab !== 'social_listening' && (voices.allies.length > 0 || voices.critics.length > 0) && (() => {
+          {tab !== 'redes_propias' && tab !== 'social_listening' && !isSocialListening && (voices.allies.length > 0 || voices.critics.length > 0) && (() => {
             const VoiceCard = ({ v, side }) => {
               const isAlly = side === 'ally';
               const accentColor = isAlly ? C.teal : C.crim;
@@ -1265,7 +1265,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       )}
 
       {/* Aliados y contrarios (mobile / non-rawOnly) */}
-      {!t.rawOnly && tab !== 'redes_propias' && tab !== 'social_listening' && (voices.allies.length > 0 || voices.critics.length > 0) && (() => {
+      {!t.rawOnly && tab !== 'redes_propias' && tab !== 'social_listening' && !isSocialListening && (voices.allies.length > 0 || voices.critics.length > 0) && (() => {
         const VoiceCard = ({ v, side }) => {
           const isAlly = side === 'ally';
           const accentColor = isAlly ? C.teal : C.crim;
