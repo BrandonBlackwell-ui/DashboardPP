@@ -22,45 +22,73 @@ function esc(s) {
   return '"' + String(s == null ? '' : s).replace(/"/g, '""').replace(/\r?\n/g, ' ') + '"';
 }
 
-function buildRow(rep) {
-  const s = rep.sentiment?.[0] || {};
-  const posts = rep.platforms?.reduce((a, p) => a + (p.posts || 0), 0) || 0;
-  const platforms = (rep.platforms || []).map(p => p.platform).join(' | ');
-  const prosPos = (rep.pros_cons || []).filter(x => x.type === 'pro').map(x => x.item).join(' | ');
-  const prosCon = (rep.pros_cons || []).filter(x => x.type === 'con').map(x => x.item).join(' | ');
-  const alerts = (rep.alert_posts || []).map(p => p.text).slice(0, 3).join(' | ');
-  const opps = (rep.opportunity_posts || []).map(p => p.text).slice(0, 3).join(' | ');
-  const topNews = (rep.news_items || []).slice(0, 3).map(n => n.titulo).join(' | ');
-  const complaints = (rep.complaints || []).map(c => `${c.titulo} (${c.porcentaje}%)`).join(' | ');
-  const trending = (rep.trending_topics || []).slice(0, 3).map(t => t.titulo).join(' | ');
+const joinList = (arr) => (arr || []).map(a => typeof a === 'string' ? a : (a?.text || a?.alerta || JSON.stringify(a))).join(' | ');
 
-  return [
-    rep.date_key,
-    rep.theme_label,
-    s.pos || 0,
-    s.neu || 0,
-    s.neg || 0,
-    s.risk_level || 'bajo',
-    posts,
-    platforms,
-    prosPos,
-    prosCon,
-    complaints,
-    alerts,
-    opps,
-    topNews,
-    trending,
-  ].map(esc).join(',');
+function buildCsvSections(reports) {
+  const rows = [];
+  const section = (title, header) => {
+    rows.push('');
+    rows.push(esc(`=== ${title} ===`));
+    rows.push(header.map(esc).join(','));
+  };
+
+  // 1. Publicaciones scrapeadas
+  section('PUBLICACIONES', ['fecha_reporte','tema','red','autor','fecha_publicacion','texto','url','likes','comentarios','shares','retweets','views','fb_love','fb_haha','fb_wow','fb_sad','fb_angry']);
+  for (const rep of reports) {
+    for (const p of (rep.scraped_posts || [])) {
+      rows.push([rep.date_key, rep.theme_key, p.platform, p.username, (p.published_date||'').slice(0,10),
+        p.text, p.url, p.likes||0, p.comments_count||0, p.shares||0, p.retweets||0, p.views||0,
+        p.fb_love||0, p.fb_haha||0, p.fb_wow||0, p.fb_sad||0, p.fb_angry||0].map(esc).join(','));
+    }
+  }
+
+  // 2. Comentarios scrapeados
+  section('COMENTARIOS', ['fecha_reporte','tema','red','post_url','autor','texto','likes','fecha_comentario']);
+  for (const rep of reports) {
+    for (const p of (rep.scraped_posts || [])) {
+      for (const c of (p.scraped_comments || [])) {
+        rows.push([rep.date_key, rep.theme_key, p.platform, p.url, c.author, c.text, c.likes||0,
+          (c.published_time||'').slice(0,10)].map(esc).join(','));
+      }
+    }
+  }
+
+  // 3. Análisis IA por reporte
+  section('ANALISIS IA', ['fecha','tema','favorable_%','neutral_%','critico_%','riesgo','resumen_ejecutivo','alertas','plan_accion','oportunidades','comparativa_historica']);
+  for (const rep of reports) {
+    const ai = rep.ai_analysis;
+    if (!ai) continue;
+    const s = ai.sentimiento || {};
+    rows.push([rep.date_key, rep.theme_key, s.favorable??'', s.neutral??'', s.critico??'',
+      ai.nivel_riesgo||'', joinList(ai.resumen_ejecutivo), joinList(ai.alertas),
+      joinList(ai.plan_accion), joinList(ai.oportunidades),
+      ai.comparativa_historica?.resumen || ''].map(esc).join(','));
+  }
+
+  // 4. Desglose por red (IA)
+  section('DESGLOSE POR RED (IA)', ['fecha','tema','red','favorable_%','neutral_%','critico_%','tendencia','lectura','focos','recomendacion']);
+  for (const rep of reports) {
+    const redes = rep.ai_analysis?.desglose_por_red || {};
+    for (const [red, v] of Object.entries(redes)) {
+      if (red === 'INSTRUCCION' || !v?.sentimiento) continue;
+      const s = v.sentimiento;
+      rows.push([rep.date_key, rep.theme_key, red, s.favorable??'', s.neutral??'', s.critico??'',
+        v.tendencia||'', v.lectura||'', joinList(v.focos), v.recomendacion||''].map(esc).join(','));
+    }
+  }
+
+  // 5. Aliados y contrarios
+  section('ALIADOS Y CONTRARIOS', ['fecha','tema','usuario','red','sentimiento','posts','likes','comentarios','engagement','tier','keywords']);
+  for (const rep of reports) {
+    for (const v of (rep.allies_critics_voices || [])) {
+      rows.push([rep.date_key, rep.theme_key, v.username, v.platform, v.sentiment,
+        v.posts_count||0, v.likes_count||0, v.comments_count||0, v.total_engagement||0,
+        v.tier||'', (v.keywords||[]).join(' | ')].map(esc).join(','));
+    }
+  }
+
+  return rows;
 }
-
-const CSV_HEADER = [
-  'fecha', 'tema',
-  'positivo_%', 'neutral_%', 'negativo_%', 'riesgo',
-  'total_posts', 'plataformas',
-  'a_favor', 'en_contra',
-  'quejas', 'alertas', 'oportunidades',
-  'noticias_principales', 'tendencias',
-].map(esc).join(',');
 
 // Static rows from Reporte PDFs
 const REPORTE_ROWS = [
@@ -127,10 +155,9 @@ export default function ExportModal({ onClose }) {
       const { data: reports, error } = await supabase
         .from('reports')
         .select(`
-          id, date_key, theme_key, theme_label,
-          sentiment(*), platforms(*), alert_posts(*), opportunity_posts(*),
-          complaints(*), news_items(*), trending_topics(*),
-          pros_cons(*)
+          id, date_key, theme_key, theme_label, ai_analysis,
+          scraped_posts(*, scraped_comments(*)),
+          allies_critics_voices(*)
         `)
         .in('date_key', [...selected])
         .order('date_key', { ascending: true })
@@ -139,7 +166,7 @@ export default function ExportModal({ onClose }) {
       if (error) throw error;
 
       setStatus('Generando CSV…');
-      const rows = [CSV_HEADER, ...reports.map(buildRow), '', ...REPORTE_ROWS];
+      const rows = buildCsvSections(reports || []);
       const csv = '﻿' + rows.join('\r\n');
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -161,7 +188,10 @@ export default function ExportModal({ onClose }) {
   }
 
   const themesForDate = (dk) =>
-    THEMES.filter(t => window.SUPABASE_KEYS?.has(`${t.key}:${dk}`)).map(t => t.label).join(', ');
+    [...(window.SUPABASE_KEYS || [])]
+      .filter(k => k.endsWith(`:${dk}`))
+      .map(k => k.split(':')[0])
+      .join(', ');
 
   return (
     <motion.div

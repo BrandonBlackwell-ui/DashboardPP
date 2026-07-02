@@ -326,6 +326,7 @@ const AI_PROMPT_TEMPLATE = (dataPrompt) => `Analiza los datos y devuelve SOLO JS
 
 Reglas duras:
 - No inventes datos. Aliados/criticos deben existir en los datos. Los porcentajes suman 100.
+- LOS NUMEROS DEL EJEMPLO SON ILUSTRATIVOS. NO los copies. Calcula los porcentajes REALES: cuenta cuantos posts/comentarios son favorables, neutrales y criticos en los datos y convierte a porcentaje. Muestra tu conteo en la lectura (ej: "de 45 comentarios, 12 favorables, 8 criticos").
 - NUNCA uses 0/100/0 como fallback. Si una red no tiene muestra suficiente para clasificar, OMITELA del desglose_por_red. Solo incluye redes con evidencia real.
 - La lectura de cada red debe citar evidencia concreta (autores, temas, numeros), no generalidades.
 - Si se dio analisis del periodo anterior, calcula tendencia por red y llena comparativa_historica con deltas reales. Si no, omite comparativa_historica y usa "estable".
@@ -685,7 +686,7 @@ export async function runAIOnly({ aiKey, date, emit = () => {} }) {
 }
 
 // ─── CLI directo ──────────────────────────────────────────────────────────────
-if (process.argv[1].endsWith('run-full-analysis.js')) {
+if (process.argv[1]?.endsWith('run-full-analysis.js')) {
   const args  = process.argv.slice(2);
   const apify = args.find(a => !a.startsWith('--'));
   const ai    = args.filter(a => !a.startsWith('--'))[1];
