@@ -847,14 +847,53 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       )}
 
       {/* Header */}
-      <motion.div variants={item} style={{ padding: isDesktop ? '24px 28px 4px' : '19px 18px 4px' }}>
-        <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, letterSpacing:'0.16em',
-          textTransform:'uppercase', color:C.gold, fontWeight:600 }}>{t.rawOnly ? 'Vista' : 'Tema'} · {t.label}</div>
-        <h1 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:33, lineHeight:1.02,
-          letterSpacing:'-0.025em', color:C.ink, margin:'7px 0 5px' }}>
-          {t.label}<em style={{ fontStyle:'normal', color:C.goldDeep }}>.</em>
-        </h1>
-        <p style={{ fontSize:14, color:'#6B6253', margin:0 }}>{t.es}</p>
+      <motion.div variants={item} style={{ padding: isDesktop ? '24px 28px 4px' : '19px 18px 4px',
+        display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:16, flexWrap:'wrap' }}>
+        <div>
+          <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, letterSpacing:'0.16em',
+            textTransform:'uppercase', color:C.gold, fontWeight:600 }}>{t.rawOnly ? 'Vista' : 'Tema'} · {t.label}</div>
+          <h1 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:33, lineHeight:1.02,
+            letterSpacing:'-0.025em', color:C.ink, margin:'7px 0 5px' }}>
+            {t.label}<em style={{ fontStyle:'normal', color:C.goldDeep }}>.</em>
+          </h1>
+          <p style={{ fontSize:14, color:'#6B6253', margin:0 }}>{t.es}</p>
+        </div>
+        {/* Total de reacciones de Facebook (solo cuando la vista es Facebook) */}
+        {(() => {
+          const isFbView = tab === 'facebook' || (isOwned && ownedNet === 'facebook');
+          if (!isFbView) return null;
+          const fbPosts = networkPostsByKey['facebook'] || [];
+          if (!fbPosts.length) return null;
+          const tot = fbPosts.reduce((a, p) => ({
+            like:a.like+(p.fbLike||0), love:a.love+(p.fbLove||0), haha:a.haha+(p.fbHaha||0),
+            wow:a.wow+(p.fbWow||0), sad:a.sad+(p.fbSad||0), angry:a.angry+(p.fbAngry||0),
+            all:a.all+(p.likes||0),
+          }), { like:0, love:0, haha:0, wow:0, sad:0, angry:0, all:0 });
+          const hasBreakdown = tot.like||tot.love||tot.haha||tot.wow||tot.sad||tot.angry;
+          const items = hasBreakdown
+            ? [['👍',tot.like,'Me gusta'],['❤️',tot.love,'Me encanta'],['😂',tot.haha,'Me divierte'],
+               ['😮',tot.wow,'Me asombra'],['😢',tot.sad,'Me entristece'],['😡',tot.angry,'Me enoja']].filter(([,n])=>n>0)
+            : [['👍',tot.all,'Reacciones']];
+          if (!items.length) return null;
+          return (
+            <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3,
+              padding:'10px 14px', flex:'none' }}>
+              <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.12em',
+                textTransform:'uppercase', color:'#8A7E6A', marginBottom:7 }}>
+                Reacciones · {fbPosts.length} {fbPosts.length===1?'publicación':'publicaciones'}
+              </div>
+              <div style={{ display:'flex', gap:14, flexWrap:'wrap' }}>
+                {items.map(([e,n,l]) => (
+                  <div key={l} style={{ textAlign:'center' }} title={l}>
+                    <div style={{ fontSize:17, lineHeight:1 }}>{e}</div>
+                    <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, fontWeight:700,
+                      color:C.ink, marginTop:3 }}>{fmtK(n)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
       </motion.div>
 
       {/* Desktop 2-column: Sentiment + Alertómetro | Oportunidades + Pros/contras */}

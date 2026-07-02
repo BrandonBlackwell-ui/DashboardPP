@@ -253,6 +253,7 @@ export default function DesktopShell({ tab, data, pano, onTabChange, onExport, o
 
           {/* Bottom buttons */}
           <div style={{ padding: '16px 12px 20px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            {sessionStorage.getItem('bw_role') === 'admin' && (
             <motion.button
               whileHover={{ background: C.gold, color: '#1A1612', borderColor: C.gold }}
               whileTap={{ scale: 0.95 }}
@@ -267,6 +268,7 @@ export default function DesktopShell({ tab, data, pano, onTabChange, onExport, o
               }}>
               ⚡ Analizar
             </motion.button>
+            )}
             <motion.button
               whileHover={{ background: '#EFE9DC', color: '#211C17' }} whileTap={{ scale: 0.95 }}
               onClick={onExport}
