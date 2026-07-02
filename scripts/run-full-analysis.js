@@ -156,13 +156,22 @@ const normOwnedInstagram = (items) => {
   })).filter(p => p.url);
 };
 
-const normOwnedFacebook = (items) => items.slice(0, 5).map(p => ({
-  platform:'facebook', username: p.authorName || 'Pepe Aguilar',
-  text: p.text || p.message || '', url: p.permalink || p.url || '',
-  published_date: p.publishTimeIso || p.date || null,
-  likes: +(p.reactionCount || p.reactionsCount || 0),
-  comments_count: +(p.commentCount || 0), shares:0, retweets:0, views:0,
-})).filter(p => p.url);
+const normOwnedFacebook = (items) => items.slice(0, 5).map(p => {
+  const rx = p.reactions || p.reactionsBreakdown || {};
+  return {
+    platform:'facebook', username: p.authorName || 'Pepe Aguilar',
+    text: p.text || p.message || '', url: p.permalink || p.url || '',
+    published_date: p.publishTimeIso || p.date || null,
+    likes: +(p.reactionCount || p.reactionsCount || 0),
+    comments_count: +(p.commentCount || 0), shares:0, retweets:0, views:0,
+    fb_like:  +(p.like  || rx.like  || p.likeCount  || 0),
+    fb_love:  +(p.love  || rx.love  || p.loveCount  || 0),
+    fb_haha:  +(p.haha  || rx.haha  || p.hahaCount  || 0),
+    fb_wow:   +(p.wow   || rx.wow   || p.wowCount   || 0),
+    fb_sad:   +(p.sad   || rx.sad   || p.sadCount   || 0),
+    fb_angry: +(p.angry || rx.angry || p.angryCount || 0),
+  };
+}).filter(p => p.url);
 
 const normOwnedTikTok = (items) => items
   .filter(p => !p.isPinned)
