@@ -921,6 +921,67 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
         </motion.div>
       )}
 
+      {/* Análisis IA de esta red/tema: lectura, resumen y qué hacer */}
+      {t.ai_analysis && (() => {
+        const ai = t.ai_analysis;
+        const lectura = ai.desglose_por_red?.[tab]?.lectura || '';
+        const resumen = Array.isArray(ai.resumen_ejecutivo) ? ai.resumen_ejecutivo : (ai.resumen_ejecutivo ? [ai.resumen_ejecutivo] : []);
+        const plan = ai.plan_accion || [];
+        const opps = ai.oportunidades || [];
+        if (!lectura && !resumen.length && !plan.length) return null;
+        return (
+          <motion.div variants={item} style={{ padding: isDesktop ? '10px 28px 4px' : '10px 18px 4px' }}>
+            <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderLeft:`3px solid ${C.goldDeep}`, borderRadius:3, padding:'16px 18px' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                <span style={{ width:7, height:7, borderRadius:'50%', background:C.goldDeep, flex:'none' }} />
+                <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.14em', textTransform:'uppercase', color:C.goldDeep, fontWeight:700 }}>
+                  Qué está pasando y qué hacer · IA
+                </span>
+              </div>
+              {lectura && (
+                <p style={{ fontSize:14, lineHeight:1.55, color:'#2A241C', margin:'0 0 12px', fontWeight:500 }}>{lectura}</p>
+              )}
+              {!lectura && resumen.length > 0 && (
+                <div style={{ marginBottom: plan.length || opps.length ? 12 : 0 }}>
+                  {resumen.slice(0,3).map((b,i) => (
+                    <div key={i} style={{ display:'flex', gap:9, marginBottom:6, alignItems:'flex-start' }}>
+                      <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:C.goldDeep, fontWeight:700, flex:'none', marginTop:2 }}>0{i+1}</span>
+                      <span style={{ fontSize:13.5, lineHeight:1.5, color:'#2A241C' }}>{b}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(plan.length > 0 || opps.length > 0) && (
+                <div style={{ display:'grid', gridTemplateColumns: isDesktop && plan.length && opps.length ? '1fr 1fr' : '1fr', gap:10, borderTop:'1px dotted rgba(33,28,23,0.12)', paddingTop:12 }}>
+                  {plan.length > 0 && (
+                    <div>
+                      <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.teal, fontWeight:700, marginBottom:7 }}>Acciones ahora</div>
+                      {plan.slice(0,3).map((a,i) => (
+                        <div key={i} style={{ display:'flex', gap:8, marginBottom:5, alignItems:'flex-start' }}>
+                          <span style={{ color:C.teal, fontWeight:700, fontSize:12.5, flex:'none' }}>✓</span>
+                          <span style={{ fontSize:12.5, lineHeight:1.45, color:'#2A241C' }}>{a}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {opps.length > 0 && (
+                    <div>
+                      <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, letterSpacing:'0.12em', textTransform:'uppercase', color:C.goldDeep, fontWeight:700, marginBottom:7 }}>Oportunidades</div>
+                      {opps.slice(0,3).map((o,i) => (
+                        <div key={i} style={{ display:'flex', gap:8, marginBottom:5, alignItems:'flex-start' }}>
+                          <span style={{ color:C.goldDeep, fontWeight:700, fontSize:12.5, flex:'none' }}>✦</span>
+                          <span style={{ fontSize:12.5, lineHeight:1.45, color:'#2A241C' }}>{o}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        );
+      })()}
+
       {t.rawOnly ? (
         <div style={{ paddingBottom:24 }}>
           {renderNetworkMap(false)}

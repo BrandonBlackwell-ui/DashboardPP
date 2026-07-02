@@ -28,6 +28,88 @@ function dotColor(d) {
   return C.slate;
 }
 
+// Sentiment evolution line chart: favorable vs crítico across all days with data
+function TrendChart({ days, allDays, topics, onSelectDay, selected }) {
+  // Average pos/neg across all topics that have data for each day
+  const points = allDays.map(dk => {
+    const dd = days[dk] || {};
+    const entries = topics.map(t => dd[t.key]).filter(Boolean);
+    if (!entries.length) return { dk, pos: null, neg: null, risk: null };
+    const pos = entries.reduce((s,e) => s + (e.pos||0), 0) / entries.length;
+    const neg = entries.reduce((s,e) => s + (e.neg||0), 0) / entries.length;
+    const worst = entries.some(e => e.risk === 'muy_alto') ? 'muy_alto'
+      : entries.some(e => e.risk === 'alto') ? 'alto'
+      : entries.some(e => e.risk === 'medio') ? 'medio' : 'bajo';
+    return { dk, pos, neg, risk: worst };
+  });
+  const withData = points.filter(p => p.pos !== null);
+  if (withData.length < 2) return null;
+
+  const W = 640, H = 130, PAD_X = 8, PAD_Y = 14;
+  const n = points.length;
+  const x = i => PAD_X + (i / Math.max(1, n - 1)) * (W - PAD_X * 2);
+  const y = v => H - PAD_Y - (v / 100) * (H - PAD_Y * 2);
+
+  const linePath = (key) => {
+    let d = '', started = false;
+    points.forEach((p, i) => {
+      if (p[key] === null) { started = false; return; }
+      d += (started ? ' L ' : ' M ') + x(i).toFixed(1) + ' ' + y(p[key]).toFixed(1);
+      started = true;
+    });
+    return d;
+  };
+
+  return (
+    <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:'14px 16px', marginBottom:16 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:10, flexWrap:'wrap' }}>
+        <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, letterSpacing:'0.14em',
+          textTransform:'uppercase', color:C.ink, fontWeight:700 }}>Evolución del sentimiento</span>
+        <span style={{ display:'flex', alignItems:'center', gap:5 }}>
+          <span style={{ width:14, height:2, background:C.teal, display:'inline-block' }} />
+          <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, color:'#6B6253', textTransform:'uppercase' }}>Favorable</span>
+        </span>
+        <span style={{ display:'flex', alignItems:'center', gap:5 }}>
+          <span style={{ width:14, height:2, background:C.crim, display:'inline-block' }} />
+          <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, color:'#6B6253', textTransform:'uppercase' }}>Crítico</span>
+        </span>
+        <span style={{ display:'flex', alignItems:'center', gap:5 }}>
+          <span style={{ width:8, height:8, borderRadius:'50%', background:C.crim, display:'inline-block', opacity:0.85 }} />
+          <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, color:'#6B6253', textTransform:'uppercase' }}>Día de riesgo</span>
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width:'100%', height:'auto', display:'block' }}>
+        {/* Gridlines */}
+        {[0,25,50,75,100].map(v => (
+          <g key={v}>
+            <line x1={PAD_X} x2={W-PAD_X} y1={y(v)} y2={y(v)} stroke="rgba(33,28,23,0.07)" strokeWidth="1" />
+            <text x={PAD_X} y={y(v)-3} fontSize="8" fill="#A9997B" fontFamily="'Geist Mono',monospace">{v}%</text>
+          </g>
+        ))}
+        {/* Lines */}
+        <motion.path d={linePath('pos')} fill="none" stroke={C.teal} strokeWidth="2" strokeLinejoin="round"
+          initial={{ pathLength:0 }} animate={{ pathLength:1 }} transition={{ duration:0.9 }} />
+        <motion.path d={linePath('neg')} fill="none" stroke={C.crim} strokeWidth="2" strokeLinejoin="round"
+          initial={{ pathLength:0 }} animate={{ pathLength:1 }} transition={{ duration:0.9, delay:0.15 }} />
+        {/* Day markers (clickable) */}
+        {points.map((p, i) => p.pos !== null && (
+          <g key={p.dk} style={{ cursor:'pointer' }} onClick={() => onSelectDay(p.dk)}>
+            <rect x={x(i)-8} y={0} width={16} height={H} fill="transparent" />
+            {(p.risk === 'alto' || p.risk === 'muy_alto') && (
+              <circle cx={x(i)} cy={y(p.neg)} r="4.5" fill={C.crim} opacity="0.9" />
+            )}
+            <circle cx={x(i)} cy={y(p.pos)} r={p.dk === selected ? 4 : 2.5} fill={C.teal} />
+            <circle cx={x(i)} cy={y(p.neg)} r={p.dk === selected ? 4 : 2.5} fill={C.crim} />
+            {p.dk === selected && (
+              <line x1={x(i)} x2={x(i)} y1={PAD_Y-4} y2={H-PAD_Y+4} stroke="rgba(33,28,23,0.25)" strokeWidth="1" strokeDasharray="3 2" />
+            )}
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
 function SentBar({ pos, neu, neg }) {
   return (
     <div style={{ display:'flex', height:4, borderRadius:2, overflow:'hidden', background:'#E3DAC6', margin:'6px 0' }}>
@@ -93,6 +175,11 @@ export default function CalendarView({ calData, onGoTheme, isDesktop, supabaseKe
               letterSpacing:'0.08em', textTransform:'uppercase' }}>{t.label}</span>
           </div>
         ))}
+      </motion.div>
+
+      {/* Sentiment trend over the full period */}
+      <motion.div variants={item}>
+        <TrendChart days={days} allDays={allDays} topics={TOPICS} onSelectDay={setSelected} selected={selected} />
       </motion.div>
 
       {/* Calendar grid */}
