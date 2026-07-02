@@ -11,6 +11,7 @@ import CalendarView from './components/CalendarView';
 import ReporteView from './components/ReporteView';
 import AliadosView from './components/AliadosView';
 import SocialListeningView from './components/SocialListeningView';
+import VoiceAssistant from './components/VoiceAssistant';
 
 const SOCIAL_KEYS = ['facebook', 'instagram', 'x', 'tiktok', 'google_news'];
 import ExportModal from './components/ExportModal';
@@ -337,6 +338,7 @@ export default function App() {
             {viewContent}
           </DesktopShell>
         )}
+        {data && isAdmin && <VoiceAssistant />}
       </div>
     );
   }
@@ -359,6 +361,7 @@ export default function App() {
             dateOptions={dateOptions} onPanoChange={setPano} onDateChange={handleDateChange} onPlatChange={setPlat}
             panoramaDate={panoramaDate} onPanoramaDateChange={setPanoramaDate} />
           {viewContent}
+          {isAdmin && <VoiceAssistant />}
         </>)}
       </div>
     </div>

@@ -12,9 +12,11 @@
 import http from 'http';
 import { URL } from 'url';
 import { runFullAnalysis, runAIOnly } from './run-full-analysis.js';
+import { attachVoiceRelay } from './voice-relay.js';
 
 const APIFY_TOKEN = process.env.APIFY_TOKEN;
 const AI_KEY      = process.env.OPENROUTER_API_KEY;
+const GEMINI_KEY  = process.env.GEMINI_API_KEY;
 const PORT        = process.env.PORT || 3001;
 
 if (!APIFY_TOKEN || !AI_KEY) {
@@ -109,8 +111,12 @@ const server = http.createServer((req, res) => {
   res.writeHead(404); res.end('Not found');
 });
 
+// Asistente de voz (Gemini Live) — puente WebSocket en /voz
+attachVoiceRelay(server, { geminiKey: GEMINI_KEY });
+
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Analizar Server escuchando en puerto ${PORT}`);
   console.log(`APIFY_TOKEN: ${APIFY_TOKEN ? '✓' : '✗'}`);
   console.log(`OPENROUTER_API_KEY: ${AI_KEY ? '✓' : '✗'}`);
+  console.log(`GEMINI_API_KEY (voz): ${GEMINI_KEY ? '✓' : '✗'}`);
 });
