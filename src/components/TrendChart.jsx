@@ -18,6 +18,7 @@ const dayLabel = dk => { const d = new Date(dk+'T12:00:00'); return d.getDate() 
 export default function TrendChart({ days, topics, onSelectDay, selected, showChips = true,
   title = 'Evolución del sentimiento', aggregateKeys }) {
   const [topicFilter, setTopicFilter] = useState('all');
+  const [hovered, setHovered] = useState(null);
 
   const allDays = Object.keys(days || {}).sort();
   const chipTopics = (topics || []).filter(t => t.key !== 'resumen');
@@ -113,23 +114,52 @@ export default function TrendChart({ days, topics, onSelectDay, selected, showCh
           initial={{ pathLength:0 }} animate={{ pathLength:1 }} transition={{ duration:0.9, delay:0.15 }} />
         {points.map((p, i) => (
           <g key={p.dk} style={{ cursor: onSelectDay ? 'pointer' : 'default' }}
-            onClick={() => onSelectDay?.(p.dk)}>
+            onClick={() => onSelectDay?.(p.dk)}
+            onMouseEnter={() => setHovered(i)}
+            onMouseLeave={() => setHovered(null)}>
             <rect x={x(i)-14} y={0} width={28} height={H} fill="transparent" />
             {(p.risk === 'alto' || p.risk === 'muy_alto') && (
               <circle cx={x(i)} cy={y(p.neg)} r="5.5" fill={C.crim} opacity="0.25" />
             )}
-            <circle cx={x(i)} cy={y(p.pos)} r={p.dk === selected ? 4.5 : 3} fill={C.teal}
+            <circle cx={x(i)} cy={y(p.pos)} r={p.dk === selected || hovered === i ? 4.5 : 3} fill={C.teal}
               stroke="#FBF8F1" strokeWidth="1.5" />
-            <circle cx={x(i)} cy={y(p.neg)} r={p.dk === selected ? 4.5 : 3} fill={C.crim}
+            <circle cx={x(i)} cy={y(p.neg)} r={p.dk === selected || hovered === i ? 4.5 : 3} fill={C.crim}
               stroke="#FBF8F1" strokeWidth="1.5" />
-            {p.dk === selected && (
+            {(p.dk === selected || hovered === i) && (
               <line x1={x(i)} x2={x(i)} y1={PAD_Y-4} y2={H-PAD_Y+4} stroke="rgba(33,28,23,0.25)" strokeWidth="1" strokeDasharray="3 2" />
             )}
-            <text x={x(i)} y={H-3} fontSize="8" fill={p.dk === selected ? '#211C17' : '#A9997B'}
-              fontWeight={p.dk === selected ? '700' : '400'}
+            <text x={x(i)} y={H-3} fontSize="8" fill={p.dk === selected || hovered === i ? '#211C17' : '#A9997B'}
+              fontWeight={p.dk === selected || hovered === i ? '700' : '400'}
               textAnchor="middle" fontFamily="'Geist Mono',monospace">{dayLabel(p.dk)}</text>
           </g>
         ))}
+        {/* Tooltip con valores */}
+        {hovered !== null && points[hovered] && (() => {
+          const p = points[hovered];
+          const tw = 108, th = 58;
+          const tx = Math.min(Math.max(x(hovered) - tw/2, 4), W - tw - 4);
+          const ty = 4;
+          return (
+            <g style={{ pointerEvents:'none' }}>
+              <rect x={tx} y={ty} width={tw} height={th} rx="3"
+                fill="#211C17" opacity="0.94" />
+              <text x={tx+9} y={ty+15} fontSize="8.5" fill="#C4B89A" fontWeight="700"
+                fontFamily="'Geist Mono',monospace" letterSpacing="0.08em">{dayLabel(p.dk).toUpperCase()}</text>
+              <circle cx={tx+13} cy={ty+27} r="3" fill={C.teal} />
+              <text x={tx+21} y={ty+30} fontSize="9" fill="#FBF8F1" fontFamily="'Geist Mono',monospace">
+                Favorable {Math.round(p.pos)}%
+              </text>
+              <circle cx={tx+13} cy={ty+39} r="3" fill={C.crim} />
+              <text x={tx+21} y={ty+42} fontSize="9" fill="#FBF8F1" fontFamily="'Geist Mono',monospace">
+                Crítico {Math.round(p.neg)}%
+              </text>
+              <circle cx={tx+13} cy={ty+51} r="3" fill="#A9997B" />
+              <text x={tx+21} y={ty+54} fontSize="9" fill="#FBF8F1" fontFamily="'Geist Mono',monospace">
+                Neutral {Math.round(p.neu)}%
+              </text>
+            </g>
+          );
+        })()}
       </svg>
       )}
     </div>
