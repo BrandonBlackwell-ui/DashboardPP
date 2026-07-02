@@ -20,9 +20,27 @@ function truncate(text, max = 420) {
   return clean.length > max ? `${clean.slice(0, max)}...` : clean;
 }
 
-function buildDataPrompt({ report, posts, comments, voices }) {
+function buildDataPrompt({ report, posts, comments, voices, previousAnalysis }) {
   let out = `DATOS EXTRAIDOS PARA ANALISIS POST-APIFY\n`;
   out += `Reporte: ${report.theme_key} / ${report.theme_label || ''} / ${report.date_key}\n\n`;
+
+  if (previousAnalysis) {
+    out += `--- ANALISIS DEL PERIODO ANTERIOR (${previousAnalysis.date_key}) PARA COMPARAR TENDENCIA ---\n`;
+    const ps = previousAnalysis.ai_analysis?.sentimiento || {};
+    out += `Sentimiento anterior: favorable ${ps.favorable ?? '?'}% / neutral ${ps.neutral ?? '?'}% / critico ${ps.critico ?? '?'}%\n`;
+    out += `Riesgo anterior: ${previousAnalysis.ai_analysis?.nivel_riesgo || 'desconocido'}\n`;
+    const prevRedes = previousAnalysis.ai_analysis?.desglose_por_red || {};
+    Object.entries(prevRedes).forEach(([red, v]) => {
+      if (red === 'INSTRUCCION' || !v?.sentimiento) return;
+      out += `  ${red}: fav ${v.sentimiento.favorable ?? 0}% / crit ${v.sentimiento.critico ?? 0}%\n`;
+    });
+    const prevAlertas = previousAnalysis.ai_analysis?.alertas || [];
+    if (prevAlertas.length) {
+      out += `Alertas del periodo anterior (verifica si siguen activas, escalaron o se resolvieron):\n`;
+      prevAlertas.slice(0, 5).forEach(a => { out += `  - ${typeof a === 'string' ? a : (a.text || a.alerta || '')}\n`; });
+    }
+    out += `\n`;
+  }
 
   out += `--- PUBLICACIONES ---\n`;
   posts.forEach((p, index) => {
@@ -62,6 +80,8 @@ Reglas duras:
 - Aliados y contrarios deben salir de autores presentes en posts, comentarios o voces provistas.
 - Clasifica como aliado a quien defiende, apoya, celebra, amplifica positivamente o abre oportunidad reputacional.
 - Clasifica como contrario a quien critica, ridiculiza, acusa, amplifica riesgo o instala narrativa negativa.
+- Si se te dio el analisis del periodo anterior, calcula tendencia por red (mejorando/estable/empeorando) y llena comparativa_historica con deltas reales. Si no hay periodo anterior, omite comparativa_historica y usa "estable" como tendencia.
+- La lectura de cada red debe citar evidencia concreta (autores, temas, numeros de los datos), no generalidades.
 - Se factual y directo. Nada poetico.
 
 Devuelve EXCLUSIVAMENTE JSON valido con esta forma:
@@ -80,8 +100,21 @@ Devuelve EXCLUSIVAMENTE JSON valido con esta forma:
   "nivel_riesgo": "bajo | medio | alto | muy_alto",
   "desglose_por_red": {
     "INSTRUCCION": "Solo incluye redes con evidencia real en los datos. Si una red no tiene posts/comentarios suficientes para clasificar, OMITELA. No pongas 0/100/0 como placeholder.",
-    "x": { "sentimiento": { "favorable": 12, "neutral": 71, "critico": 17 }, "lectura": "Lectura basada en evidencia concreta de los datos..." },
-    "instagram": { "sentimiento": { "favorable": 45, "neutral": 40, "critico": 15 }, "lectura": "..." }
+    "x": {
+      "sentimiento": { "favorable": 12, "neutral": 71, "critico": 17 },
+      "lectura": "2-3 frases: que esta pasando en esta red, quien mueve la conversacion y por que importa. Cita ejemplos concretos de los datos.",
+      "focos": ["Tema o narrativa concreta detectada en esta red", "Otro foco relevante"],
+      "recomendacion": "Una accion especifica para ESTA red (no generica).",
+      "tendencia": "mejorando | estable | empeorando"
+    },
+    "instagram": { "sentimiento": { "favorable": 45, "neutral": 40, "critico": 15 }, "lectura": "...", "focos": ["..."], "recomendacion": "...", "tendencia": "estable" }
+  },
+  "comparativa_historica": {
+    "resumen": "Si se te dio analisis del periodo anterior: 2-3 frases sobre como evoluciono la conversacion (mejoro/empeoro y por que). Si no hay periodo anterior, omite este campo.",
+    "delta_favorable": 5,
+    "delta_critico": -3,
+    "alertas_resueltas": ["Alerta anterior que ya no aparece en los datos actuales"],
+    "alertas_persistentes": ["Alerta que sigue activa"]
   },
   "alertas": [
     "Alerta concreta + por que ocurre..."
@@ -336,7 +369,24 @@ async function run() {
   }
   console.log(`Reporte: ${report.theme_key} ${report.date_key}. Datos: ${posts.length} posts, ${comments.length} comentarios, ${voices.length} voces.`);
 
-  const prompt = buildPrompt(buildDataPrompt({ report, posts, comments, voices }));
+  // Fetch the previous analyzed report of the same theme so the AI can compare trends
+  let previousAnalysis = null;
+  {
+    const { data: prev } = await supabase
+      .from('reports')
+      .select('date_key, ai_analysis')
+      .eq('theme_key', report.theme_key)
+      .lt('date_key', report.date_key)
+      .not('ai_analysis', 'is', null)
+      .order('date_key', { ascending: false })
+      .limit(1);
+    if (prev?.length) {
+      previousAnalysis = prev[0];
+      console.log(`Comparando contra analisis anterior del ${previousAnalysis.date_key}.`);
+    }
+  }
+
+  const prompt = buildPrompt(buildDataPrompt({ report, posts, comments, voices, previousAnalysis }));
   const models = modelsForReport({ report, overrideModel: args.model });
   console.log(`Ruta de modelo: ${report.theme_key === 'resumen' ? 'resumen global' : 'red individual'} -> ${models[0]}`);
   const { model, analysis: rawAnalysis } = await callOpenRouter({ apiKey: args.apiKey, prompt, models });

@@ -30,10 +30,13 @@ function dotColor(d) {
 
 // Sentiment evolution line chart: favorable vs crítico across all days with data
 function TrendChart({ days, allDays, topics, onSelectDay, selected }) {
-  // Average pos/neg across all topics that have data for each day
+  const [topicFilter, setTopicFilter] = useState('all');
+  const activeTopics = topicFilter === 'all' ? topics : topics.filter(t => t.key === topicFilter);
+
+  // Average pos/neg across the selected topics that have data for each day
   const points = allDays.map(dk => {
     const dd = days[dk] || {};
-    const entries = topics.map(t => dd[t.key]).filter(Boolean);
+    const entries = activeTopics.map(t => dd[t.key]).filter(Boolean);
     if (!entries.length) return { dk, pos: null, neg: null, risk: null };
     const pos = entries.reduce((s,e) => s + (e.pos||0), 0) / entries.length;
     const neg = entries.reduce((s,e) => s + (e.neg||0), 0) / entries.length;
@@ -43,7 +46,7 @@ function TrendChart({ days, allDays, topics, onSelectDay, selected }) {
     return { dk, pos, neg, risk: worst };
   });
   const withData = points.filter(p => p.pos !== null);
-  if (withData.length < 2) return null;
+  const notEnough = withData.length < 2;
 
   const W = 640, H = 130, PAD_X = 8, PAD_Y = 14;
   const n = points.length;
@@ -78,6 +81,26 @@ function TrendChart({ days, allDays, topics, onSelectDay, selected }) {
           <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, color:'#6B6253', textTransform:'uppercase' }}>Día de riesgo</span>
         </span>
       </div>
+      {/* Per-network filter */}
+      <div style={{ display:'flex', gap:4, flexWrap:'wrap', marginBottom:10 }}>
+        {[{ key:'all', label:'Todas', color:C.ink }, ...topics].map(t => (
+          <button key={t.key} onClick={() => setTopicFilter(t.key)}
+            style={{ display:'flex', alignItems:'center', gap:5, padding:'4px 9px', borderRadius:999, cursor:'pointer',
+              fontFamily:"'Geist Mono',monospace", fontSize:9, fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase',
+              border: topicFilter===t.key ? `1px solid ${C.ink}` : '1px solid rgba(33,28,23,0.13)',
+              background: topicFilter===t.key ? C.ink : 'transparent',
+              color: topicFilter===t.key ? '#FBF8F1' : '#6B6253', transition:'all 0.15s' }}>
+            <span style={{ width:6, height:6, borderRadius:'50%', background:t.color, flex:'none' }} />
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {notEnough ? (
+        <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#A9997B',
+          textTransform:'uppercase', letterSpacing:'0.06em', padding:'18px 0' }}>
+          Sin datos suficientes para graficar esta red.
+        </div>
+      ) : (
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width:'100%', height:'auto', display:'block' }}>
         {/* Gridlines */}
         {[0,25,50,75,100].map(v => (
@@ -106,6 +129,7 @@ function TrendChart({ days, allDays, topics, onSelectDay, selected }) {
           </g>
         ))}
       </svg>
+      )}
     </div>
   );
 }

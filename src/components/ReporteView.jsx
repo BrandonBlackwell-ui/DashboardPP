@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { C } from '../utils/helpers';
+import ReporteIA from './ReporteIA';
 
 /* ─── shared primitives ─────────────────────────────────────── */
 const MONO = "'Geist Mono',monospace";
@@ -1209,8 +1210,9 @@ const NEIVA_SECTIONS = [
 ];
 
 /* ─── Main ReporteView ───────────────────────────────────────── */
-export default function ReporteView({ isDesktop }) {
-  const [activeReport, setActiveReport] = useState('neiva');
+export default function ReporteView({ isDesktop, data }) {
+  const hasAiReport = !!data?.themes?.resumen?.ai_analysis;
+  const [activeReport, setActiveReport] = useState(hasAiReport ? 'ia' : 'neiva');
   const [sectionIdx, setSectionIdx] = useState(0);
 
   const sections =
@@ -1246,6 +1248,7 @@ export default function ReporteView({ isDesktop }) {
         {/* Report selector */}
         <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
           {[
+            ...(hasAiReport ? [{ key:'ia', label:'⚡ Reporte IA · Actual', sub:'generado del último análisis' }] : []),
             { key:'neiva', label:'Briefs Medios · Neiva', sub:'Colombia · 19 Jun 2026' },
             { key:'actividades', label:'Actividades · May–Jun', sub:'entregables y hallazgos' },
             { key:'album', label:'Álbum · QVAA', sub:'BW-26-06-PA-RAPA-001' },
@@ -1265,6 +1268,10 @@ export default function ReporteView({ isDesktop }) {
         </div>
       </div>
 
+      {activeReport === 'ia' ? (
+        <ReporteIA data={data} isDesktop={isDesktop} />
+      ) : (
+      <>
       {/* Section pills */}
       <div style={{ display:'flex', gap:4, overflowX:'auto', scrollbarWidth:'none', marginBottom:16, paddingBottom:4 }}>
         {sections.map((s,i) => (
@@ -1317,6 +1324,8 @@ export default function ReporteView({ isDesktop }) {
           Siguiente →
         </button>
       </div>
+      </>
+      )}
 
     </div>
   );
