@@ -34,15 +34,16 @@ export default function TrendChart({ days, topics, onSelectDay, selected, showCh
     if (!entries.length) return null;
     const pos = entries.reduce((s,e) => s + (e.pos||0), 0) / entries.length;
     const neg = entries.reduce((s,e) => s + (e.neg||0), 0) / entries.length;
+    const neu = Math.max(0, 100 - pos - neg);
     const worst = entries.some(e => e.risk === 'muy_alto') ? 'muy_alto'
       : entries.some(e => e.risk === 'alto') ? 'alto'
       : entries.some(e => e.risk === 'medio') ? 'medio' : 'bajo';
-    return { dk, pos, neg, risk: worst };
+    return { dk, pos, neg, neu, risk: worst };
   }).filter(Boolean);
   const notEnough = points.length < 2;
 
-  // Escala Y dinámica
-  const maxVal = Math.max(...points.map(p => Math.max(p.pos, p.neg)), 10);
+  // Escala Y dinámica (incluye neutral, que suele ser la más alta)
+  const maxVal = Math.max(...points.map(p => Math.max(p.pos, p.neg, p.neu)), 10);
   const yMax = Math.min(100, Math.ceil((maxVal + 8) / 10) * 10);
 
   const W = 640, H = 150, PAD_X = 30, PAD_Y = 18;
@@ -65,6 +66,10 @@ export default function TrendChart({ days, topics, onSelectDay, selected, showCh
         <span style={{ display:'flex', alignItems:'center', gap:5 }}>
           <span style={{ width:14, height:2, background:C.crim, display:'inline-block' }} />
           <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, color:'#6B6253', textTransform:'uppercase' }}>Crítico</span>
+        </span>
+        <span style={{ display:'flex', alignItems:'center', gap:5 }}>
+          <span style={{ width:14, height:0, borderTop:'2px dotted #A9997B', display:'inline-block' }} />
+          <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, color:'#6B6253', textTransform:'uppercase' }}>Neutral</span>
         </span>
         <span style={{ display:'flex', alignItems:'center', gap:5 }}>
           <span style={{ width:8, height:8, borderRadius:'50%', background:C.crim, display:'inline-block', opacity:0.85 }} />
@@ -99,6 +104,9 @@ export default function TrendChart({ days, topics, onSelectDay, selected, showCh
             <text x={2} y={y(v)+3} fontSize="8" fill="#A9997B" fontFamily="'Geist Mono',monospace">{v}%</text>
           </g>
         ))}
+        <motion.path d={linePath('neu')} fill="none" stroke="#A9997B" strokeWidth="1.5"
+          strokeDasharray="3 4" strokeLinejoin="round"
+          initial={{ pathLength:0 }} animate={{ pathLength:1 }} transition={{ duration:0.9 }} />
         <motion.path d={linePath('pos')} fill="none" stroke={C.teal} strokeWidth="2" strokeLinejoin="round"
           initial={{ pathLength:0 }} animate={{ pathLength:1 }} transition={{ duration:0.9 }} />
         <motion.path d={linePath('neg')} fill="none" stroke={C.crim} strokeWidth="2" strokeLinejoin="round"
