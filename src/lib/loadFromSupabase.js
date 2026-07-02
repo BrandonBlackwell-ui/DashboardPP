@@ -416,9 +416,12 @@ export async function loadFromSupabase() {
       critics: allVoicesArr.filter(v => v.sentiment === 'negative'),
     };
 
-    // ALL_MEDIA_DATA: aggregate medios_destacados across all reports/dates
+    // ALL_MEDIA_DATA: aggregate medios_destacados across all reports/dates.
+    // Se excluye 'resumen' (duplica las mismas notas) y por fecha se toma el máximo
+    // (el mismo medio puede aparecer en varios reportes del mismo día).
     const mediaAgg = {};
     for (const rep of reports) {
+      if (rep.theme_key === 'resumen') continue;
       const medios = rep.ai_analysis?.analisis_voces?.medios_destacados || [];
       for (const m of medios) {
         // Solo fuentes de prensa (google_news) — cuentas de redes van en aliados/contrarios
@@ -426,14 +429,13 @@ export async function loadFromSupabase() {
         const k = (m.nombre || '').toLowerCase().trim();
         if (!k) continue;
         if (!mediaAgg[k]) {
-          mediaAgg[k] = { nombre: m.nombre, platform: m.platform || 'google_news',
-            dominio: m.dominio || '', alcance: m.alcance || 'medio', notas: 0, temas: [],
-            tono: m.tono || 'neutral', titular: m.titular_ejemplo || '', datesSeen: new Set() };
+          mediaAgg[k] = { nombre: m.nombre, platform: 'google_news',
+            dominio: m.dominio || '', alcance: m.alcance || 'medio', notasByDate: {}, temas: [],
+            tono: m.tono || 'neutral', titular: m.titular_ejemplo || '' };
         }
-        if (!mediaAgg[k].dominio && m.dominio) mediaAgg[k].dominio = m.dominio;
         const e = mediaAgg[k];
-        e.notas += Number(m.notas || 1);
-        e.datesSeen.add(rep.date_key);
+        if (!e.dominio && m.dominio) e.dominio = m.dominio;
+        e.notasByDate[rep.date_key] = Math.max(e.notasByDate[rep.date_key] || 0, Number(m.notas || 1));
         if (m.alcance === 'macro') e.alcance = 'macro';
         (m.temas || []).forEach(t => { if (!e.temas.includes(t)) e.temas.push(t); });
         if (m.tono && m.tono !== 'neutral') e.tono = m.tono; // keep the strongest signal
@@ -441,7 +443,11 @@ export async function loadFromSupabase() {
       }
     }
     window.ALL_MEDIA_DATA = Object.values(mediaAgg)
-      .map(e => ({ ...e, datesSeen: e.datesSeen.size }))
+      .map(({ notasByDate, ...e }) => ({
+        ...e,
+        notas: Object.values(notasByDate).reduce((s, n) => s + n, 0),
+        datesSeen: Object.keys(notasByDate).length,
+      }))
       .sort((a, b) => b.notas - a.notas);
 
     if (latestAiReport && window.PA_DATA?.themes && !window.PA_DATA.themes.resumen?.ai_analysis) {
