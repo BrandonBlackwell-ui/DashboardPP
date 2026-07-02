@@ -1,8 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { C, fmt, fmtK } from '../utils/helpers';
 import PlatformIcon from './PlatformIcon';
 import { supabase } from '../lib/supabase';
+
+// Normaliza para emparejar el nombre del medio (IA) con la fuente scrapeada (google_news)
+const DIACRITICS = new RegExp('[\\u0300-\\u036f]', 'g');
+const normSrc = s => (s || '').toLowerCase().normalize('NFD').replace(DIACRITICS, '').replace(/[^a-z0-9 ]/g, '').trim();
+function matchesMedia(sourceName, mediaName) {
+  const a = normSrc(sourceName), b = normSrc(mediaName);
+  if (!a || !b) return false;
+  if (a.includes(b) || b.includes(a)) return true;
+  const wa = a.split(' ').filter(w => w.length > 3);
+  const wb = b.split(' ').filter(w => w.length > 3);
+  return wb.some(w => wa.includes(w));
+}
 
 const PLATFORM_ORDER = ['facebook', 'instagram', 'tiktok', 'x', 'google_news', 'redes_propias'];
 const PLATFORM_LABELS = {
@@ -378,6 +390,67 @@ function ChartSection({ voices, side, label, maxEng, onSelect }) {
   );
 }
 
+// ── Panel de detalle de un medio: sus notas acumuladas ──────────────────────────
+function MediaDetail({ medio, notes, onClose, isDesktop }) {
+  const accent = medio.tono === 'favorable' ? C.teal : medio.tono === 'critico' ? C.crim : C.goldDeep;
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 40 }}
+      transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+      style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: isDesktop ? 420 : '100vw',
+        background: C.card, borderLeft: '1px solid rgba(33,28,23,0.13)',
+        boxShadow: '-8px 0 32px rgba(0,0,0,0.18)', zIndex: 200,
+        display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+      <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid rgba(33,28,23,0.10)',
+        position: 'sticky', top: 0, background: C.card, zIndex: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {medio.dominio ? (
+            <img src={`https://www.google.com/s2/favicons?domain=${medio.dominio}&sz=64`} alt=""
+              width={20} height={20} style={{ borderRadius: 4, flex: 'none' }}
+              onError={e => { e.target.style.display = 'none'; }} />
+          ) : <PlatformIcon platform="google_news" size={18} />}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: "'Geist',sans-serif", fontWeight: 700, fontSize: 16, color: C.ink,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{medio.nombre}</div>
+            <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 9.5, color: accent,
+              textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 2 }}>
+              {medio.alcance === 'macro' ? 'Nacional' : 'Regional'} · {notes.length} {notes.length === 1 ? 'nota' : 'notas'}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer',
+            fontFamily: "'Geist Mono',monospace", fontSize: 11, color: '#8A7E6A', padding: '4px 8px' }}>CERRAR ×</button>
+        </div>
+      </div>
+      <div style={{ flex: 1, padding: '14px 20px 24px' }}>
+        <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10, letterSpacing: '0.14em',
+          textTransform: 'uppercase', color: C.goldDeep, fontWeight: 600, marginBottom: 12 }}>
+          Notas publicadas
+        </div>
+        {notes.length === 0 && (
+          <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10.5, color: '#8A7E6A',
+            textTransform: 'uppercase', padding: '20px 0' }}>Sin notas individuales guardadas.</div>
+        )}
+        {notes.map((p, i) => (
+          <div key={i} style={{ marginBottom: 10, padding: '11px 13px', background: 'rgba(33,28,23,0.035)',
+            border: '1px solid rgba(33,28,23,0.08)', borderLeft: `3px solid ${accent}`, borderRadius: 3 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}>
+              <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 9.5, color: '#8A7E6A',
+                textTransform: 'uppercase', flex: 1 }}>{formatDate(p.published_date)}</span>
+              {p.url && (
+                <a href={p.url} target="_blank" rel="noopener" style={{ fontFamily: "'Geist Mono',monospace",
+                  fontSize: 9, color: C.goldDeep, fontWeight: 700, textDecoration: 'none', letterSpacing: '0.06em' }}>ABRIR ↗</a>
+              )}
+            </div>
+            <p style={{ fontSize: 13, lineHeight: 1.45, color: C.ink, margin: 0, wordBreak: 'break-word' }}>
+              {p.text || '[Sin título]'}
+            </p>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function AliadosView({ data, isDesktop }) {
   const voices = window.ALL_VOICES_DATA || buildVoicesFromData(data);
@@ -386,6 +459,31 @@ export default function AliadosView({ data, isDesktop }) {
 
   const [selectedVoice, setSelectedVoice] = useState(null);
   const [selectedSide, setSelectedSide] = useState('positive');
+  const [selectedMedia, setSelectedMedia] = useState(null);
+  const [newsPosts, setNewsPosts] = useState(null);
+
+  // Trae todas las notas de google_news una vez, deduplicadas por URL
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: rows } = await supabase
+          .from('scraped_posts')
+          .select('url, text, published_date, username')
+          .eq('platform', 'google_news')
+          .order('published_date', { ascending: false })
+          .limit(1000);
+        const seen = new Set();
+        const uniq = (rows || []).filter(p => {
+          const k = p.url || p.text?.slice(0, 80);
+          if (!k || seen.has(k)) return false;
+          seen.add(k); return true;
+        });
+        setNewsPosts(uniq);
+      } catch { setNewsPosts([]); }
+    })();
+  }, []);
+
+  const notesFor = (m) => (newsPosts || []).filter(p => matchesMedia(p.username, m.nombre));
 
   const totalEngagement = [...allies, ...critics].reduce((s, v) => s + v.engagement, 0);
   const totalPosts = [...allies, ...critics].reduce((s, v) => s + (v.posts || 0), 0);
@@ -472,8 +570,13 @@ export default function AliadosView({ data, isDesktop }) {
               {window.ALL_MEDIA_DATA.map((m, i) => {
                 const tonoColor = m.tono === 'favorable' ? C.teal : m.tono === 'critico' ? C.crim : '#8A7E6A';
                 const tonoLabel = m.tono === 'favorable' ? 'Favorable' : m.tono === 'critico' ? 'Crítico' : 'Neutral';
+                const realNotes = notesFor(m);
+                // Conteo real deduplicado; si aún no cargan las notas, usa el de la IA
+                const count = newsPosts === null ? m.notas : (realNotes.length || m.notas);
                 return (
-                  <div key={i} style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)',
+                  <button key={i} onClick={() => setSelectedMedia({ medio: m, notes: realNotes })}
+                    style={{ textAlign:'left', font:'inherit', cursor:'pointer',
+                    background:C.card, border:'1px solid rgba(33,28,23,0.13)',
                     borderLeft:`3px solid ${tonoColor}`, borderRadius:3, padding:'12px 14px' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
                       {m.dominio ? (
@@ -498,9 +601,10 @@ export default function AliadosView({ data, isDesktop }) {
                     <div style={{ display:'flex', flexWrap:'wrap', gap:'3px 12px',
                       fontFamily:"'Geist Mono',monospace", fontSize:9.5, color:'#8A7E6A',
                       textTransform:'uppercase', marginBottom: m.temas.length ? 7 : 0 }}>
-                      <span style={{ fontWeight:700, color:C.ink }}>{m.notas} {m.notas === 1 ? 'nota' : 'notas'}</span>
+                      <span style={{ fontWeight:700, color:C.ink }}>{count} {count === 1 ? 'nota' : 'notas'}</span>
                       <span style={{ color:tonoColor, fontWeight:600 }}>{tonoLabel}</span>
                       {m.datesSeen > 1 && <span>{m.datesSeen} días</span>}
+                      <span style={{ marginLeft:'auto', color:C.goldDeep, fontWeight:600 }}>Ver →</span>
                     </div>
                     {m.temas.length > 0 && (
                       <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
@@ -511,7 +615,7 @@ export default function AliadosView({ data, isDesktop }) {
                         ))}
                       </div>
                     )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -532,6 +636,22 @@ export default function AliadosView({ data, isDesktop }) {
             <VoiceDetail
               v={selectedVoice} side={selectedSide}
               onClose={() => setSelectedVoice(null)}
+              isDesktop={isDesktop} />
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Detail panel de medios */}
+      <AnimatePresence>
+        {selectedMedia && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setSelectedMedia(null)}
+              style={{ position: 'fixed', inset: 0, background: 'rgba(33,28,23,0.35)', zIndex: 199 }} />
+            <MediaDetail
+              medio={selectedMedia.medio} notes={selectedMedia.notes}
+              onClose={() => setSelectedMedia(null)}
               isDesktop={isDesktop} />
           </>
         )}
