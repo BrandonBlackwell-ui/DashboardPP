@@ -28,40 +28,47 @@ function dotColor(d) {
   return C.slate;
 }
 
-// Sentiment evolution line chart: favorable vs crítico across all days with data
+// Sentiment evolution line chart: favorable vs crítico across days with data
+const SL_TREND_KEYS = ['facebook','instagram','x','tiktok','google_news'];
+
 function TrendChart({ days, allDays, topics, onSelectDay, selected }) {
   const [topicFilter, setTopicFilter] = useState('all');
-  const activeTopics = topicFilter === 'all' ? topics : topics.filter(t => t.key === topicFilter);
+  // "Todas" = solo social listening (resumen es duplicado consolidado; redes_propias es otra naturaleza)
+  const chipTopics = topics.filter(t => t.key !== 'resumen');
+  const slTopics = topics.filter(t => SL_TREND_KEYS.includes(t.key));
+  const activeTopics = topicFilter === 'all'
+    ? (slTopics.length ? slTopics : chipTopics)
+    : topics.filter(t => t.key === topicFilter);
 
-  // Average pos/neg across the selected topics that have data for each day
+  // Solo días con data — la línea conecta puntos reales, sin huecos
   const points = allDays.map(dk => {
     const dd = days[dk] || {};
     const entries = activeTopics.map(t => dd[t.key]).filter(Boolean);
-    if (!entries.length) return { dk, pos: null, neg: null, risk: null };
+    if (!entries.length) return null;
     const pos = entries.reduce((s,e) => s + (e.pos||0), 0) / entries.length;
     const neg = entries.reduce((s,e) => s + (e.neg||0), 0) / entries.length;
     const worst = entries.some(e => e.risk === 'muy_alto') ? 'muy_alto'
       : entries.some(e => e.risk === 'alto') ? 'alto'
       : entries.some(e => e.risk === 'medio') ? 'medio' : 'bajo';
     return { dk, pos, neg, risk: worst };
-  });
-  const withData = points.filter(p => p.pos !== null);
-  const notEnough = withData.length < 2;
+  }).filter(Boolean);
+  const notEnough = points.length < 2;
 
-  const W = 640, H = 130, PAD_X = 8, PAD_Y = 14;
+  // Escala Y dinámica: que las líneas usen el alto completo
+  const maxVal = Math.max(...points.map(p => Math.max(p.pos, p.neg)), 10);
+  const yMax = Math.min(100, Math.ceil((maxVal + 8) / 10) * 10);
+
+  const W = 640, H = 150, PAD_X = 30, PAD_Y = 18;
   const n = points.length;
   const x = i => PAD_X + (i / Math.max(1, n - 1)) * (W - PAD_X * 2);
-  const y = v => H - PAD_Y - (v / 100) * (H - PAD_Y * 2);
+  const y = v => H - PAD_Y - (v / yMax) * (H - PAD_Y * 2);
 
-  const linePath = (key) => {
-    let d = '', started = false;
-    points.forEach((p, i) => {
-      if (p[key] === null) { started = false; return; }
-      d += (started ? ' L ' : ' M ') + x(i).toFixed(1) + ' ' + y(p[key]).toFixed(1);
-      started = true;
-    });
-    return d;
-  };
+  const linePath = (key) =>
+    points.map((p, i) => (i ? 'L ' : 'M ') + x(i).toFixed(1) + ' ' + y(p[key]).toFixed(1)).join(' ');
+
+  const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const dayLabel = dk => { const d = new Date(dk+'T12:00:00'); return d.getDate() + ' ' + MESES[d.getMonth()]; };
+  const gridVals = [0, Math.round(yMax/2), yMax];
 
   return (
     <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:'14px 16px', marginBottom:16 }}>
@@ -83,7 +90,7 @@ function TrendChart({ days, allDays, topics, onSelectDay, selected }) {
       </div>
       {/* Per-network filter */}
       <div style={{ display:'flex', gap:4, flexWrap:'wrap', marginBottom:10 }}>
-        {[{ key:'all', label:'Todas', color:C.ink }, ...topics].map(t => (
+        {[{ key:'all', label:'Todas', color:C.ink }, ...chipTopics].map(t => (
           <button key={t.key} onClick={() => setTopicFilter(t.key)}
             style={{ display:'flex', alignItems:'center', gap:5, padding:'4px 9px', borderRadius:999, cursor:'pointer',
               fontFamily:"'Geist Mono',monospace", fontSize:9, fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase',
@@ -103,10 +110,10 @@ function TrendChart({ days, allDays, topics, onSelectDay, selected }) {
       ) : (
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width:'100%', height:'auto', display:'block' }}>
         {/* Gridlines */}
-        {[0,25,50,75,100].map(v => (
+        {gridVals.map(v => (
           <g key={v}>
             <line x1={PAD_X} x2={W-PAD_X} y1={y(v)} y2={y(v)} stroke="rgba(33,28,23,0.07)" strokeWidth="1" />
-            <text x={PAD_X} y={y(v)-3} fontSize="8" fill="#A9997B" fontFamily="'Geist Mono',monospace">{v}%</text>
+            <text x={2} y={y(v)+3} fontSize="8" fill="#A9997B" fontFamily="'Geist Mono',monospace">{v}%</text>
           </g>
         ))}
         {/* Lines */}
@@ -114,18 +121,23 @@ function TrendChart({ days, allDays, topics, onSelectDay, selected }) {
           initial={{ pathLength:0 }} animate={{ pathLength:1 }} transition={{ duration:0.9 }} />
         <motion.path d={linePath('neg')} fill="none" stroke={C.crim} strokeWidth="2" strokeLinejoin="round"
           initial={{ pathLength:0 }} animate={{ pathLength:1 }} transition={{ duration:0.9, delay:0.15 }} />
-        {/* Day markers (clickable) */}
-        {points.map((p, i) => p.pos !== null && (
+        {/* Day markers (clickable) + fecha */}
+        {points.map((p, i) => (
           <g key={p.dk} style={{ cursor:'pointer' }} onClick={() => onSelectDay(p.dk)}>
-            <rect x={x(i)-8} y={0} width={16} height={H} fill="transparent" />
+            <rect x={x(i)-14} y={0} width={28} height={H} fill="transparent" />
             {(p.risk === 'alto' || p.risk === 'muy_alto') && (
-              <circle cx={x(i)} cy={y(p.neg)} r="4.5" fill={C.crim} opacity="0.9" />
+              <circle cx={x(i)} cy={y(p.neg)} r="5.5" fill={C.crim} opacity="0.25" />
             )}
-            <circle cx={x(i)} cy={y(p.pos)} r={p.dk === selected ? 4 : 2.5} fill={C.teal} />
-            <circle cx={x(i)} cy={y(p.neg)} r={p.dk === selected ? 4 : 2.5} fill={C.crim} />
+            <circle cx={x(i)} cy={y(p.pos)} r={p.dk === selected ? 4.5 : 3} fill={C.teal}
+              stroke="#FBF8F1" strokeWidth="1.5" />
+            <circle cx={x(i)} cy={y(p.neg)} r={p.dk === selected ? 4.5 : 3} fill={C.crim}
+              stroke="#FBF8F1" strokeWidth="1.5" />
             {p.dk === selected && (
               <line x1={x(i)} x2={x(i)} y1={PAD_Y-4} y2={H-PAD_Y+4} stroke="rgba(33,28,23,0.25)" strokeWidth="1" strokeDasharray="3 2" />
             )}
+            <text x={x(i)} y={H-3} fontSize="8" fill={p.dk === selected ? '#211C17' : '#A9997B'}
+              fontWeight={p.dk === selected ? '700' : '400'}
+              textAnchor="middle" fontFamily="'Geist Mono',monospace">{dayLabel(p.dk)}</text>
           </g>
         ))}
       </svg>
