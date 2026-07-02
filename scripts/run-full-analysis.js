@@ -236,8 +236,20 @@ function truncate(text, max = 420) {
   return clean.length > max ? clean.slice(0, max)+'...' : clean;
 }
 
-function buildDataPrompt({ report, posts, comments }) {
+function buildDataPrompt({ report, posts, comments, previousAnalysis }) {
   let out = `DATOS EXTRAIDOS PARA ANALISIS — ${report.theme_key} / ${report.date_key}\n\n`;
+  if (previousAnalysis) {
+    out += `--- ANALISIS DEL PERIODO ANTERIOR (${previousAnalysis.date_key}) PARA COMPARAR TENDENCIA ---\n`;
+    const ps = previousAnalysis.ai_analysis?.sentimiento || {};
+    out += `Sentimiento anterior: favorable ${ps.favorable ?? '?'}% / neutral ${ps.neutral ?? '?'}% / critico ${ps.critico ?? '?'}%\n`;
+    out += `Riesgo anterior: ${previousAnalysis.ai_analysis?.nivel_riesgo || 'desconocido'}\n`;
+    const prevAlertas = previousAnalysis.ai_analysis?.alertas || [];
+    if (prevAlertas.length) {
+      out += `Alertas anteriores (verifica si siguen activas o se resolvieron):\n`;
+      prevAlertas.slice(0,5).forEach(a => { out += `  - ${typeof a === 'string' ? a : (a.text || a.alerta || '')}\n`; });
+    }
+    out += `\n`;
+  }
   out += `--- PUBLICACIONES (${posts.length}) ---\n`;
   posts.forEach((p, i) => {
     out += `${i+1}. [${p.platform}] @${p.username} | ${p.published_date?.slice(0,10)} | likes:${p.likes} comentarios:${p.comments_count} views:${p.views} | "${truncate(p.text)}" | ${p.url}\n`;
@@ -256,14 +268,17 @@ const AI_PROMPT_SYSTEM = 'Eres un analista senior de reputacion y crisis para Pe
 const AI_PROMPT_TEMPLATE = (dataPrompt) => `Analiza los datos y devuelve SOLO JSON con esta estructura exacta:
 {
   "resumen_ejecutivo": ["punto 1","punto 2","punto 3","punto 4"],
-  "sentimiento": {"favorable":0,"neutral":100,"critico":0},
+  "sentimiento": {"favorable":15,"neutral":68,"critico":17},
   "nivel_riesgo": "bajo",
   "desglose_por_red": {
-    "facebook":{"sentimiento":{"favorable":0,"neutral":100,"critico":0},"lectura":"..."},
-    "instagram":{"sentimiento":{"favorable":0,"neutral":100,"critico":0},"lectura":"..."},
-    "x":{"sentimiento":{"favorable":0,"neutral":100,"critico":0},"lectura":"..."},
-    "tiktok":{"sentimiento":{"favorable":0,"neutral":100,"critico":0},"lectura":"..."},
-    "google_news":{"sentimiento":{"favorable":0,"neutral":100,"critico":0},"lectura":"..."}
+    "facebook":{"sentimiento":{"favorable":12,"neutral":71,"critico":17},"lectura":"2-3 frases: que pasa en esta red, quien mueve la conversacion, con ejemplos concretos de los datos","focos":["narrativa concreta detectada"],"recomendacion":"accion especifica para ESTA red","tendencia":"mejorando | estable | empeorando"}
+  },
+  "comparativa_historica": {
+    "resumen": "2-3 frases de como evoluciono vs el periodo anterior (solo si se dio analisis anterior; si no, omite este campo)",
+    "delta_favorable": 5,
+    "delta_critico": -3,
+    "alertas_resueltas": ["alerta anterior que ya no aparece"],
+    "alertas_persistentes": ["alerta que sigue activa"]
   },
   "alertas": ["alerta 1"],
   "plan_accion": ["accion 1"],
@@ -274,7 +289,11 @@ const AI_PROMPT_TEMPLATE = (dataPrompt) => `Analiza los datos y devuelve SOLO JS
   }
 }
 
-Reglas: No inventes datos. Aliados/criticos deben existir en los datos. Los porcentajes suman 100.
+Reglas duras:
+- No inventes datos. Aliados/criticos deben existir en los datos. Los porcentajes suman 100.
+- NUNCA uses 0/100/0 como fallback. Si una red no tiene muestra suficiente para clasificar, OMITELA del desglose_por_red. Solo incluye redes con evidencia real.
+- La lectura de cada red debe citar evidencia concreta (autores, temas, numeros), no generalidades.
+- Si se dio analisis del periodo anterior, calcula tendencia por red y llena comparativa_historica con deltas reales. Si no, omite comparativa_historica y usa "estable".
 
 ${dataPrompt}`;
 
@@ -356,7 +375,20 @@ async function enrichAndSaveAI(apiKey, themeKey, dateKey, allPostsByTheme) {
     ? ['anthropic/claude-opus-4-8', 'anthropic/claude-sonnet-5', 'google/gemini-2.5-flash']
     : ['google/gemini-2.5-flash-lite', 'google/gemini-2.5-flash', 'anthropic/claude-haiku-4-5'];
 
-  const prompt = AI_PROMPT_TEMPLATE(buildDataPrompt({ report, posts, comments }));
+  // Previous analyzed report of the same theme → lets the AI compute real trends
+  let previousAnalysis = null;
+  {
+    const { data: prev } = await supabase.from('reports')
+      .select('date_key, ai_analysis')
+      .eq('theme_key', themeKey)
+      .lt('date_key', dateKey)
+      .not('ai_analysis', 'is', null)
+      .order('date_key', { ascending: false })
+      .limit(1);
+    if (prev?.length) previousAnalysis = prev[0];
+  }
+
+  const prompt = AI_PROMPT_TEMPLATE(buildDataPrompt({ report, posts, comments, previousAnalysis }));
   const { model, analysis } = await callAI(apiKey, prompt, models);
 
   // Enrich voice metrics from real scraped data
