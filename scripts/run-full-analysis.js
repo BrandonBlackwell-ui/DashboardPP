@@ -399,17 +399,17 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
     runActor(apifyToken, 'igview-owner/facebook-old-posts-search',
       { query:'"Pepe Aguilar" OR "los Aguilar"', startDate:DATE, endDate:DATE, maxResults:50 }, 0.12, 'fb_search'),
     runActor(apifyToken, 'apidojo/instagram-hashtag-scraper',
-      { keyword:'pepeaguilar', until:DATE, getPosts:true, getReels:false, maxItems:10 }, 0.05, 'ig_hash1').then(async r1 => {
+      { keyword:'pepeaguilar', until:DATE, getPosts:true, getReels:false, maxItems:25 }, 0.05, 'ig_hash1').then(async r1 => {
         const r2 = await runActor(apifyToken, 'apidojo/instagram-hashtag-scraper',
-          { keyword:'angelaaguilar', until:DATE, getPosts:true, getReels:false, maxItems:10 }, 0.05, 'ig_hash2');
+          { keyword:'angelaaguilar', until:DATE, getPosts:true, getReels:false, maxItems:25 }, 0.05, 'ig_hash2');
         const r3 = await runActor(apifyToken, 'apidojo/instagram-hashtag-scraper',
-          { keyword:'losaguilar', until:DATE, getPosts:true, getReels:false, maxItems:10 }, 0.05, 'ig_hash3');
+          { keyword:'losaguilar', until:DATE, getPosts:true, getReels:false, maxItems:25 }, 0.05, 'ig_hash3');
         return [...r1, ...r2, ...r3];
       }),
     runActor(apifyToken, 'igolaizola/x-twitter-scraper-ppe',
       { query:'"Pepe Aguilar" OR "los Aguilar"', maxItems:100, minDate:DATE, maxDate:DNEXT, replies:'exclude', retweets:'exclude', quotes:'exclude' }, 1.00, 'x_search'),
     runActor(apifyToken, 'sentry/tiktok-search-api',
-      { keywords:['Pepe Aguilar', 'los Aguilar'], maxVideosPerKeyword:10, maxVideosTotal:20, sortOrder:'mostViews', datePosted:'today', includePhotoPosts:false }, 0.10, 'tt_search'),
+      { keywords:['Pepe Aguilar', 'los Aguilar'], maxVideosPerKeyword:15, maxVideosTotal:30, sortOrder:'mostViews', datePosted:'today', includePhotoPosts:false }, 0.15, 'tt_search'),
     runActor(apifyToken, 'sourabhbgp/google-news-scraper',
       { urls:['"Pepe Aguilar"'], mode:'search', maxResults:20, dateFrom:DATE, dateTo:DATE, language:'es', country:'MX', includeFullText:false, fullCoverage:false }, 0.04, 'gn'),
     // Propios
@@ -428,18 +428,23 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
 
   // Normalizar y guardar — público
   const nets = [
-    { key:'facebook',    result:fbR,  norm: items => normFacebook(items, DATE, DNEXT),   label:'Facebook' },
-    { key:'instagram',   result:igR,  norm: items => normInstagram(items, DATE, DNEXT),  label:'Instagram' },
-    { key:'x',           result:xR,   norm: items => normX(items, DATE, DNEXT),          label:'X' },
-    { key:'tiktok',      result:ttR,  norm: items => normTikTok(items, DATE, DNEXT),     label:'TikTok' },
-    { key:'google_news', result:gnR,  norm: items => normGoogleNews(items, DATE, DNEXT), label:'Google News' },
+    { key:'facebook',    result:fbR,  norm: items => normFacebook(items, DATE, DNEXT),   label:'Facebook',    cap:50  },
+    { key:'instagram',   result:igR,  norm: items => normInstagram(items, DATE, DNEXT),  label:'Instagram',   cap:75  },
+    { key:'x',           result:xR,   norm: items => normX(items, DATE, DNEXT),          label:'X',           cap:100 },
+    { key:'tiktok',      result:ttR,  norm: items => normTikTok(items, DATE, DNEXT),     label:'TikTok',      cap:30  },
+    { key:'google_news', result:gnR,  norm: items => normGoogleNews(items, DATE, DNEXT), label:'Google News', cap:20  },
   ];
 
-  for (const { key, result, norm, label } of nets) {
+  for (const { key, result, norm, label, cap } of nets) {
     if (result.status === 'rejected') { summary.posts[key] = { error: result.reason?.message }; continue; }
+    const rawCount = Array.isArray(result.value) ? result.value.length : 0;
     const posts = norm(result.value);
-    summary.posts[key] = { count: posts.length };
+    const truncated = cap && rawCount >= cap;
+    summary.posts[key] = { count: posts.length, raw: rawCount, truncated };
     emit({ type:'saved', net:key, count:posts.length });
+    if (truncated) {
+      emit({ type:'warn', net:key, msg:`${label} llegó al tope de ${cap} resultados — probablemente hay más publicaciones de este día que no se extrajeron.` });
+    }
     if (!posts.length) continue;
     const reportId = await upsertReport(key, label, DATE);
     const saved = await insertPosts(reportId, key, posts);
