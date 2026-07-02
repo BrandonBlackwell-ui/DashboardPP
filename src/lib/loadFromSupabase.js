@@ -427,9 +427,10 @@ export async function loadFromSupabase() {
         if (!k) continue;
         if (!mediaAgg[k]) {
           mediaAgg[k] = { nombre: m.nombre, platform: m.platform || 'google_news',
-            alcance: m.alcance || 'medio', notas: 0, temas: [], tono: m.tono || 'neutral',
-            titular: m.titular_ejemplo || '', datesSeen: new Set() };
+            dominio: m.dominio || '', alcance: m.alcance || 'medio', notas: 0, temas: [],
+            tono: m.tono || 'neutral', titular: m.titular_ejemplo || '', datesSeen: new Set() };
         }
+        if (!mediaAgg[k].dominio && m.dominio) mediaAgg[k].dominio = m.dominio;
         const e = mediaAgg[k];
         e.notas += Number(m.notas || 1);
         e.datesSeen.add(rep.date_key);

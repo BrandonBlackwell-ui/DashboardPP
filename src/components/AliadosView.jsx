@@ -476,7 +476,14 @@ export default function AliadosView({ data, isDesktop }) {
                   <div key={i} style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)',
                     borderLeft:`3px solid ${tonoColor}`, borderRadius:3, padding:'12px 14px' }}>
                     <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
-                      <PlatformIcon platform={m.platform} size={14} />
+                      {m.dominio ? (
+                        <img src={`https://www.google.com/s2/favicons?domain=${m.dominio}&sz=64`}
+                          alt="" width={16} height={16}
+                          style={{ borderRadius:3, flex:'none' }}
+                          onError={e => { e.target.style.display='none'; }} />
+                      ) : (
+                        <PlatformIcon platform={m.platform} size={14} />
+                      )}
                       <span style={{ fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:13.5,
                         color:C.ink, flex:1, minWidth:0, whiteSpace:'nowrap', overflow:'hidden',
                         textOverflow:'ellipsis' }}>{m.nombre}</span>

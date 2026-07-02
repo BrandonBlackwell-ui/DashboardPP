@@ -330,16 +330,17 @@ const AI_PROMPT_TEMPLATE = (dataPrompt) => `Analiza los datos y devuelve SOLO JS
   "analisis_voces": {
     "aliados_destacados": [{"username":"","platform":"","comentario_o_post":"","impacto":"Alto","tier":"micro","keywords":[],"followers":0,"likes":0,"engagement":0}],
     "criticos_destacados": [{"username":"","platform":"","comentario_o_post":"","impacto":"Medio","tier":"micro","keywords":[],"followers":0,"likes":0,"engagement":0}],
-    "medios_destacados": [{"nombre":"El Heraldo de Mexico","platform":"google_news","alcance":"macro","notas":7,"tono":"neutral","temas":["cobertura Mundial","Nodal-Angela"],"titular_ejemplo":"titular real de una de sus notas"}]
+    "medios_destacados": [{"nombre":"El Heraldo de Mexico","dominio":"heraldodemexico.com.mx","platform":"google_news","alcance":"macro","notas":7,"tono":"neutral","temas":["cobertura Mundial","Nodal-Angela"],"titular_ejemplo":"titular real de una de sus notas"}]
   }
 }
 
 Reglas duras:
 - No inventes datos. Aliados/criticos deben existir en los datos. Los porcentajes suman 100.
+- SE ESPECIFICO SIEMPRE: cada punto del resumen_ejecutivo, cada alerta y cada oportunidad debe decir QUIEN (autor con @ o nombre del medio), DONDE (en que red), CUANDO (fecha) y CUANTO (numeros reales: likes, comentarios, views, cantidad de notas o posts). Prohibido lo ambiguo tipo "se confirma X" o "hay criticas" sin decir quien lo publico, en que red y con que engagement. Ejemplo MAL: "Se confirma la realizacion de conciertos en Colombia". Ejemplo BIEN: "El Heraldo de Mexico publico el 1 jul la confirmacion de conciertos en Neiva, Colombia; la nota fue replicada en 3 medios mas y el post de @radioformula en X junto 5,839 likes".
 - LOS NUMEROS DEL EJEMPLO SON ILUSTRATIVOS. NO los copies. Calcula los porcentajes REALES: cuenta cuantos posts/comentarios son favorables, neutrales y criticos en los datos y convierte a porcentaje. Muestra tu conteo en la lectura (ej: "de 45 comentarios, 12 favorables, 8 criticos").
 - NUNCA uses 0/100/0 como fallback. Si una red no tiene muestra suficiente para clasificar, OMITELA del desglose_por_red. Solo incluye redes con evidencia real.
 - La lectura de cada red debe citar evidencia concreta (autores, temas, numeros), no generalidades.
-- medios_destacados es EXCLUSIVAMENTE para fuentes de prensa de google_news (notas de prensa). NO pongas ahi cuentas de Instagram/Facebook/X/TikTok aunque sean paginas de medios o espectaculos — esas van en aliados_destacados o criticos_destacados segun su tono. Incluye toda fuente de google_news con al menos 1 nota: nombre, platform "google_news", alcance ("macro" nacional, "medio" regional), cuantas notas, tono y temas.
+- medios_destacados es EXCLUSIVAMENTE para fuentes de prensa de google_news (notas de prensa). NO pongas ahi cuentas de Instagram/Facebook/X/TikTok aunque sean paginas de medios o espectaculos — esas van en aliados_destacados o criticos_destacados segun su tono. Incluye toda fuente de google_news con al menos 1 nota: nombre, dominio web del medio (ej "heraldodemexico.com.mx" — deducelo de la URL de la nota si esta en los datos), platform "google_news", alcance ("macro" nacional, "medio" regional), cuantas notas, tono y temas.
 - Si se dio analisis del periodo anterior, calcula tendencia por red y llena comparativa_historica con deltas reales. Si no, omite comparativa_historica y usa "estable".
 
 ${dataPrompt}`;
