@@ -416,6 +416,31 @@ export async function loadFromSupabase() {
       critics: allVoicesArr.filter(v => v.sentiment === 'negative'),
     };
 
+    // ALL_MEDIA_DATA: aggregate medios_destacados across all reports/dates
+    const mediaAgg = {};
+    for (const rep of reports) {
+      const medios = rep.ai_analysis?.analisis_voces?.medios_destacados || [];
+      for (const m of medios) {
+        const k = (m.nombre || '').toLowerCase().trim();
+        if (!k) continue;
+        if (!mediaAgg[k]) {
+          mediaAgg[k] = { nombre: m.nombre, platform: m.platform || 'google_news',
+            alcance: m.alcance || 'medio', notas: 0, temas: [], tono: m.tono || 'neutral',
+            titular: m.titular_ejemplo || '', datesSeen: new Set() };
+        }
+        const e = mediaAgg[k];
+        e.notas += Number(m.notas || 1);
+        e.datesSeen.add(rep.date_key);
+        if (m.alcance === 'macro') e.alcance = 'macro';
+        (m.temas || []).forEach(t => { if (!e.temas.includes(t)) e.temas.push(t); });
+        if (m.tono && m.tono !== 'neutral') e.tono = m.tono; // keep the strongest signal
+        if (!e.titular && m.titular_ejemplo) e.titular = m.titular_ejemplo;
+      }
+    }
+    window.ALL_MEDIA_DATA = Object.values(mediaAgg)
+      .map(e => ({ ...e, datesSeen: e.datesSeen.size }))
+      .sort((a, b) => b.notas - a.notas);
+
     if (latestAiReport && window.PA_DATA?.themes && !window.PA_DATA.themes.resumen?.ai_analysis) {
       window.PA_DATA.themes.resumen = {
         ...buildThemeFromScrapedData({

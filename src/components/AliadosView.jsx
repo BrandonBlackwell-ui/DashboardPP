@@ -453,6 +453,64 @@ export default function AliadosView({ data, isDesktop }) {
           </div>
         </motion.div>
 
+        {/* Medios de comunicación */}
+        {(window.ALL_MEDIA_DATA || []).length > 0 && (
+          <motion.div variants={item} style={{ padding: isDesktop ? '28px 28px 0' : '24px 18px 0' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12, paddingBottom:8,
+              borderBottom:`2px solid ${C.goldDeep}` }}>
+              <span style={{ width:8, height:8, borderRadius:'50%', background:C.goldDeep, flex:'none' }} />
+              <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, letterSpacing:'0.14em',
+                textTransform:'uppercase', color:C.goldDeep, fontWeight:700 }}>
+                Medios de comunicación · {window.ALL_MEDIA_DATA.length}
+              </span>
+              <span style={{ marginLeft:'auto', fontFamily:"'Geist Mono',monospace", fontSize:9,
+                color:'#8A7E6A', textTransform:'uppercase', letterSpacing:'0.06em' }}>
+                Cobertura acumulada
+              </span>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns: isDesktop ? '1fr 1fr' : '1fr', gap:10 }}>
+              {window.ALL_MEDIA_DATA.map((m, i) => {
+                const tonoColor = m.tono === 'favorable' ? C.teal : m.tono === 'critico' ? C.crim : '#8A7E6A';
+                const tonoLabel = m.tono === 'favorable' ? 'Favorable' : m.tono === 'critico' ? 'Crítico' : 'Neutral';
+                return (
+                  <div key={i} style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)',
+                    borderLeft:`3px solid ${tonoColor}`, borderRadius:3, padding:'12px 14px' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+                      <PlatformIcon platform={m.platform} size={14} />
+                      <span style={{ fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:13.5,
+                        color:C.ink, flex:1, minWidth:0, whiteSpace:'nowrap', overflow:'hidden',
+                        textOverflow:'ellipsis' }}>{m.nombre}</span>
+                      <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:8.5, fontWeight:700,
+                        padding:'2px 7px', borderRadius:999, textTransform:'uppercase', letterSpacing:'0.05em',
+                        color: m.alcance === 'macro' ? C.crim : C.goldDeep,
+                        background: m.alcance === 'macro' ? C.crimBg : C.amberBg,
+                        border:`1px solid ${m.alcance === 'macro' ? C.crimBd : C.amberBd}` }}>
+                        {m.alcance === 'macro' ? 'Nacional' : 'Regional'}
+                      </span>
+                    </div>
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:'3px 12px',
+                      fontFamily:"'Geist Mono',monospace", fontSize:9.5, color:'#8A7E6A',
+                      textTransform:'uppercase', marginBottom: m.temas.length ? 7 : 0 }}>
+                      <span style={{ fontWeight:700, color:C.ink }}>{m.notas} {m.notas === 1 ? 'nota' : 'notas'}</span>
+                      <span style={{ color:tonoColor, fontWeight:600 }}>{tonoLabel}</span>
+                      {m.datesSeen > 1 && <span>{m.datesSeen} días</span>}
+                    </div>
+                    {m.temas.length > 0 && (
+                      <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+                        {m.temas.slice(0,4).map((t, j) => (
+                          <span key={j} style={{ fontFamily:"'Geist Mono',monospace", fontSize:9,
+                            padding:'2px 6px', borderRadius:2, background:'rgba(176,130,47,0.08)',
+                            color:C.goldDeep, border:'1px solid rgba(176,130,47,0.18)' }}>{t}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+
       </motion.div>
 
       {/* Detail panel overlay */}

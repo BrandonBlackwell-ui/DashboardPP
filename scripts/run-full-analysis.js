@@ -320,7 +320,8 @@ const AI_PROMPT_TEMPLATE = (dataPrompt) => `Analiza los datos y devuelve SOLO JS
   "oportunidades": ["oportunidad 1"],
   "analisis_voces": {
     "aliados_destacados": [{"username":"","platform":"","comentario_o_post":"","impacto":"Alto","tier":"micro","keywords":[],"followers":0,"likes":0,"engagement":0}],
-    "criticos_destacados": [{"username":"","platform":"","comentario_o_post":"","impacto":"Medio","tier":"micro","keywords":[],"followers":0,"likes":0,"engagement":0}]
+    "criticos_destacados": [{"username":"","platform":"","comentario_o_post":"","impacto":"Medio","tier":"micro","keywords":[],"followers":0,"likes":0,"engagement":0}],
+    "medios_destacados": [{"nombre":"El Heraldo de Mexico","platform":"google_news","alcance":"macro","notas":7,"tono":"neutral","temas":["cobertura Mundial","Nodal-Angela"],"titular_ejemplo":"titular real de una de sus notas"}]
   }
 }
 
@@ -329,7 +330,7 @@ Reglas duras:
 - LOS NUMEROS DEL EJEMPLO SON ILUSTRATIVOS. NO los copies. Calcula los porcentajes REALES: cuenta cuantos posts/comentarios son favorables, neutrales y criticos en los datos y convierte a porcentaje. Muestra tu conteo en la lectura (ej: "de 45 comentarios, 12 favorables, 8 criticos").
 - NUNCA uses 0/100/0 como fallback. Si una red no tiene muestra suficiente para clasificar, OMITELA del desglose_por_red. Solo incluye redes con evidencia real.
 - La lectura de cada red debe citar evidencia concreta (autores, temas, numeros), no generalidades.
-- Los MEDIOS DE COMUNICACION tambien son voces: si un medio (fuente de google_news o cuenta de medio en redes) publica 2 o mas notas sobre Pepe/los Aguilar, incluyelo en analisis_voces — en aliados_destacados si su cobertura es favorable o neutral-amplificadora (dan visibilidad), o en criticos_destacados si instala narrativa negativa. Usa platform "google_news" (o la red que corresponda), tier "macro" para medios nacionales, "medio" para regionales, y keywords con los temas que cubre.
+- Los MEDIOS DE COMUNICACION van en medios_destacados (NO en aliados/criticos, esos son para usuarios/creadores). Incluye TODO medio que haya publicado aunque sea 1 nota sobre Pepe/los Aguilar: nombre, red donde publico, alcance ("macro" nacional, "medio" regional), cuantas notas, tono de su cobertura (favorable/neutral/critico) y los temas que cubre.
 - Si se dio analisis del periodo anterior, calcula tendencia por red y llena comparativa_historica con deltas reales. Si no, omite comparativa_historica y usa "estable".
 
 ${dataPrompt}`;
