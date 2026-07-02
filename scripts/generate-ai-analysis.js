@@ -188,15 +188,15 @@ function modelsForReport({ report, overrideModel }) {
   if (overrideModel) return [overrideModel];
   if (report.theme_key === 'resumen') {
     return [
-      'anthropic/claude-opus-4.6',
-      'anthropic/claude-3.5-sonnet',
-      'google/gemini-3.1-flash-lite',
+      'z-ai/glm-5.2',
+      'anthropic/claude-sonnet-5',
+      'google/gemini-2.5-flash',
     ];
   }
   return [
-    'google/gemini-3.1-flash-lite',
+    'z-ai/glm-5.2',
+    'google/gemini-2.5-flash-lite',
     'google/gemini-2.5-flash',
-    'anthropic/claude-3.5-sonnet',
   ];
 }
 

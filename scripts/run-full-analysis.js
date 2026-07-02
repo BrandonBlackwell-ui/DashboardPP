@@ -134,6 +134,7 @@ const normTikTok = (items, from, to) => items.map(p => ({
   likes: +(p.diggCount || p.likes || 0), comments_count: +(p.commentCount || p.comments || 0),
   shares: +(p.shareCount || 0), views: +(p.playCount || p.plays || 0), retweets:0,
   followers: +(p.followers || p.authorMeta?.fans || 0),
+  _subs: p.videoMeta?.subtitleLinks || p.subtitleLinks || null,
 })).filter(p => p.text && p.url && inDate(p.published_date, from, to) && isRelevant(p.text + p.username));
 
 const normGoogleNews = (items, from, to) => items.map(p => ({
@@ -172,7 +173,41 @@ const normOwnedTikTok = (items) => items
     published_date: p.createTimeISO || (p.createTime ? new Date(p.createTime*1000).toISOString() : null),
     likes: +(p.diggCount || 0), comments_count: +(p.commentCount || 0),
     shares: +(p.shareCount || 0), views: +(p.playCount || 0), retweets:0,
+    _subs: p.videoMeta?.subtitleLinks || p.subtitleLinks || null,
   })).filter(p => p.url);
+
+// Descarga los subtitulos automaticos de TikTok (WebVTT, gratis) y los anexa al texto del post.
+// Solo los top N por views para no alargar la corrida.
+async function attachTikTokTranscripts(posts, maxVideos = 10) {
+  const candidates = posts.filter(p => Array.isArray(p._subs) && p._subs.length)
+    .sort((a,b) => (b.views||0) - (a.views||0))
+    .slice(0, maxVideos);
+  for (const p of candidates) {
+    try {
+      const sub = p._subs.find(s => /^(es|spa)/i.test(s.language || s.lang || s.languageCode || ''))
+        || p._subs.find(s => /^(en|eng)/i.test(s.language || s.lang || s.languageCode || ''))
+        || p._subs[0];
+      const vttUrl = sub?.downloadLink || sub?.url || (typeof sub === 'string' ? sub : null);
+      if (!vttUrl) continue;
+      const res = await fetch(vttUrl);
+      if (!res.ok) continue;
+      const vtt = await res.text();
+      const text = vtt
+        .replace(/^WEBVTT[^\n]*\n/,'')
+        .replace(/^\d+\s*$/gm,'')
+        .replace(/\d{2}:\d{2}[:.,\d]*\s*-->\s*[\d:.,]+[^\n]*/g,'')
+        .replace(/<[^>]+>/g,'')
+        .split('\n').map(l => l.trim()).filter(Boolean)
+        // Collapse consecutive duplicate lines (VTT repeats them)
+        .filter((l, i, arr) => l !== arr[i-1])
+        .join(' ')
+        .replace(/\s+/g,' ').trim();
+      if (text) p.text = `${p.text}\n[TRANSCRIPCION DEL VIDEO]: ${text.slice(0, 900)}`;
+    } catch { /* transcript is best-effort */ }
+  }
+  posts.forEach(p => { delete p._subs; });
+  return posts;
+}
 
 const normOwnedX = (items) => items.slice(0, 5).map(p => ({
   platform:'x', username: p.author?.screenName || 'PepeAguilar',
@@ -360,8 +395,8 @@ async function enrichAndSaveAI(apiKey, themeKey, dateKey, allPostsByTheme) {
       .select('id,platform,username,text,url,published_date,likes,comments_count,views,followers')
       .eq('report_id', report.id);
     postIds = (postRecs || []).map(p => p.id);
-    // For redes_propias: posts come from Supabase (not allPostsByTheme which is social only)
-    if (themeKey === 'redes_propias' && postRecs?.length) {
+    // Fallback to Supabase posts when in-memory list is empty (redes_propias or AI-only rerun)
+    if (!posts.length && postRecs?.length) {
       posts = postRecs;
     }
   }
@@ -372,8 +407,8 @@ async function enrichAndSaveAI(apiKey, themeKey, dateKey, allPostsByTheme) {
   }
 
   const models = themeKey === 'resumen'
-    ? ['anthropic/claude-opus-4-8', 'anthropic/claude-sonnet-5', 'google/gemini-2.5-flash']
-    : ['google/gemini-2.5-flash-lite', 'google/gemini-2.5-flash', 'anthropic/claude-haiku-4-5'];
+    ? ['z-ai/glm-5.2', 'anthropic/claude-sonnet-5', 'google/gemini-2.5-flash']
+    : ['z-ai/glm-5.2', 'google/gemini-2.5-flash-lite', 'google/gemini-2.5-flash'];
 
   // Previous analyzed report of the same theme → lets the AI compute real trends
   let previousAnalysis = null;
@@ -438,8 +473,9 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
           { keyword:'losaguilar', until:DATE, getPosts:true, getReels:false, maxItems:25 }, 0.05, 'ig_hash3');
         return [...r1, ...r2, ...r3];
       }),
-    runActor(apifyToken, 'igolaizola/x-twitter-scraper-ppe',
-      { query:'"Pepe Aguilar" OR "los Aguilar"', maxItems:100, minDate:DATE, maxDate:DNEXT, replies:'exclude', retweets:'exclude', quotes:'exclude' }, 1.00, 'x_search'),
+    runActor(apifyToken, 'apidojo/tweet-scraper',
+      { searchTerms:[`"Pepe Aguilar" OR "los Aguilar" -filter:retweets -filter:replies since:${DATE} until:${DNEXT}`],
+        sort:'Top', maxItems:100 }, 0.10, 'x_search'),
     runActor(apifyToken, 'sentry/tiktok-search-api',
       { keywords:['Pepe Aguilar', 'los Aguilar'], maxVideosPerKeyword:15, maxVideosTotal:30, sortOrder:'mostViews', datePosted:'today', includePhotoPosts:false }, 0.15, 'tt_search'),
     runActor(apifyToken, 'sourabhbgp/google-news-scraper',
@@ -471,6 +507,7 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
     if (result.status === 'rejected') { summary.posts[key] = { error: result.reason?.message }; continue; }
     const rawCount = Array.isArray(result.value) ? result.value.length : 0;
     const posts = norm(result.value);
+    if (key === 'tiktok') await attachTikTokTranscripts(posts);
     const truncated = cap && rawCount >= cap;
     summary.posts[key] = { count: posts.length, raw: rawCount, truncated };
     emit({ type:'saved', net:key, count:posts.length });
@@ -504,6 +541,7 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
     }
     const rawCount = Array.isArray(result.value) ? result.value.length : 0;
     const posts = norm(result.value);
+    if (key === 'tiktok') await attachTikTokTranscripts(posts);
     summary.posts[`owned_${key}`] = { count: posts.length, raw: rawCount };
     emit({ type:'saved', net:`owned_${key}`, count:posts.length });
     if (!posts.length) continue;
@@ -604,6 +642,36 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
     // Ensure resumen report exists
     await upsertReport('resumen', 'Panorama Consolidado', DATE);
     const panorama = await enrichAndSaveAI(aiKey, 'resumen', DATE, allSavedPosts);
+    summary.ai.resumen = panorama;
+    emit({ type:'ai_done', net:'resumen', result:panorama });
+  } catch(e) {
+    summary.ai.resumen = { error: e.message };
+    emit({ type:'error', phase:'D', msg:e.message });
+  }
+
+  summary.finishedAt = new Date().toISOString();
+  emit({ type:'done', summary });
+  return summary;
+}
+
+// ─── Re-análisis IA sin scraping — usa los posts/comentarios ya guardados en Supabase ──
+export async function runAIOnly({ aiKey, date, emit = () => {} }) {
+  const DATE = date || new Date().toISOString().slice(0, 10);
+  const summary = { date: DATE, ai: {}, mode: 'ai-only', startedAt: new Date().toISOString() };
+
+  emit({ type:'phase', phase:'C', msg:`Re-análisis IA con data existente del ${DATE} (sin Apify)...` });
+  const aiNets = ['facebook','instagram','x','tiktok','google_news','redes_propias'];
+  const results = await Promise.allSettled(
+    aiNets.map(net => enrichAndSaveAI(aiKey, net, DATE, {}).then(r => { emit({ type:'ai_done', net, result:r }); return r; }))
+  );
+  results.forEach((r, i) => {
+    summary.ai[aiNets[i]] = r.status === 'fulfilled' ? r.value : { error: r.reason?.message };
+  });
+
+  emit({ type:'phase', phase:'D', msg:'Panorama consolidado...' });
+  try {
+    await upsertReport('resumen', 'Panorama Consolidado', DATE);
+    const panorama = await enrichAndSaveAI(aiKey, 'resumen', DATE, {});
     summary.ai.resumen = panorama;
     emit({ type:'ai_done', net:'resumen', result:panorama });
   } catch(e) {

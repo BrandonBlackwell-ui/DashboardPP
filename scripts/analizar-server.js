@@ -11,7 +11,7 @@
 
 import http from 'http';
 import { URL } from 'url';
-import { runFullAnalysis } from './run-full-analysis.js';
+import { runFullAnalysis, runAIOnly } from './run-full-analysis.js';
 
 const APIFY_TOKEN = process.env.APIFY_TOKEN;
 const AI_KEY      = process.env.OPENROUTER_API_KEY;
@@ -74,6 +74,34 @@ const server = http.createServer((req, res) => {
         running = false;
         res.end();
       });
+
+    return;
+  }
+
+  // Re-análisis IA sin scraping (usa data ya guardada en Supabase)
+  if (url.pathname === '/reanalizar') {
+    if (running) {
+      res.writeHead(409, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Ya hay un análisis en curso' }));
+      return;
+    }
+
+    const date = url.searchParams.get('date') || new Date().toISOString().slice(0, 10);
+
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    });
+
+    const send = (data) => { res.write(`data: ${JSON.stringify(data)}\n\n`); };
+
+    running = true;
+    send({ type: 'start', date, mode: 'ai-only' });
+
+    runAIOnly({ aiKey: AI_KEY, date, emit: send })
+      .catch(e => send({ type: 'error', msg: e.message }))
+      .finally(() => { running = false; res.end(); });
 
     return;
   }
