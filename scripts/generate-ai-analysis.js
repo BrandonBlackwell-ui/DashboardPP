@@ -80,6 +80,7 @@ Reglas duras:
 - Aliados y contrarios deben salir de autores presentes en posts, comentarios o voces provistas.
 - Clasifica como aliado a quien defiende, apoya, celebra, amplifica positivamente o abre oportunidad reputacional.
 - Clasifica como contrario a quien critica, ridiculiza, acusa, amplifica riesgo o instala narrativa negativa.
+- Los MEDIOS DE COMUNICACION tambien son voces: si un medio publica 2 o mas notas sobre Pepe/los Aguilar, incluyelo en analisis_voces — aliado si su cobertura es favorable o neutral-amplificadora, contrario si instala narrativa negativa. Tier "macro" para medios nacionales, "medio" para regionales.
 - Si se te dio el analisis del periodo anterior, calcula tendencia por red (mejorando/estable/empeorando) y llena comparativa_historica con deltas reales. Si no hay periodo anterior, omite comparativa_historica y usa "estable" como tendencia.
 - La lectura de cada red debe citar evidencia concreta (autores, temas, numeros de los datos), no generalidades.
 - Se factual y directo. Nada poetico.
