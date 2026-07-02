@@ -82,6 +82,7 @@ Reglas duras:
 - Clasifica como contrario a quien critica, ridiculiza, acusa, amplifica riesgo o instala narrativa negativa.
 - medios_destacados es EXCLUSIVAMENTE para fuentes de prensa de google_news. Cuentas de medios en redes sociales van en aliados/criticos segun tono. Formato: {"nombre","dominio":"heraldodemexico.com.mx","platform":"google_news","alcance":"macro|medio","notas":N,"tono":"favorable|neutral|critico","temas":[],"titular_ejemplo":""}.
 - SE ESPECIFICO SIEMPRE: cada punto del resumen, alerta u oportunidad debe decir QUIEN (autor/medio), DONDE (red), CUANDO (fecha) y CUANTO (likes, notas, %). Nada ambiguo tipo "se confirma X" sin fuente ni numeros.
+- CUANDO HAYA COMENTARIOS EXTRAIDOS: cita 1-2 textualmente (entre comillas, breves) para mostrar QUE dijo la gente, no solo la metrica.
 - Si se te dio el analisis del periodo anterior, calcula tendencia por red (mejorando/estable/empeorando) y llena comparativa_historica con deltas reales. Si no hay periodo anterior, omite comparativa_historica y usa "estable" como tendencia.
 - La lectura de cada red debe citar evidencia concreta (autores, temas, numeros de los datos), no generalidades.
 - Se factual y directo. Nada poetico.

@@ -337,6 +337,7 @@ const AI_PROMPT_TEMPLATE = (dataPrompt) => `Analiza los datos y devuelve SOLO JS
 Reglas duras:
 - No inventes datos. Aliados/criticos deben existir en los datos. Los porcentajes suman 100.
 - SE ESPECIFICO SIEMPRE: cada punto del resumen_ejecutivo, cada alerta y cada oportunidad debe decir QUIEN (autor con @ o nombre del medio), DONDE (en que red), CUANDO (fecha) y CUANTO (numeros reales: likes, comentarios, views, cantidad de notas o posts). Prohibido lo ambiguo tipo "se confirma X" o "hay criticas" sin decir quien lo publico, en que red y con que engagement. Ejemplo MAL: "Se confirma la realizacion de conciertos en Colombia". Ejemplo BIEN: "El Heraldo de Mexico publico el 1 jul la confirmacion de conciertos en Neiva, Colombia; la nota fue replicada en 3 medios mas y el post de @radioformula en X junto 5,839 likes".
+- CUANDO HAYA COMENTARIOS EXTRAIDOS: cita 1-2 comentarios textualmente (entre comillas, breves) que representen lo que dijo la gente, para no quedarte solo en la metrica. Ejemplo: "el post junto 450k likes; los comentarios celebran ('por fin unidos como familia') aunque algunos critican ('puro show mediatico')". Prioriza citar comentarios reales por encima de generalizar.
 - LOS NUMEROS DEL EJEMPLO SON ILUSTRATIVOS. NO los copies. Calcula los porcentajes REALES: cuenta cuantos posts/comentarios son favorables, neutrales y criticos en los datos y convierte a porcentaje. Muestra tu conteo en la lectura (ej: "de 45 comentarios, 12 favorables, 8 criticos").
 - NUNCA uses 0/100/0 como fallback. Si una red no tiene muestra suficiente para clasificar, OMITELA del desglose_por_red. Solo incluye redes con evidencia real.
 - La lectura de cada red debe citar evidencia concreta (autores, temas, numeros), no generalidades.
@@ -622,6 +623,7 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
   const slFbPosts  = selectTopPosts(allSavedPosts.facebook);
   const slIgPosts  = selectTopPosts(allSavedPosts.instagram);
   const slTtPosts  = selectTopPosts(allSavedPosts.tiktok);
+  const slXPosts   = selectTopPosts(allSavedPosts.x);
 
   // SL: sin filtro de fecha — queremos los 20 comentarios más recientes del post
   addCommentJob('sl_fb', slFbPosts, 'apify/facebook-comments-scraper',
@@ -632,6 +634,9 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
 
   addCommentJob('sl_tt', slTtPosts, 'clockworks/tiktok-comments-scraper',
     p => ({ postURLs:[p.url], commentsPerPost:20, maxRepliesPerComment:0 }), 0.05, normCommentTT, false);
+
+  addCommentJob('sl_x', slXPosts, 'scraper_one/x-post-replies-scraper',
+    p => ({ postUrls:[p.url], maxItems:25 }), 0.05, normCommentX, false);
 
   await Promise.allSettled(commentJobs);
   emit({ type:'phase_done', phase:'B', msg:'Comentarios guardados (propios + social listening).' });
