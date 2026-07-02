@@ -80,7 +80,7 @@ Reglas duras:
 - Aliados y contrarios deben salir de autores presentes en posts, comentarios o voces provistas.
 - Clasifica como aliado a quien defiende, apoya, celebra, amplifica positivamente o abre oportunidad reputacional.
 - Clasifica como contrario a quien critica, ridiculiza, acusa, amplifica riesgo o instala narrativa negativa.
-- Los MEDIOS DE COMUNICACION van en analisis_voces.medios_destacados (NO en aliados/criticos). Incluye todo medio con al menos 1 nota: {"nombre","platform","alcance":"macro|medio","notas":N,"tono":"favorable|neutral|critico","temas":[],"titular_ejemplo":""}.
+- medios_destacados es EXCLUSIVAMENTE para fuentes de prensa de google_news. Cuentas de medios en redes sociales van en aliados/criticos segun tono. Formato: {"nombre","platform":"google_news","alcance":"macro|medio","notas":N,"tono":"favorable|neutral|critico","temas":[],"titular_ejemplo":""}.
 - Si se te dio el analisis del periodo anterior, calcula tendencia por red (mejorando/estable/empeorando) y llena comparativa_historica con deltas reales. Si no hay periodo anterior, omite comparativa_historica y usa "estable" como tendencia.
 - La lectura de cada red debe citar evidencia concreta (autores, temas, numeros de los datos), no generalidades.
 - Se factual y directo. Nada poetico.

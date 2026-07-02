@@ -421,6 +421,8 @@ export async function loadFromSupabase() {
     for (const rep of reports) {
       const medios = rep.ai_analysis?.analisis_voces?.medios_destacados || [];
       for (const m of medios) {
+        // Solo fuentes de prensa (google_news) — cuentas de redes van en aliados/contrarios
+        if ((m.platform || 'google_news') !== 'google_news') continue;
         const k = (m.nombre || '').toLowerCase().trim();
         if (!k) continue;
         if (!mediaAgg[k]) {
