@@ -62,6 +62,13 @@ export default function VoiceAssistant() {
 
   useEffect(() => () => cleanup(), []);
 
+  // Permite abrir el asistente desde otro botón (ej. el sidebar de admin)
+  useEffect(() => {
+    const openIt = () => setOpen(true);
+    window.addEventListener('bw-open-voice', openIt);
+    return () => window.removeEventListener('bw-open-voice', openIt);
+  }, []);
+
   const stopPlayback = () => {
     sourcesRef.current.forEach(s => { try { s.stop(); } catch { /* noop */ } });
     sourcesRef.current = [];

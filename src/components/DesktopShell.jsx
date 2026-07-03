@@ -269,6 +269,21 @@ export default function DesktopShell({ tab, data, pano, onTabChange, onExport, o
               ⚡ Analizar
             </motion.button>
             )}
+            {sessionStorage.getItem('bw_role') === 'admin' && (
+            <motion.button
+              whileHover={{ background: '#EFE9DC', color: '#211C17' }} whileTap={{ scale: 0.95 }}
+              onClick={() => window.dispatchEvent(new Event('bw-open-voice'))}
+              style={{
+                display: 'block', width: '100%', textAlign: 'center',
+                fontFamily: "'Geist Mono',monospace", fontSize: 10, fontWeight: 600,
+                letterSpacing: '0.08em', textTransform: 'uppercase',
+                padding: '9px 12px', borderRadius: 2, cursor: 'pointer',
+                border: '1px solid rgba(239,233,220,0.45)', background: 'transparent',
+                color: '#EFE9DC', marginBottom: 7, transition: 'all 0.15s',
+              }}>
+              🎙️ Asistente de voz
+            </motion.button>
+            )}
             <motion.button
               whileHover={{ background: '#EFE9DC', color: '#211C17' }} whileTap={{ scale: 0.95 }}
               onClick={onExport}
