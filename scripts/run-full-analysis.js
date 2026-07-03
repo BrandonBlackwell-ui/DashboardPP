@@ -348,13 +348,14 @@ function buildResumenPrompt({ networkResults, previousAnalysis }) {
 
 const AI_PROMPT_SYSTEM = 'Eres un analista senior de reputacion y crisis para Pepe Aguilar. Responde solo JSON valido, sin markdown.';
 
-const AI_PROMPT_TEMPLATE = (dataPrompt) => `Analiza los datos y devuelve SOLO JSON con esta estructura exacta:
+const AI_PROMPT_TEMPLATE = (dataPrompt) => `Analiza los datos y devuelve SOLO JSON con esta estructura exacta.
+ATENCION: los numeros de abajo son marcadores de posicion ("__CALCULA__"). DEBES reemplazarlos contando los posts/comentarios reales de los datos. Si entregas 15/68/17 o cualquier numero del ejemplo sin haberlo calculado, la respuesta es invalida.
 {
   "resumen_ejecutivo": ["punto 1","punto 2","punto 3","punto 4"],
-  "sentimiento": {"favorable":15,"neutral":68,"critico":17},
-  "nivel_riesgo": "bajo",
+  "sentimiento": {"favorable":"__CALCULA__","neutral":"__CALCULA__","critico":"__CALCULA__"},
+  "nivel_riesgo": "bajo|medio|alto|muy_alto (segun los datos)",
   "desglose_por_red": {
-    "facebook":{"sentimiento":{"favorable":12,"neutral":71,"critico":17},"lectura":"2-3 frases: que pasa en esta red, quien mueve la conversacion, con ejemplos concretos de los datos","focos":["narrativa concreta detectada"],"recomendacion":"accion especifica para ESTA red","tendencia":"mejorando | estable | empeorando"}
+    "facebook":{"sentimiento":{"favorable":"__CALCULA__","neutral":"__CALCULA__","critico":"__CALCULA__"},"lectura":"2-3 frases: que pasa en esta red, quien mueve la conversacion, con ejemplos concretos de los datos","focos":["narrativa concreta detectada"],"recomendacion":"accion especifica para ESTA red","tendencia":"mejorando | estable | empeorando"}
   },
   "comparativa_historica": {
     "resumen": "2-3 frases de como evoluciono vs el periodo anterior (solo si se dio analisis anterior; si no, omite este campo)",

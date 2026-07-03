@@ -88,7 +88,7 @@ Reglas duras:
 - La lectura de cada red debe citar evidencia concreta (autores, temas, numeros de los datos), no generalidades.
 - Se factual y directo. Nada poetico.
 
-Devuelve EXCLUSIVAMENTE JSON valido con esta forma:
+Devuelve EXCLUSIVAMENTE JSON valido con esta forma. Los "__CALCULA__" son marcadores: reemplazalos contando los posts/comentarios reales. Nunca entregues numeros del ejemplo sin calcular:
 {
   "resumen_ejecutivo": [
     "Punto factual 1...",
@@ -97,9 +97,9 @@ Devuelve EXCLUSIVAMENTE JSON valido con esta forma:
     "Punto factual 4..."
   ],
   "sentimiento": {
-    "favorable": 15,
-    "neutral": 68,
-    "critico": 17
+    "favorable": "__CALCULA__",
+    "neutral": "__CALCULA__",
+    "critico": "__CALCULA__"
   },
   "nivel_riesgo": "bajo | medio | alto | muy_alto",
   "desglose_por_red": {
