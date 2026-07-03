@@ -1,6 +1,9 @@
 import { supabase } from './supabase';
 import { getWeekendDates, getFridayDateKey, platLabel } from '../utils/helpers';
 
+// Cuentas propias de Pepe Aguilar — nunca son aliado/contrario de sí mismo
+const OWN_HANDLES = new Set(['pepeaguilar_oficial', 'pepeaguilar', 'pepeaguilaroficial', 'pepe aguilar']);
+
 const NEG_KW = ['chisme','chismesito','polém','polemic','escándalo','escandalo','cancela','cancelad','colad','critica','crítica','critico','crítico','horrible','vergüenza','verguenza','fraude','mentira','hipócrita','hipocrita','controver','acusac','denuncia','trampa','falso','odio','asco','decepcion','decepción','hater','malo','pésimo','pesimo','ridículo','ridiculo','reclam'];
 const POS_KW = ['fan','amor','love','increíble','increible','talento','mejor','hermoso','hermosa','apoy','admiro','admira','admiración','admiracion','genio','genial','orgullo','orgullos','bravo','maravill','gracias','éxito','exito','felicit','encanta','encanto','bonit','bellísim','bellisim','viva','gozo','alegria','alegría'];
 
@@ -368,6 +371,7 @@ export async function loadFromSupabase() {
       if (!v?.username) return;
       const k = (v.username || '').toLowerCase().trim().replace(/^@/, '');
       if (!k) return;
+      if (OWN_HANDLES.has(k)) return; // Pepe no es su propio aliado/contrario
       if (!voiceAgg[k]) {
         voiceAgg[k] = {
           username: v.username, platform: v.platform || '',

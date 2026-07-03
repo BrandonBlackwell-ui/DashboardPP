@@ -59,6 +59,12 @@ const RELEVANT_KW = ['pepe aguilar','pepeaguilar','angela aguilar','angelaaguila
   'familia aguilar','familiaaguilar','dinast','los aguilar','losaguilar','aguilar'];
 const isRelevant = t => RELEVANT_KW.some(k => (t||'').toLowerCase().includes(k));
 
+// Google News: solo notas sobre Pepe o la familia Aguilar como colectivo.
+// Excluye notas que solo mencionan a un miembro suelto (ej. solo Ángela o Nodal).
+const NEWS_KW = ['pepe aguilar','pepeaguilar','los aguilar','losaguilar',
+  'familia aguilar','familiaaguilar','dinastia aguilar','dinastía aguilar','clan aguilar'];
+const isRelevantNews = t => NEWS_KW.some(k => (t||'').toLowerCase().includes(k));
+
 const nextDay  = d => { const dt = new Date(d+'T12:00:00Z'); dt.setDate(dt.getDate()+1); return dt.toISOString().slice(0,10); };
 const daysAgo  = (d, n) => { const dt = new Date(d+'T12:00:00Z'); dt.setDate(dt.getDate()-n); return dt.toISOString().slice(0,10); };
 const inDate   = (dateStr, from, to) => { if (!dateStr) return true; const d = dateStr.slice(0,10); return d >= from && d < to; };
@@ -142,7 +148,7 @@ const normGoogleNews = (items, from, to) => items.map(p => ({
   text: p.title || '', url: p.articleUrl || p.link || '',
   published_date: p.publishedAt || p.date || null,
   likes:0, comments_count:0, shares:0, retweets:0, views:0,
-})).filter(p => p.text && p.url && inDate(p.published_date, from, to) && isRelevant(p.text));
+})).filter(p => p.text && p.url && inDate(p.published_date, from, to) && isRelevantNews(p.text));
 
 // Owned normalizers — sin filtro de fecha, últimos 5 posts del perfil
 const normOwnedInstagram = (items) => {
@@ -299,10 +305,43 @@ function buildDataPrompt({ report, posts, comments, previousAnalysis }) {
     out += `${i+1}. [${p.platform}] @${p.username} | ${p.published_date?.slice(0,10)} | likes:${p.likes} comentarios:${p.comments_count} views:${p.views} | "${truncate(p.text)}" | ${p.url}\n`;
   });
   if (comments.length) {
-    out += `\n--- COMENTARIOS EXTRAIDOS (${comments.length}) ---\n`;
-    comments.slice(0,150).forEach((c,i) => {
+    // Muestra representativa: los más gustados primero (no todos, para no inflar el prompt)
+    const sample = [...comments].sort((a,b) => (b.likes||0)-(a.likes||0)).slice(0, 40);
+    out += `\n--- MUESTRA DE COMENTARIOS (${sample.length} de ${comments.length}, ordenados por likes) ---\n`;
+    sample.forEach((c,i) => {
       out += `${i+1}. @${c.author} | likes:${c.likes} | "${truncate(c.text, 300)}"\n`;
     });
+  }
+  return out;
+}
+
+// Panorama: consolida los resultados YA analizados por red (no re-analiza comentarios crudos)
+function buildResumenPrompt({ networkResults, previousAnalysis }) {
+  const asList = x => Array.isArray(x) ? x : (x ? [x] : []);
+  let out = `RESULTADOS DE ANALISIS POR RED (ya procesados por la IA de cada red). Tu trabajo: CONSOLIDAR un panorama global a partir de estos resultados. NO tienes comentarios crudos y no los necesitas; confía en estos análisis.\n\n`;
+  if (previousAnalysis) {
+    const ps = previousAnalysis.ai_analysis?.sentimiento || {};
+    out += `--- PERIODO ANTERIOR (${previousAnalysis.date_key}) PARA COMPARAR ---\n`;
+    out += `Sentimiento anterior: favorable ${ps.favorable ?? '?'}% / neutral ${ps.neutral ?? '?'}% / critico ${ps.critico ?? '?'}%. Riesgo: ${previousAnalysis.ai_analysis?.nivel_riesgo || '?'}.\n`;
+    asList(previousAnalysis.ai_analysis?.alertas).slice(0,5).forEach(a => { out += `  Alerta previa: ${typeof a === 'string' ? a : (a.text||a.alerta||'')}\n`; });
+    out += `\n`;
+  }
+  for (const { theme, ai } of networkResults) {
+    if (!ai) continue;
+    const s = ai.sentimiento || {};
+    out += `## ${theme.toUpperCase()} — favorable ${s.favorable ?? '?'}% / neutral ${s.neutral ?? '?'}% / critico ${s.critico ?? '?'}%. Riesgo: ${ai.nivel_riesgo || '?'}.\n`;
+    asList(ai.resumen_ejecutivo).forEach(p => { out += `  · ${p}\n`; });
+    const lect = ai.desglose_por_red?.[theme]?.lectura;
+    if (lect) out += `  Lectura: ${lect}\n`;
+    asList(ai.alertas).slice(0,4).forEach(a => { out += `  Alerta: ${typeof a === 'string' ? a : (a.text||a.alerta||'')}\n`; });
+    asList(ai.oportunidades).slice(0,3).forEach(o => { out += `  Oportunidad: ${o}\n`; });
+    const al = asList(ai.analisis_voces?.aliados_destacados).slice(0,5).map(v => v.username).filter(Boolean);
+    const cr = asList(ai.analisis_voces?.criticos_destacados).slice(0,5).map(v => v.username).filter(Boolean);
+    const md = asList(ai.analisis_voces?.medios_destacados).map(m => m.nombre).filter(Boolean);
+    if (al.length) out += `  Aliados: ${al.join(', ')}\n`;
+    if (cr.length) out += `  Contrarios: ${cr.join(', ')}\n`;
+    if (md.length) out += `  Medios: ${md.join(', ')}\n`;
+    out += `\n`;
   }
   return out;
 }
@@ -336,6 +375,7 @@ const AI_PROMPT_TEMPLATE = (dataPrompt) => `Analiza los datos y devuelve SOLO JS
 
 Reglas duras:
 - No inventes datos. Aliados/criticos deben existir en los datos. Los porcentajes suman 100.
+- NO incluyas las cuentas propias de Pepe Aguilar (pepeaguilar_oficial, PepeAguilar, etc.) ni a él mismo como aliado o contrario: él es el sujeto del análisis, no una voz externa.
 - SE ESPECIFICO SIEMPRE: cada punto del resumen_ejecutivo, cada alerta y cada oportunidad debe decir QUIEN (autor con @ o nombre del medio), DONDE (en que red), CUANDO (fecha) y CUANTO (numeros reales: likes, comentarios, views, cantidad de notas o posts). Prohibido lo ambiguo tipo "se confirma X" o "hay criticas" sin decir quien lo publico, en que red y con que engagement. Ejemplo MAL: "Se confirma la realizacion de conciertos en Colombia". Ejemplo BIEN: "El Heraldo de Mexico publico el 1 jul la confirmacion de conciertos en Neiva, Colombia; la nota fue replicada en 3 medios mas y el post de @radioformula en X junto 5,839 likes".
 - CUANDO HAYA COMENTARIOS EXTRAIDOS: cita 1-2 comentarios textualmente (entre comillas, breves) que representen lo que dijo la gente, para no quedarte solo en la metrica. Ejemplo: "el post junto 450k likes; los comentarios celebran ('por fin unidos como familia') aunque algunos critican ('puro show mediatico')". Prioriza citar comentarios reales por encima de generalizar.
 - LOS NUMEROS DEL EJEMPLO SON ILUSTRATIVOS. NO los copies. Calcula los porcentajes REALES: cuenta cuantos posts/comentarios son favorables, neutrales y criticos en los datos y convierte a porcentaje. Muestra tu conteo en la lectura (ej: "de 45 comentarios, 12 favorables, 8 criticos").
@@ -377,54 +417,15 @@ async function callAI(apiKey, prompt, models) {
 }
 
 async function enrichAndSaveAI(apiKey, themeKey, dateKey, allPostsByTheme) {
-  // Pick posts for this theme
-  let posts = allPostsByTheme[themeKey] || [];
-  let comments = [];
-
-  if (themeKey === 'resumen') {
-    posts = Object.values(allPostsByTheme).flat();
-  }
-
   const { data: rep } = await supabase.from('reports').select('id,theme_key,date_key').eq('date_key', dateKey).eq('theme_key', themeKey).limit(1);
   if (!rep?.length) return null;
   const report = rep[0];
-
-  // Load comments — for resumen: pull from ALL reports of this date (social + propias)
-  let postIds = [];
-  if (themeKey === 'resumen') {
-    const { data: allReps } = await supabase.from('reports').select('id').eq('date_key', dateKey);
-    const allRepIds = (allReps || []).map(r => r.id);
-    if (allRepIds.length) {
-      const { data: allPostRecs } = await supabase.from('scraped_posts').select('id').in('report_id', allRepIds);
-      postIds = (allPostRecs || []).map(p => p.id);
-    }
-    // Also add owned posts to the posts array for the AI prompt
-    const { data: ownedPosts } = await supabase.from('scraped_posts')
-      .select('platform,username,text,url,published_date,likes,comments_count,views')
-      .in('report_id', allRepIds);
-    const ownedOnly = (ownedPosts || []).filter(p => !posts.find(sp => sp.url === p.url));
-    posts = [...posts, ...ownedOnly];
-  } else {
-    const { data: postRecs } = await supabase.from('scraped_posts')
-      .select('id,platform,username,text,url,published_date,likes,comments_count,views,followers')
-      .eq('report_id', report.id);
-    postIds = (postRecs || []).map(p => p.id);
-    // Fallback to Supabase posts when in-memory list is empty (redes_propias or AI-only rerun)
-    if (!posts.length && postRecs?.length) {
-      posts = postRecs;
-    }
-  }
-
-  if (postIds.length) {
-    const { data: cmts } = await supabase.from('scraped_comments').select('*').in('post_id', postIds);
-    comments = cmts || [];
-  }
 
   const models = themeKey === 'resumen'
     ? ['z-ai/glm-5.2', 'anthropic/claude-sonnet-5', 'google/gemini-2.5-flash']
     : ['z-ai/glm-5.2', 'google/gemini-2.5-flash-lite', 'google/gemini-2.5-flash'];
 
-  // Previous analyzed report of the same theme → lets the AI compute real trends
+  // Análisis del período anterior → deja calcular tendencia real
   let previousAnalysis = null;
   {
     const { data: prev } = await supabase.from('reports')
@@ -437,7 +438,45 @@ async function enrichAndSaveAI(apiKey, themeKey, dateKey, allPostsByTheme) {
     if (prev?.length) previousAnalysis = prev[0];
   }
 
-  const prompt = AI_PROMPT_TEMPLATE(buildDataPrompt({ report, posts, comments, previousAnalysis }));
+  let posts = [];
+  let prompt;
+
+  if (themeKey === 'resumen') {
+    // Panorama: consolida los resultados YA analizados por red (no re-lee comentarios crudos)
+    const { data: netReps } = await supabase.from('reports')
+      .select('theme_key, ai_analysis')
+      .eq('date_key', dateKey)
+      .neq('theme_key', 'resumen')
+      .not('ai_analysis', 'is', null);
+    const networkResults = (netReps || [])
+      .map(r => ({ theme: r.theme_key, ai: r.ai_analysis }))
+      .filter(r => r.ai);
+    // Posts (sin comentarios) solo para enriquecer métricas de voces
+    const { data: allReps } = await supabase.from('reports').select('id').eq('date_key', dateKey).neq('theme_key', 'resumen');
+    const allRepIds = (allReps || []).map(r => r.id);
+    if (allRepIds.length) {
+      const { data: allPostRecs } = await supabase.from('scraped_posts')
+        .select('platform,username,text,url,published_date,likes,comments_count,views,followers')
+        .in('report_id', allRepIds);
+      posts = allPostRecs || [];
+    }
+    prompt = AI_PROMPT_TEMPLATE(buildResumenPrompt({ networkResults, previousAnalysis }));
+  } else {
+    // Red individual: posts + muestra de comentarios crudos
+    posts = allPostsByTheme[themeKey] || [];
+    const { data: postRecs } = await supabase.from('scraped_posts')
+      .select('id,platform,username,text,url,published_date,likes,comments_count,views,followers')
+      .eq('report_id', report.id);
+    const postIds = (postRecs || []).map(p => p.id);
+    if (!posts.length && postRecs?.length) posts = postRecs;
+    let comments = [];
+    if (postIds.length) {
+      const { data: cmts } = await supabase.from('scraped_comments').select('*').in('post_id', postIds);
+      comments = cmts || [];
+    }
+    prompt = AI_PROMPT_TEMPLATE(buildDataPrompt({ report, posts, comments, previousAnalysis }));
+  }
+
   const { model, analysis } = await callAI(apiKey, prompt, models);
 
   // Enrich voice metrics from real scraped data

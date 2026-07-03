@@ -78,6 +78,7 @@ Reglas duras:
 - NUNCA uses 0/100/0 como fallback. Si una red no tiene muestra suficiente para clasificar con certeza, OMITELA del desglose_por_red por completo. Solo incluye redes con evidencia real en los datos.
 - Todo porcentaje de sentimiento debe estar respaldado por posts o comentarios concretos de los datos provistos.
 - Aliados y contrarios deben salir de autores presentes en posts, comentarios o voces provistas.
+- NO incluyas las cuentas propias de Pepe Aguilar (pepeaguilar_oficial, etc.) ni a él mismo como aliado o contrario: es el sujeto del análisis.
 - Clasifica como aliado a quien defiende, apoya, celebra, amplifica positivamente o abre oportunidad reputacional.
 - Clasifica como contrario a quien critica, ridiculiza, acusa, amplifica riesgo o instala narrativa negativa.
 - medios_destacados es EXCLUSIVAMENTE para fuentes de prensa de google_news. Cuentas de medios en redes sociales van en aliados/criticos segun tono. Formato: {"nombre","dominio":"heraldodemexico.com.mx","platform":"google_news","alcance":"macro|medio","notas":N,"tono":"favorable|neutral|critico","temas":[],"titular_ejemplo":""}.
