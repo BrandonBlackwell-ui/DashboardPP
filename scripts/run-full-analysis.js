@@ -480,6 +480,24 @@ async function enrichAndSaveAI(apiKey, themeKey, dateKey, allPostsByTheme) {
 
   const { model, analysis } = await callAI(apiKey, prompt, models);
 
+  // Normaliza sentimiento a enteros (GLM a veces devuelve "33" o "25%")
+  const toInt = v => { const n = parseInt(String(v).replace(/[^0-9-]/g, ''), 10); return Number.isFinite(n) ? n : 0; };
+  const fixSent = s => {
+    if (!s || typeof s !== 'object') return s;
+    return { favorable: toInt(s.favorable), neutral: toInt(s.neutral), critico: toInt(s.critico) };
+  };
+  if (analysis.sentimiento) analysis.sentimiento = fixSent(analysis.sentimiento);
+  if (analysis.desglose_por_red) {
+    for (const k of Object.keys(analysis.desglose_por_red)) {
+      const red = analysis.desglose_por_red[k];
+      if (red?.sentimiento) red.sentimiento = fixSent(red.sentimiento);
+    }
+  }
+  if (analysis.comparativa_historica) {
+    analysis.comparativa_historica.delta_favorable = toInt(analysis.comparativa_historica.delta_favorable);
+    analysis.comparativa_historica.delta_critico = toInt(analysis.comparativa_historica.delta_critico);
+  }
+
   // Enrich voice metrics from real scraped data
   const metricsMap = {};
   posts.forEach(p => {
