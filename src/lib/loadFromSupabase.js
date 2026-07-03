@@ -283,16 +283,31 @@ function buildThemeFromScrapedData(rep) {
 // Fetch all uploaded reports from Supabase and apply them to window.PA_DATA / CALENDAR_DATA
 export async function loadFromSupabase() {
   try {
-    const { data: reports, error } = await supabase
-      .from('reports')
-      .select(`
+    const SELECT_WITH_APPROVED = `
+        id, date_key, theme_key, theme_label, filename, created_at, ai_analysis, approved,
+        scraped_posts(*, scraped_comments(*)),
+        allies_critics_voices(*)
+      `;
+    const SELECT_LEGACY = `
         id, date_key, theme_key, theme_label, filename, created_at, ai_analysis,
         scraped_posts(*, scraped_comments(*)),
         allies_critics_voices(*)
-      `)
-      .order('created_at', { ascending: true });
+      `;
+    let { data: allReports, error } = await supabase
+      .from('reports').select(SELECT_WITH_APPROVED).order('created_at', { ascending: true });
+    // Si la columna 'approved' aún no existe, reintenta sin ella (todo queda visible)
+    if (error) {
+      ({ data: allReports, error } = await supabase
+        .from('reports').select(SELECT_LEGACY).order('created_at', { ascending: true }));
+    }
 
-    if (error || !reports?.length) return;
+    if (error || !allReports?.length) return;
+
+    // Flujo de aprobación: el cliente (pp2026) solo ve reportes aprobados;
+    // el admin ve todo, incluidos borradores pendientes de aprobar.
+    const isAdmin = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('bw_role') === 'admin');
+    const reports = isAdmin ? allReports : allReports.filter(r => r.approved !== false);
+    if (!reports.length) return;
 
     window.PA_DATA = {
       meta: {
@@ -491,6 +506,7 @@ export async function loadFromSupabase() {
           theme_key: latestAiReport.theme_key,
           theme_label: latestAiReport.theme_label,
           created_at: latestAiReport.created_at,
+          approved: latestAiReport.approved !== false,
         };
       }
     }

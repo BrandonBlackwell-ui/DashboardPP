@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Donut from './Donut';
 import { C, riskMeta, pill } from '../utils/helpers';
+import { supabase } from '../lib/supabase';
 
 const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.07 } } };
 const item = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 22 } } };
@@ -13,10 +15,58 @@ function fmtDateKey(dk) {
   return `${d.getDate()} ${MONTHS_ES[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+const asLines = x => (Array.isArray(x) ? x : (x ? [x] : []))
+  .map(a => typeof a === 'string' ? a : (a?.text || a?.alerta || '')).filter(Boolean).join('\n');
+
 export default function PanoramaView({ data, isDesktop }) {
   const resumenTheme = data?.themes?.resumen;
   const ai = resumenTheme?.ai_analysis;
   const reportDateKey = data?.meta?.latest_ai_report?.date_key || resumenTheme?.sourceThemeKey && data?.meta?.period?.end;
+
+  const isAdmin = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('bw_role') === 'admin');
+  const meta = data?.meta?.latest_ai_report;
+  const isDraft = meta?.approved === false;
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState('');
+  const [draft, setDraft] = useState(null); // {resumen, alertas, plan, oportunidades} como texto
+
+  const openEditor = () => {
+    setDraft({
+      resumen: asLines(ai?.resumen_ejecutivo),
+      alertas: asLines(ai?.alertas),
+      plan: asLines(ai?.plan_accion),
+      oportunidades: asLines(ai?.oportunidades),
+    });
+    setEditing(true);
+  };
+
+  const toArr = s => (s || '').split('\n').map(l => l.trim()).filter(Boolean);
+
+  const saveEdits = async ({ approve } = {}) => {
+    if (!meta?.id) return;
+    setBusy(approve ? 'Aprobando…' : 'Guardando…');
+    try {
+      const updated = draft ? {
+        ...ai,
+        resumen_ejecutivo: toArr(draft.resumen),
+        alertas: toArr(draft.alertas),
+        plan_accion: toArr(draft.plan),
+        oportunidades: toArr(draft.oportunidades),
+      } : ai;
+      // Guarda el panorama editado
+      if (draft) {
+        await supabase.from('reports').update({ ai_analysis: updated }).eq('id', meta.id);
+        if (resumenTheme) resumenTheme.ai_analysis = updated;
+      }
+      // Aprobar = publicar todo el día para el cliente
+      if (approve) {
+        await supabase.from('reports').update({ approved: true }).eq('date_key', meta.date_key);
+        window.location.reload();
+        return;
+      }
+      setEditing(false);
+    } finally { setBusy(''); }
+  };
 
   // Fallback if no AI analysis is generated yet
   if (!ai) {
@@ -165,6 +215,91 @@ export default function PanoramaView({ data, isDesktop }) {
   return (
     <motion.div variants={stagger} initial="hidden" animate="visible"
       style={{ padding: isDesktop ? '32px 36px 36px' : '20px 18px 36px' }}>
+
+      {/* Barra de revisión del admin */}
+      {isAdmin && (
+        <motion.div variants={item} style={{ marginBottom: 18, borderRadius: 4,
+          border: `1.5px solid ${isDraft ? C.goldDeep : C.tealBd}`,
+          background: isDraft ? 'rgba(176,130,47,0.08)' : C.tealBg, padding: '13px 16px',
+          display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10, letterSpacing: '0.12em',
+              textTransform: 'uppercase', fontWeight: 700, color: isDraft ? C.goldDeep : C.teal }}>
+              {isDraft ? '● Borrador · pendiente de aprobar' : '✓ Publicado · visible para el cliente'}
+            </div>
+            <div style={{ fontSize: 12, color: '#6B6253', marginTop: 3 }}>
+              {isDraft
+                ? 'El cliente (pp2026) NO ve este análisis todavía. Revísalo, edítalo y apruébalo.'
+                : 'Este análisis ya es visible para el cliente. Puedes editarlo y volver a aprobar.'}
+            </div>
+          </div>
+          {!editing ? (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={openEditor} disabled={!!busy}
+                style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10.5, fontWeight: 600, letterSpacing: '0.06em',
+                  textTransform: 'uppercase', padding: '9px 14px', borderRadius: 2, cursor: 'pointer',
+                  border: `1px solid ${C.ink}`, background: 'transparent', color: C.ink }}>
+                ✎ Editar
+              </button>
+              <button onClick={() => saveEdits({ approve: true })} disabled={!!busy}
+                style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em',
+                  textTransform: 'uppercase', padding: '9px 16px', borderRadius: 2, cursor: 'pointer',
+                  border: `1px solid ${C.teal}`, background: C.teal, color: '#fff' }}>
+                {busy || (isDraft ? '✓ Aprobar y publicar' : '↻ Re-aprobar')}
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setEditing(false)} disabled={!!busy}
+                style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10.5, fontWeight: 600, letterSpacing: '0.06em',
+                  textTransform: 'uppercase', padding: '9px 14px', borderRadius: 2, cursor: 'pointer',
+                  border: '1px solid rgba(33,28,23,0.25)', background: 'transparent', color: '#6B6253' }}>
+                Cancelar
+              </button>
+              <button onClick={() => saveEdits()} disabled={!!busy}
+                style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10.5, fontWeight: 600, letterSpacing: '0.06em',
+                  textTransform: 'uppercase', padding: '9px 14px', borderRadius: 2, cursor: 'pointer',
+                  border: `1px solid ${C.ink}`, background: 'transparent', color: C.ink }}>
+                {busy || 'Guardar'}
+              </button>
+              <button onClick={() => saveEdits({ approve: true })} disabled={!!busy}
+                style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em',
+                  textTransform: 'uppercase', padding: '9px 16px', borderRadius: 2, cursor: 'pointer',
+                  border: `1px solid ${C.teal}`, background: C.teal, color: '#fff' }}>
+                {busy || 'Guardar y aprobar'}
+              </button>
+            </div>
+          )}
+        </motion.div>
+      )}
+
+      {/* Editor del panorama (admin) */}
+      {isAdmin && editing && draft && (
+        <motion.div variants={item} style={{ marginBottom: 20, background: C.card,
+          border: '1px solid rgba(33,28,23,0.13)', borderRadius: 4, padding: 18 }}>
+          <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10, letterSpacing: '0.12em',
+            textTransform: 'uppercase', color: C.goldDeep, fontWeight: 700, marginBottom: 12 }}>
+            Editar panorama · una línea = un punto
+          </div>
+          {[
+            { key: 'resumen', label: 'Resumen ejecutivo' },
+            { key: 'alertas', label: 'Alertas' },
+            { key: 'plan', label: 'Plan de acción' },
+            { key: 'oportunidades', label: 'Oportunidades' },
+          ].map(f => (
+            <div key={f.key} style={{ marginBottom: 12 }}>
+              <label style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10, letterSpacing: '0.08em',
+                textTransform: 'uppercase', color: '#6B6253', display: 'block', marginBottom: 5 }}>{f.label}</label>
+              <textarea value={draft[f.key]}
+                onChange={e => setDraft(d => ({ ...d, [f.key]: e.target.value }))}
+                rows={Math.max(3, (draft[f.key].match(/\n/g) || []).length + 1)}
+                style={{ width: '100%', fontFamily: "'Geist',sans-serif", fontSize: 13.5, lineHeight: 1.5,
+                  color: C.ink, background: '#FAF8F5', border: '1px solid rgba(33,28,23,0.15)',
+                  borderRadius: 3, padding: '9px 11px', resize: 'vertical', boxSizing: 'border-box' }} />
+            </div>
+          ))}
+        </motion.div>
+      )}
 
       {/* Header section */}
       <motion.div variants={item} style={{ display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'space-between', gap:16, marginBottom:24, borderBottom:'1px solid #E3DAC6', paddingBottom:16 }}>

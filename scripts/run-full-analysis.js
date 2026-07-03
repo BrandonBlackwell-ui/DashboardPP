@@ -498,7 +498,10 @@ async function enrichAndSaveAI(apiKey, themeKey, dateKey, allPostsByTheme) {
   if (analysis.analisis_voces?.aliados_destacados) analysis.analisis_voces.aliados_destacados = analysis.analisis_voces.aliados_destacados.map(enrich);
   if (analysis.analisis_voces?.criticos_destacados) analysis.analisis_voces.criticos_destacados = analysis.analisis_voces.criticos_destacados.map(enrich);
 
-  await supabase.from('reports').update({ ai_analysis: analysis }).eq('id', report.id);
+  // Nuevo análisis = borrador; el admin debe aprobarlo para que lo vea el cliente.
+  // Resiliente por si la columna 'approved' aún no existe en Supabase.
+  const { error: upErr } = await supabase.from('reports').update({ ai_analysis: analysis, approved: false }).eq('id', report.id);
+  if (upErr) await supabase.from('reports').update({ ai_analysis: analysis }).eq('id', report.id);
   return { themeKey, model, sentimiento: analysis.sentimiento, nivel_riesgo: analysis.nivel_riesgo };
 }
 
