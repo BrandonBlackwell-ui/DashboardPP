@@ -15,8 +15,8 @@ function scoreText(text) {
 }
 
 function cleanPct(value, fallback = 0) {
-  // Acepta "25%", "25", 25 → 25
-  const n = typeof value === 'string' ? parseInt(value.replace(/[^0-9-]/g, ''), 10) : Number(value);
+  // Acepta "25%", "25", "37.5", 25 → entero
+  const n = typeof value === 'string' ? Math.round(parseFloat(value.replace(/[^0-9.-]/g, ''))) : Number(value);
   if (!Number.isFinite(n)) return fallback;
   return Math.max(0, Math.min(100, Math.round(n)));
 }

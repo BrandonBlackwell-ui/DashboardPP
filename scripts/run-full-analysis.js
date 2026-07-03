@@ -480,8 +480,8 @@ async function enrichAndSaveAI(apiKey, themeKey, dateKey, allPostsByTheme) {
 
   const { model, analysis } = await callAI(apiKey, prompt, models);
 
-  // Normaliza sentimiento a enteros (GLM a veces devuelve "33" o "25%")
-  const toInt = v => { const n = parseInt(String(v).replace(/[^0-9-]/g, ''), 10); return Number.isFinite(n) ? n : 0; };
+  // Normaliza sentimiento a enteros (GLM a veces devuelve "33", "25%" o "37.5")
+  const toInt = v => { const n = Math.round(parseFloat(String(v).replace(/[^0-9.-]/g, ''))); return Number.isFinite(n) ? n : 0; };
   const fixSent = s => {
     if (!s || typeof s !== 'object') return s;
     return { favorable: toInt(s.favorable), neutral: toInt(s.neutral), critico: toInt(s.critico) };
