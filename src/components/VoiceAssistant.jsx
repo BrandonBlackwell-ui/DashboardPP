@@ -38,7 +38,6 @@ export default function VoiceAssistant() {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState('idle'); // idle | connecting | listening | speaking | error
   const [errMsg, setErrMsg] = useState('');
-  const [transcript, setTranscript] = useState('');
 
   const wsRef = useRef(null);
   const micCtxRef = useRef(null);
@@ -48,7 +47,6 @@ export default function VoiceAssistant() {
   const playTimeRef = useRef(0);
   const sourcesRef = useRef([]);
   const stateRef = useRef('idle');   // espejo de `state` para leer dentro de callbacks del WS
-  const lastRoleRef = useRef(null);  // último rol transcrito (user/assistant) para separar turnos
 
   useEffect(() => { stateRef.current = state; }, [state]);
 
@@ -103,7 +101,7 @@ export default function VoiceAssistant() {
   };
 
   const start = async () => {
-    setErrMsg(''); setTranscript(''); lastRoleRef.current = null; setState('connecting');
+    setErrMsg(''); setState('connecting');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
@@ -141,14 +139,6 @@ export default function VoiceAssistant() {
           proc.connect(micCtx.destination);
         } else if (m.type === 'audio') {
           playChunk(m.data);
-        } else if (m.type === 'text') {
-          const role = m.role || 'assistant';
-          setTranscript(t => {
-            const changed = lastRoleRef.current !== role;
-            lastRoleRef.current = role;
-            const marker = changed ? (t ? '\n' : '') + (role === 'user' ? '🗣️ ' : '🤖 ') : '';
-            return (t + marker + m.text).slice(-800);
-          });
         } else if (m.type === 'interrupted') {
           stopPlayback();
         } else if (m.type === 'error') {
@@ -239,14 +229,6 @@ export default function VoiceAssistant() {
                 color: state === 'error' ? C.crim : '#6B6253', textAlign: 'center' }}>
                 {stateMeta.label}
               </div>
-
-              {transcript && (
-                <div style={{ fontSize: 12, lineHeight: 1.45, color: '#2A241C', background: 'rgba(33,28,23,0.04)',
-                  border: '1px solid rgba(33,28,23,0.08)', borderRadius: 4, padding: '9px 11px',
-                  maxHeight: 120, overflowY: 'auto', width: '100%', whiteSpace: 'pre-wrap' }}>
-                  {transcript}
-                </div>
-              )}
 
               <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 9, color: '#A9997B',
                 textAlign: 'center', lineHeight: 1.5 }}>
