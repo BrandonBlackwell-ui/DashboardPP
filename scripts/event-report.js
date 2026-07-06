@@ -46,28 +46,48 @@ async function latestResumen(toDate){
 
 const reach = p => (p.views||0) + (p.likes||0)*5;
 
-function buildPrompt({ query, from, to, cands, commentsByUrl, ctx }){
-  let out = `Eres analista senior de reputacion para Pepe Aguilar (Blackwell Strategy). Arma un REPORTE breve, honesto y factual SOLO sobre lo que liga a Pepe Aguilar con el evento: "${query}", ventana ${from} a ${to}.\n`;
-  out += `Reglas: usa SOLO los datos de abajo; no inventes; cita comentarios textuales reales; detecta engagement inflado/bots si lo ves; distingue cuando la mencion es al equipo/familia y no a Pepe; si el volumen es bajo, dilo. Excluye lo que no involucre a Pepe en el evento.\n\n`;
-  if(ctx?.ai_analysis?.sentimiento){ const s=ctx.ai_analysis.sentimiento; out += `CONTEXTO (ultimo panorama ${ctx.date_key}): favorable ${s.favorable}% / neutral ${s.neutral}% / critico ${s.critico}%, riesgo ${ctx.ai_analysis.nivel_riesgo||'?'}.\n\n`; }
-  out += `PIEZAS CANDIDATAS (menciones a Pepe que rozan el evento; elige SOLO las realmente relevantes):\n`;
+function commentSignal(comments){
+  const n = comments?.length || 0; if(!n) return null;
+  const byAuthor = {}; let emoji = 0;
+  for(const c of comments){ const a=(c.author||'?'); byAuthor[a]=(byAuthor[a]||0)+1; if(!/[a-záéíóúñü]/i.test(c.text||'')) emoji++; }
+  const sorted = Object.entries(byAuthor).sort((a,b)=>b[1]-a[1]);
+  return { n, topAuthor: sorted[0][0], topCount: sorted[0][1], topShare: Math.round(sorted[0][1]/n*100), emojiPct: Math.round(emoji/n*100) };
+}
+
+function buildPrompt({ query, from, to, cands, commentsByUrl, signalByUrl, ctx }){
+  let out = `Eres analista senior de reputacion y crisis para Pepe Aguilar (Blackwell Strategy). Redacta un REPORTE ejecutivo, honesto, factual y bien escrito, SOLO sobre lo que liga a Pepe Aguilar con el evento "${query}" (ventana ${from} a ${to}). El lector es el cliente; tono profesional, directo, sin relleno.\n\n`;
+  out += `REGLAS DURAS:\n`;
+  out += `- Usa SOLO los datos de abajo. No inventes cifras, autores ni frases.\n`;
+  out += `- Cita comentarios/posts de forma TEXTUAL y COMPLETA (no cortes a media palabra; si el texto viene truncado con "…", no lo cites o parafrasea el sentido).\n`;
+  out += `- Distingue con cuidado: si la mencion es al equipo, a la familia (Angela/Nodal) o a otro tema y Pepe solo esta etiquetado, dilo y baja su relevancia. El objeto es PEPE + el evento.\n`;
+  out += `- DEDUPLICA: si dos piezas cubren lo mismo (mismo evento/clip), quedate con una.\n`;
+  out += `- SEÑALES DE BOTS/INFLADO: cada pieza trae una linea SEÑAL con % de comentarios de una sola cuenta y % emoji-only. Si topShare es alto (>=35%) o emojiPct alto (>=50%), trata ese "apoyo" como NO organico y decláralo explicitamente en el reporte (narrativa y riesgos).\n`;
+  out += `- TONO por pieza: Positivo | Negativo | Reproche | Burla | Neutral | Critico. Se preciso, no pongas todo "Neutral".\n`;
+  out += `- Si el volumen es bajo, dilo claramente (es un hallazgo valido, no lo infles).\n`;
+  out += `- CARDS de comentario: la meta debe usar los datos DEL COMENTARIO (\"RED · @autor_del_comentario · N likes\"), nunca las metricas del post.\n\n`;
+  if(ctx?.ai_analysis?.sentimiento){ const s=ctx.ai_analysis.sentimiento; out += `CONTEXTO (ultimo panorama ${ctx.date_key}): favorable ${s.favorable}% / neutral ${s.neutral}% / critico ${s.critico}%, riesgo ${ctx.ai_analysis.nivel_riesgo||'?'}. Usalo solo como telon de fondo.\n\n`; }
+  out += `PIEZAS CANDIDATAS (elige SOLO las realmente relevantes a Pepe+evento; para la tabla usa su URL tal cual):\n`;
   cands.forEach((p,i)=>{
-    out += `#${i+1} url:${p.url} | ${p.platform} | @${p.username} | ${(p.published_date||'').slice(0,10)} | likes:${p.likes} comentarios:${p.comments_count} vistas:${p.views}\n   texto: "${(p.text||'').replace(/\s+/g,' ').slice(0,200)}"\n`;
+    out += `#${i+1} url:${p.url} | ${p.platform} | @${p.username} | ${(p.published_date||'').slice(0,10)} | likes:${p.likes} comentarios_declarados:${p.comments_count} vistas:${p.views}\n`;
+    out += `   texto: "${(p.text||'').replace(/\s+/g,' ').slice(0,360)}"\n`;
+    const sg = signalByUrl[p.url];
+    if(sg) out += `   SEÑAL comentarios: ${sg.n} captados · cuenta top @${sg.topAuthor} aporta ${sg.topCount} (${sg.topShare}%) · emoji-only ${sg.emojiPct}%\n`;
     const cm = commentsByUrl[p.url];
-    if(cm?.length){ out += `   comentarios (${cm.length}): ` + cm.slice(0,12).map(c=>`@${c.author}(${c.likes||0}):"${(c.text||'').replace(/\s+/g,' ').slice(0,80)}"`).join(' | ') + `\n`; }
+    if(cm?.length){ out += `   comentarios: ` + cm.slice(0,20).map(c=>`@${c.author}(${c.likes||0}likes):"${(c.text||'').replace(/\s+/g,' ').slice(0,140)}"`).join(' | ') + `\n`; }
   });
-  out += `\nDevuelve SOLO JSON valido con esta forma (usa **negritas** en textos para enfatizar; las citas deben ser textuales de los datos):\n`;
+  out += `\nDevuelve SOLO JSON valido (sin markdown fuera de los campos). Usa **negritas** dentro de los textos para enfatizar 1-2 frases clave. Estructura EXACTA:\n`;
   out += `{
  "titulo_evento": "nombre corto del evento",
- "metodo": "1-2 frases: que se midio y que se excluyo",
- "resumen_sub": "titular corto con **algo** en negritas",
- "resumen": "2-3 frases con **negritas**",
- "piezas": [ {"url":"<solo de las candidatas>","titulo":"titulo corto de la pieza","tono":"Positivo|Negativo|Reproche|Burla|Neutral"} ],
- "narrativas": [ {"titulo":"**A · Nombre**: subtitulo","color":"blue|gold|red","intro":"1-2 frases","cards":[ {"label":"ETIQUETA MONO","quote":"cita textual real","meta":"CANAL · @autor · metricas","accent":"blue|gold|red","metaIcon":"ig|tt|fb"} ]} ],
- "sentimiento_sub":"titular con **negritas**", "sentimiento":"2 frases",
- "riesgos":[ {"lead":"Titulo. ","rest":"detalle"} ],
- "qa":[ {"tema":"tema","respuesta":"respuesta sugerida"} ]
-}`;
+ "metodo": "1-2 frases: que se midio y que se excluyo (menciona si el volumen fue bajo)",
+ "resumen_sub": "titular corto y con gancho, con **negritas**",
+ "resumen": "3-4 frases ejecutivas con **negritas**; el hallazgo principal primero",
+ "piezas": [ {"url":"<de las candidatas>","titulo":"titulo corto y claro","tono":"Positivo|Negativo|Reproche|Burla|Neutral|Critico"} ],
+ "narrativas": [ {"titulo":"**A · Nombre**: subtitulo","color":"blue|gold|red","intro":"1-2 frases","cards":[ {"label":"ETIQUETA MONO CORTA","quote":"cita textual completa","meta":"RED · @autor · N likes (del comentario o post citado)","accent":"blue|gold|red","metaIcon":"ig|tt|fb"} ]} ],
+ "sentimiento_sub":"titular con **negritas**", "sentimiento":"2-3 frases; si el apoyo positivo no es organico (bots), dilo aqui",
+ "riesgos":[ {"lead":"Titulo corto. ","rest":"detalle accionable"} ],
+ "qa":[ {"tema":"pregunta/tema probable","respuesta":"linea de mensaje sugerida, lista para usar"} ]
+}
+Guia: 2-4 narrativas, cada una con 1-3 cards. Colores: azul=positivo/neutro, oro=matiz/fragil, rojo=negativo/alerta. Si hay bots, incluye una card o riesgo rojo que lo señale.`;
   return out;
 }
 
@@ -143,22 +163,26 @@ export async function generateEventReport({ apifyToken, aiKey, query, from, to, 
   const pepe = p => /pepe\s*aguilar|pepeaguilar/i.test((p.text||'')+' '+(p.username||''));
   const inWin = p => dates.includes((p.published_date||'').slice(0,10));
   const owned = p => /pepeaguilar_oficial|^pepe aguilar$/i.test((p.username||'').trim());
-  const cands = posts.filter(p => inWin(p) && !owned(p) && pepe(p) && kws.some(k => strip(p.text).includes(k)))
-    .sort((a,b)=>reach(b)-reach(a)).slice(0,20);
+  let cands = posts.filter(p => inWin(p) && !owned(p) && pepe(p) && kws.some(k => strip(p.text).includes(k)))
+    .sort((a,b)=>reach(b)-reach(a));
+  // dedup near-duplicados (misma cuenta + mismo inicio de texto)
+  const seen = new Set();
+  cands = cands.filter(p => { const key=(p.username||'')+'|'+strip(p.text).slice(0,30); if(seen.has(key)) return false; seen.add(key); return true; }).slice(0,18);
   emit({type:'phase',msg:`${cands.length} piezas candidatas (Pepe + "${query}").`});
   if(!cands.length) throw new Error(`No se encontraron piezas de Pepe Aguilar ligadas a "${query}" en la ventana.`);
 
-  // 3) comentarios de las piezas top
-  const top = cands.slice(0,6);
+  // 3) comentarios de las piezas top + señales de inflado
+  const top = cands.slice(0,7);
   emit({type:'phase',msg:`Bajando comentarios de ${top.length} piezas top...`});
   const cmts = await scrapeCommentsForUrls({ apifyToken, items: top.map(p=>({platform:p.platform,url:p.url})), limit:300, emit });
-  const commentsByUrl = {}; for(const r of cmts) if(!r.error) commentsByUrl[r.url]=r.comments;
+  const commentsByUrl = {}, signalByUrl = {};
+  for(const r of cmts) if(!r.error){ commentsByUrl[r.url]=r.comments; const sg=commentSignal(r.comments); if(sg) signalByUrl[r.url]=sg; }
 
-  // 4) contexto + 5) IA
+  // 4) contexto + 5) IA (Claude Sonnet 5 primero por calidad; GLM/Gemini de respaldo)
   const ctx = await latestResumen(to);
   emit({type:'phase',msg:'Redactando el reporte con IA...'});
-  const models = ['z-ai/glm-5.2','anthropic/claude-sonnet-5','google/gemini-2.5-flash'];
-  const { model, analysis } = await callAI(aiKey, buildPrompt({ query, from, to, cands, commentsByUrl, ctx }), models);
+  const models = ['anthropic/claude-sonnet-5','z-ai/glm-5.2','google/gemini-2.5-flash'];
+  const { model, analysis } = await callAI(aiKey, buildPrompt({ query, from, to, cands, commentsByUrl, signalByUrl, ctx }), models);
   emit({type:'info',msg:`Análisis generado con ${model}.`});
 
   // 6) mapear a data para el docx
