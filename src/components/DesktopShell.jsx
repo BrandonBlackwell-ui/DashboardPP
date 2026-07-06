@@ -137,12 +137,126 @@ function AnalizarModal({ onClose, onDone }) {
   );
 }
 
+const REPORT_TODAY = new Date().toISOString().slice(0, 10);
+const REPORT_YDAY = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+function ReporteEventoModal({ onClose }) {
+  const [query, setQuery] = useState('');
+  const [from, setFrom] = useState(REPORT_YDAY);
+  const [to, setTo] = useState(REPORT_TODAY);
+  const [logs, setLogs] = useState([]);
+  const [phase, setPhase] = useState('');
+  const [running, setRunning] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+  const scrollRef = useRef(null);
+  const esRef = useRef(null);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [logs]);
+  useEffect(() => () => { try { esRef.current?.close(); } catch { /* noop */ } }, []);
+
+  const start = () => {
+    if (!query.trim()) { setError('Escribe el evento o tema.'); return; }
+    setError(''); setLogs([]); setDone(false); setRunning(true); setPhase('Iniciando…');
+    const url = `${SERVER}/reporte-evento?query=${encodeURIComponent(query.trim())}&from=${from}&to=${to}`;
+    const es = new EventSource(url);
+    esRef.current = es;
+    es.onmessage = (e) => {
+      let ev; try { ev = JSON.parse(e.data); } catch { return; }
+      if (ev.type === 'done') {
+        try {
+          const bin = atob(ev.docx); const arr = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+          const blob = new Blob([arr], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob); a.download = ev.filename || 'reporte.docx';
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+        } catch (err) { setError('No se pudo descargar: ' + err.message); }
+        setPhase('¡Reporte descargado!'); setDone(true); setRunning(false);
+        setLogs(l => [...l, { ok: true, msg: `✓ ${ev.filename} · ${ev.stats?.piezas ?? '?'} piezas · ${ev.model || ''}` }]);
+        es.close();
+      } else if (ev.type === 'error') {
+        setError(ev.msg || 'Error generando el reporte'); setRunning(false); es.close();
+      } else if (ev.type === 'phase') {
+        setPhase(ev.msg); setLogs(l => [...l, { ok: true, msg: `▶ ${ev.msg}` }]);
+      } else if (ev.type === 'info') {
+        setLogs(l => [...l, { ok: true, msg: `  ${ev.msg}` }]);
+      } else if (ev.type === 'saved') {
+        setLogs(l => [...l, { ok: true, msg: `  └ ${ev.net}: ${ev.count}` }]);
+      }
+    };
+    es.onerror = () => { if (!done) { setError('Conexión perdida con el servidor.'); setRunning(false); } es.close(); };
+  };
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(33,28,23,0.82)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <motion.div initial={{ opacity:0, scale:0.95 }} animate={{ opacity:1, scale:1 }} exit={{ opacity:0, scale:0.95 }}
+        style={{ background:'#1A1612', border:`1px solid ${C.gold}30`, borderRadius:6, width:560, maxWidth:'95vw', maxHeight:'85vh', display:'flex', flexDirection:'column', overflow:'hidden', boxShadow:'0 24px 64px rgba(0,0,0,0.6)' }}>
+        <div style={{ padding:'18px 22px 14px', borderBottom:'1px solid rgba(255,255,255,0.08)', display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ flex:1 }}>
+            <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', color:C.gold, marginBottom:4 }}>Blackwell · Reporte de evento</div>
+            <div style={{ fontFamily:"'Geist',sans-serif", fontSize:16, fontWeight:600, color:'#EFE9DC' }}>{done ? '¡Reporte listo!' : phase || 'Genera un reporte de Pepe sobre un evento'}</div>
+          </div>
+          <motion.button whileTap={{ scale:0.95 }} onClick={onClose}
+            style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'rgba(255,255,255,0.4)', background:'transparent', border:'1px solid rgba(255,255,255,0.1)', borderRadius:2, padding:'5px 10px', cursor:'pointer' }}>Cerrar</motion.button>
+        </div>
+
+        {logs.length === 0 && !error && (
+          <div style={{ padding:'22px', display:'flex', flexDirection:'column', gap:14 }}>
+            <div>
+              <label style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.5)' }}>Evento / tema</label>
+              <input value={query} onChange={e=>setQuery(e.target.value)} placeholder='Ej. México vs Inglaterra, premios Billboard…' autoFocus
+                style={{ width:'100%', marginTop:6, padding:'10px 12px', background:'#211C17', border:`1px solid ${C.gold}40`, borderRadius:3, color:'#EFE9DC', fontFamily:"'Geist',sans-serif", fontSize:14, boxSizing:'border-box' }} />
+            </div>
+            <div style={{ display:'flex', gap:12 }}>
+              <div style={{ flex:1 }}>
+                <label style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.5)' }}>Desde</label>
+                <input type='date' value={from} onChange={e=>setFrom(e.target.value)}
+                  style={{ width:'100%', marginTop:6, padding:'9px 10px', background:'#211C17', border:'1px solid rgba(255,255,255,0.15)', borderRadius:3, color:'#EFE9DC', fontFamily:"'Geist Mono',monospace", fontSize:12, boxSizing:'border-box' }} />
+              </div>
+              <div style={{ flex:1 }}>
+                <label style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(255,255,255,0.5)' }}>Hasta</label>
+                <input type='date' value={to} onChange={e=>setTo(e.target.value)}
+                  style={{ width:'100%', marginTop:6, padding:'9px 10px', background:'#211C17', border:'1px solid rgba(255,255,255,0.15)', borderRadius:3, color:'#EFE9DC', fontFamily:"'Geist Mono',monospace", fontSize:12, boxSizing:'border-box' }} />
+              </div>
+            </div>
+            <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, color:'rgba(255,255,255,0.35)', lineHeight:1.6 }}>
+              Aísla lo que se dijo de <b style={{ color:'rgba(255,255,255,0.55)' }}>Pepe Aguilar</b> sobre ese evento, con la estructura y diseño Blackwell. Si no hay datos del rango, se scrapea (tarda unos minutos y consume Apify).
+            </div>
+            <motion.button whileHover={{ background:C.gold, color:'#1A1612' }} whileTap={{ scale:0.97 }} onClick={start}
+              style={{ padding:'11px', borderRadius:3, cursor:'pointer', border:`1px solid ${C.gold}`, background:`${C.gold}20`, color:C.gold, fontFamily:"'Geist Mono',monospace", fontSize:11, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase' }}>
+              Generar reporte ↓
+            </motion.button>
+          </div>
+        )}
+
+        {logs.length > 0 && (
+          <div ref={scrollRef} style={{ padding:'14px 22px', overflowY:'auto', fontFamily:"'Geist Mono',monospace", fontSize:11, lineHeight:1.7 }}>
+            {logs.map((l, i) => (
+              <div key={i} style={{ color: l.ok ? 'rgba(239,233,220,0.75)' : '#FF6B6B' }}>{l.msg}</div>
+            ))}
+            {running && (
+              <motion.div animate={{ opacity:[0.4,1,0.4] }} transition={{ repeat:Infinity, duration:1.5 }}
+                style={{ color:'rgba(255,255,255,0.25)', marginTop:4 }}>procesando… (puede tardar varios minutos)</motion.div>
+            )}
+          </div>
+        )}
+        {error && (<div style={{ padding:'16px 22px', color:'#FF6B6B', fontFamily:"'Geist Mono',monospace", fontSize:11 }}>{error}</div>)}
+      </motion.div>
+    </div>
+  );
+}
+
 const SIDEBAR_W = 240;
 
 const SOCIAL_KEYS = new Set(['facebook', 'instagram', 'x', 'tiktok', 'google_news']);
 
 export default function DesktopShell({ tab, data, pano, onTabChange, onExport, onRefresh, children }) {
   const [showAnalizar, setShowAnalizar] = useState(false);
+  const [showReporte, setShowReporte] = useState(false);
   const T = data?.themes || {};
   const order = data?.order || [];
   const rawMode = data?.meta?.source === 'apify_local' || T?.resumen?.rawOnly;
@@ -171,6 +285,9 @@ export default function DesktopShell({ tab, data, pano, onTabChange, onExport, o
             onClose={() => setShowAnalizar(false)}
             onDone={() => { onRefresh?.(); }}
           />
+        )}
+        {showReporte && (
+          <ReporteEventoModal onClose={() => setShowReporte(false)} />
         )}
       </AnimatePresence>
       {/* Sidebar */}
@@ -267,6 +384,22 @@ export default function DesktopShell({ tab, data, pano, onTabChange, onExport, o
                 color: C.gold, marginBottom: 7, transition: 'all 0.15s',
               }}>
               ⚡ Analizar
+            </motion.button>
+            )}
+            {sessionStorage.getItem('bw_role') === 'admin' && (
+            <motion.button
+              whileHover={{ background: C.gold, color: '#1A1612', borderColor: C.gold }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowReporte(true)}
+              style={{
+                display: 'block', width: '100%', textAlign: 'center',
+                fontFamily: "'Geist Mono',monospace", fontSize: 10, fontWeight: 700,
+                letterSpacing: '0.08em', textTransform: 'uppercase',
+                padding: '10px 12px', borderRadius: 2, cursor: 'pointer',
+                border: `1px solid ${C.gold}70`, background: `${C.gold}15`,
+                color: C.gold, marginBottom: 7, transition: 'all 0.15s',
+              }}>
+              📄 Reporte de evento
             </motion.button>
             )}
             {sessionStorage.getItem('bw_role') === 'admin' && (

@@ -73,8 +73,10 @@ function buildPrompt({ query, from, to, cands, commentsByUrl, ctx }){
 
 // ── mini-markdown: **negritas** -> runs ──
 function mdRuns(text, def={}){
-  const runs=[]; const parts=String(text||'').split(/(\*\*[^*]+\*\*)/g);
-  for(const part of parts){ if(!part) continue; const m=part.match(/^\*\*([^*]+)\*\*$/); runs.push(m?{...def,t:m[1],b:true}:{...def,t:part}); }
+  const runs=[]; const parts=String(text||'').replace(/\s+/g,' ').split(/(\*\*[^*]+\*\*)/g);
+  for(let part of parts){ if(!part) continue; const m=part.match(/^\*\*([^*]+)\*\*$/);
+    if(m){ runs.push({...def,t:m[1].trim(),b:true}); }
+    else { part=part.replace(/\*+/g,''); if(part.trim()||/ $|^ /.test(part)) runs.push({...def,t:part}); } }
   return runs.length?runs:[{...def,t:''}];
 }
 const canalLabel = { instagram:'Instagram', tiktok:'TikTok', facebook:'Facebook' };
