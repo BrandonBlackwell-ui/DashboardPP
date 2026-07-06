@@ -40,17 +40,35 @@ async function testRelay(base) {
   log('2) WebSocket ->', wsUrl);
   const ws = new WebSocket(wsUrl);
   const timer = setTimeout(() => { log('   ✗ Timeout: no llegó "ready" en 15s.'); ws.close(); done(1); }, 15000);
+  let endTimer = null;
+
+  // Genera ~0.25s de PCM16 16kHz (tono suave) en base64, como haría el micrófono.
+  const fakeChunk = () => {
+    const n = 4000; const buf = Buffer.alloc(n * 2);
+    for (let i = 0; i < n; i++) buf.writeInt16LE(Math.round(Math.sin(i / 8) * 3000), i * 2);
+    return buf.toString('base64');
+  };
 
   ws.on('open', () => { log('   ✓ WS abierto. Enviando {type:"start"}...'); ws.send(JSON.stringify({ type: 'start', context: 'Prueba de diagnóstico. Responde solo "listo".' })); });
   ws.on('message', (raw) => {
     let m; try { m = JSON.parse(raw.toString()); } catch { return; }
     if (m.type === 'audio') { log('   ✓ recibido audio (' + (m.data?.length || 0) + ' b64)'); }
     else log('   ←', JSON.stringify(m).slice(0, 300));
-    if (m.type === 'ready') { log('   ✅ RELAY + GEMINI OK: llegó "ready".'); clearTimeout(timer); ws.close(); done(0); }
-    if (m.type === 'error') { log('   ✗ El relay reportó error (mira arriba).'); clearTimeout(timer); ws.close(); done(1); }
+    if (m.type === 'ready') {
+      clearTimeout(timer);
+      log('   ✅ ready. Ahora envío audio (mediaChunks) como el navegador, 12 chunks...');
+      endTimer = setTimeout(() => { log('   ⏹ Fin de la prueba (Gemini NO cerró; el formato de audio se acepta).'); ws.close(); done(0); }, 9000);
+      let k = 0;
+      const iv = setInterval(() => {
+        if (ws.readyState !== 1 || k >= 12) { clearInterval(iv); return; }
+        ws.send(JSON.stringify({ type: 'audio', data: fakeChunk() })); k++;
+      }, 250);
+      // No cerramos: esperamos a ver si Gemini nos tira la conexión.
+    }
+    if (m.type === 'error') { log('   ✗ El relay reportó error → esta es la causa del corte.'); }
   });
-  ws.on('close', (c, r) => log('   WS cerrado. code=' + c, r?.toString?.() || ''));
-  ws.on('error', (e) => { log('   ✗ Error WS:', e.message); clearTimeout(timer); done(1); });
+  ws.on('close', (c, r) => { log('   WS cerrado. code=' + c, r?.toString?.() || ''); clearTimeout(timer); clearTimeout(endTimer); done(0); });
+  ws.on('error', (e) => { log('   ✗ Error WS:', e.message); clearTimeout(timer); clearTimeout(endTimer); done(1); });
 }
 
 function testGemini() {

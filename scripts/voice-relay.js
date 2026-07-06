@@ -59,8 +59,9 @@ export function attachVoiceRelay(server, { geminiKey }) {
 
     const sendAudioToGoogle = (b64) => {
       if (google && google.readyState === 1) {
+        // Formato nuevo de la Live API: realtimeInput.audio (mediaChunks daba code 1007).
         google.send(JSON.stringify({
-          realtimeInput: { mediaChunks: [{ mimeType: 'audio/pcm;rate=16000', data: b64 }] },
+          realtimeInput: { audio: { mimeType: 'audio/pcm;rate=16000', data: b64 } },
         }));
       }
     };
