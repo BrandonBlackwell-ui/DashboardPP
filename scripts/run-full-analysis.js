@@ -763,6 +763,39 @@ export async function runAIOnly({ aiKey, date, emit = () => {} }) {
   return summary;
 }
 
+// ─── Scrape dirigido de TODOS los comentarios de URLs específicas (deep-dive) ──
+// items: [{ platform:'instagram'|'tiktok'|'facebook', url }]. Devuelve todos los comentarios por pieza.
+export async function scrapeCommentsForUrls({ apifyToken, items, limit = 300, emit = () => {} }) {
+  const out = [];
+  for (const { platform, url } of (items || [])) {
+    try {
+      let raw = [], comments = [];
+      if (platform === 'instagram') {
+        raw = await runActor(apifyToken, 'apify/instagram-comment-scraper',
+          { directUrls:[url], resultsLimit:limit, includeNestedComments:false }, 0.30, 'dc_ig');
+        comments = normCommentIG(raw);
+      } else if (platform === 'tiktok') {
+        raw = await runActor(apifyToken, 'clockworks/tiktok-comments-scraper',
+          { postURLs:[url], commentsPerPost:limit, maxRepliesPerComment:0 }, 0.30, 'dc_tt');
+        comments = normCommentTT(raw);
+      } else if (platform === 'facebook') {
+        raw = await runActor(apifyToken, 'apify/facebook-comments-scraper',
+          { startUrls:[{ url }], resultsLimit:limit, includeNestedComments:false }, 0.25, 'dc_fb');
+        comments = normCommentFB(raw);
+      } else {
+        throw new Error(`plataforma no soportada: ${platform}`);
+      }
+      comments.sort((a,b) => (b.likes||0) - (a.likes||0));
+      emit({ type:'comments', platform, url, count: comments.length });
+      out.push({ platform, url, count: comments.length, comments });
+    } catch (e) {
+      emit({ type:'error', platform, url, msg: e.message });
+      out.push({ platform, url, error: e.message });
+    }
+  }
+  return out;
+}
+
 // ─── CLI directo ──────────────────────────────────────────────────────────────
 if (process.argv[1]?.endsWith('run-full-analysis.js')) {
   const args  = process.argv.slice(2);

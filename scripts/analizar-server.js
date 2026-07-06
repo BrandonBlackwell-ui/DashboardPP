@@ -11,7 +11,7 @@
 
 import http from 'http';
 import { URL } from 'url';
-import { runFullAnalysis, runAIOnly } from './run-full-analysis.js';
+import { runFullAnalysis, runAIOnly, scrapeCommentsForUrls } from './run-full-analysis.js';
 import { attachVoiceRelay } from './voice-relay.js';
 
 const APIFY_TOKEN = process.env.APIFY_TOKEN;
@@ -105,6 +105,33 @@ const server = http.createServer((req, res) => {
       .catch(e => send({ type: 'error', msg: e.message }))
       .finally(() => { running = false; res.end(); });
 
+    return;
+  }
+
+  // Deep-dive de comentarios de piezas específicas.
+  // GET /comentarios?u=instagram~<url>&u=tiktok~<url>   (param 'u' repetible: plataforma~url)
+  if (url.pathname === '/comentarios') {
+    const items = url.searchParams.getAll('u').map(v => {
+      const i = v.indexOf('~');
+      return i === -1 ? null : { platform: v.slice(0, i).trim(), url: v.slice(i + 1).trim() };
+    }).filter(Boolean);
+
+    if (!items.length) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Falta ?u=plataforma~url' }));
+      return;
+    }
+
+    const limit = parseInt(url.searchParams.get('limit') || '300', 10);
+    scrapeCommentsForUrls({ apifyToken: APIFY_TOKEN, items, limit })
+      .then(results => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ results }));
+      })
+      .catch(e => {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      });
     return;
   }
 
