@@ -77,7 +77,7 @@ function buildPrompt({ query, from, to, cands, commentsByUrl, signalByUrl, ctx }
   });
   out += `\nDevuelve SOLO JSON valido (sin markdown fuera de los campos). Usa **negritas** dentro de los textos para enfatizar 1-2 frases clave. Estructura EXACTA:\n`;
   out += `{
- "titulo_evento": "nombre corto del evento",
+ "titulo_evento": "nombre MUY corto del evento, max 4 palabras, SIN parentesis ni sufijos (ej: 'México vs Inglaterra', NO 'México vs Inglaterra (Mundial 2026) — Menciones a Pepe')",
  "metodo": "1-2 frases: que se midio y que se excluyo (menciona si el volumen fue bajo)",
  "resumen_sub": "titular corto y con gancho, con **negritas**",
  "resumen": "3-4 frases ejecutivas con **negritas**; el hallazgo principal primero",
@@ -114,14 +114,15 @@ function mapToData({ query, to, analysis, cands, commentsByUrl }){
   const slug = strip(analysis.titulo_evento||query).replace(/[^a-z0-9]/g,'').toUpperCase().slice(0,10) || 'EVENTO';
   const folio = `BW-${yy}-${mm}-PA-${slug}-001`;
   const fechaLabel = `${String(d.getUTCDate()).padStart(2,'0')} · ${MESES[d.getUTCMonth()]} · ${d.getUTCFullYear()}`;
-  const evento = analysis.titulo_evento || query;
+  const evento = (analysis.titulo_evento || query).replace(/\s*[—–-].*$/,'').replace(/\s*\(.*$/,'').trim() || query;
+  const capWords = (s, max) => { s = s.trim(); if (s.length <= max) return s; return s.slice(0, max).replace(/\s+\S*$/, '') || s.slice(0, max); };
 
   const canalesPresentes = [...new Set(chosen.map(x=>x.p.platform))];
   const fuentes = canalesPresentes.map(c=>({ icon:({instagram:'ig',tiktok:'tt',facebook:'fb'}[c]), label:canalLabel[c]||c }));
 
   return {
     meta:{
-      folio, fechaLabel, kicker:`PEPE AGUILAR · ${strip(evento).toUpperCase().slice(0,28)}`,
+      folio, fechaLabel, kicker:`PEPE AGUILAR · ${capWords(evento, 26).toUpperCase()}`,
       tituloRuns:[{t:'Reacción pública a '},{t:'Pepe Aguilar',b:true},{t:' en torno a '},{t:evento,b:true}],
       fuentes,
     },
