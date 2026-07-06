@@ -18,7 +18,7 @@
  *   { type:'error', msg:'...' }
  */
 
-import { WebSocketServer } from 'ws';
+import WebSocket, { WebSocketServer } from 'ws';
 
 const GEMINI_MODEL = process.env.GEMINI_LIVE_MODEL || 'models/gemini-3.1-flash-live-preview';
 const GEMINI_WS = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
@@ -26,10 +26,19 @@ const GEMINI_WS = 'wss://generativelanguage.googleapis.com/ws/google.ai.generati
 export function attachVoiceRelay(server, { geminiKey }) {
   const wss = new WebSocketServer({ noServer: true });
 
+  // Allowlist de orígenes; '*' (o sin definir) deja pasar todo, igual que el CORS HTTP.
+  const allowed = process.env.ALLOWED_ORIGIN || '*';
+  const originOk = (origin) => allowed === '*' || !origin || origin === allowed;
+
   server.on('upgrade', (req, socket, head) => {
     let pathname = '/';
     try { pathname = new URL(req.url, 'http://localhost').pathname; } catch { /* noop */ }
     if (pathname !== '/voz') { socket.destroy(); return; }
+    if (!originOk(req.headers.origin)) {
+      socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+      socket.destroy();
+      return;
+    }
     wss.handleUpgrade(req, socket, head, ws => wss.emit('connection', ws, req));
   });
 
@@ -64,6 +73,9 @@ export function attachVoiceRelay(server, { geminiKey }) {
               model: GEMINI_MODEL,
               generationConfig: { responseModalities: ['AUDIO'] },
               systemInstruction: { parts: [{ text: msg.context || '' }] },
+              // Habilita transcripción de lo que dice el usuario y lo que responde Gemini.
+              inputAudioTranscription: {},
+              outputAudioTranscription: {},
             },
           }));
         };
@@ -91,8 +103,11 @@ export function attachVoiceRelay(server, { geminiKey }) {
           if (sc) {
             for (const part of (sc.modelTurn?.parts || [])) {
               if (part.inlineData?.data) toClient({ type: 'audio', data: part.inlineData.data });
-              if (part.text) toClient({ type: 'text', text: part.text });
+              if (part.text) toClient({ type: 'text', role: 'assistant', text: part.text });
             }
+            // Transcripciones (llegan en fragmentos; audio y texto pueden venir en el mismo mensaje).
+            if (sc.outputTranscription?.text) toClient({ type: 'text', role: 'assistant', text: sc.outputTranscription.text });
+            if (sc.inputTranscription?.text) toClient({ type: 'text', role: 'user', text: sc.inputTranscription.text });
             if (sc.interrupted) toClient({ type: 'interrupted' });
             if (sc.turnComplete) toClient({ type: 'turn_complete' });
           }

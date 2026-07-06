@@ -47,6 +47,10 @@ export default function VoiceAssistant() {
   const playCtxRef = useRef(null);
   const playTimeRef = useRef(0);
   const sourcesRef = useRef([]);
+  const stateRef = useRef('idle');   // espejo de `state` para leer dentro de callbacks del WS
+  const lastRoleRef = useRef(null);  // último rol transcrito (user/assistant) para separar turnos
+
+  useEffect(() => { stateRef.current = state; }, [state]);
 
   const cleanup = () => {
     try { wsRef.current?.send(JSON.stringify({ type: 'stop' })); } catch { /* noop */ }
@@ -99,7 +103,7 @@ export default function VoiceAssistant() {
   };
 
   const start = async () => {
-    setErrMsg(''); setTranscript(''); setState('connecting');
+    setErrMsg(''); setTranscript(''); lastRoleRef.current = null; setState('connecting');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
@@ -138,17 +142,23 @@ export default function VoiceAssistant() {
         } else if (m.type === 'audio') {
           playChunk(m.data);
         } else if (m.type === 'text') {
-          setTranscript(t => (t + ' ' + m.text).trim().slice(-600));
+          const role = m.role || 'assistant';
+          setTranscript(t => {
+            const changed = lastRoleRef.current !== role;
+            lastRoleRef.current = role;
+            const marker = changed ? (t ? '\n' : '') + (role === 'user' ? '🗣️ ' : '🤖 ') : '';
+            return (t + marker + m.text).slice(-800);
+          });
         } else if (m.type === 'interrupted') {
           stopPlayback();
         } else if (m.type === 'error') {
           setErrMsg(m.msg || 'Error del asistente'); setState('error');
         } else if (m.type === 'closed') {
-          if (state !== 'error') setState('idle');
+          if (stateRef.current !== 'error') setState('idle');
         }
       };
       ws.onerror = () => { setErrMsg('No se pudo conectar con el servidor de voz.'); setState('error'); };
-      ws.onclose = () => { if (state === 'connecting') { setErrMsg('Conexión cerrada.'); setState('error'); } };
+      ws.onclose = () => { if (stateRef.current === 'connecting') { setErrMsg('Conexión cerrada.'); setState('error'); } };
     } catch (e) {
       setErrMsg(e?.name === 'NotAllowedError' ? 'Permiso de micrófono denegado.' : (e?.message || 'Error al iniciar.'));
       setState('error');
@@ -233,7 +243,7 @@ export default function VoiceAssistant() {
               {transcript && (
                 <div style={{ fontSize: 12, lineHeight: 1.45, color: '#2A241C', background: 'rgba(33,28,23,0.04)',
                   border: '1px solid rgba(33,28,23,0.08)', borderRadius: 4, padding: '9px 11px',
-                  maxHeight: 120, overflowY: 'auto', width: '100%' }}>
+                  maxHeight: 120, overflowY: 'auto', width: '100%', whiteSpace: 'pre-wrap' }}>
                   {transcript}
                 </div>
               )}
