@@ -12,6 +12,8 @@
 import http from 'http';
 import { URL } from 'url';
 import { runFullAnalysis, runAIOnly, scrapeCommentsForUrls } from './run-full-analysis.js';
+import { generateEventReport } from './event-report.js';
+import { buildReportDocx } from './report-docx.js';
 import { attachVoiceRelay } from './voice-relay.js';
 
 const APIFY_TOKEN = process.env.APIFY_TOKEN;
@@ -25,6 +27,7 @@ if (!APIFY_TOKEN || !AI_KEY) {
 }
 
 let running = false;
+let reporting = false;
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
@@ -132,6 +135,37 @@ const server = http.createServer((req, res) => {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: e.message }));
       });
+    return;
+  }
+
+  // Reporte de evento (self-service admin): scrapea/filtra/IA + genera .docx
+  // GET /reporte-evento?query=<evento>&from=YYYY-MM-DD&to=YYYY-MM-DD  (SSE)
+  if (url.pathname === '/reporte-evento') {
+    const query = url.searchParams.get('query');
+    const from  = url.searchParams.get('from');
+    const to    = url.searchParams.get('to') || from;
+    if (!query || !from) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Faltan parámetros: query y from (YYYY-MM-DD)' }));
+      return;
+    }
+    if (reporting) {
+      res.writeHead(409, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Ya hay un reporte en curso' }));
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' });
+    const send = (data) => { res.write(`data: ${JSON.stringify(data)}\n\n`); };
+    reporting = true;
+    send({ type: 'start', query, from, to });
+    generateEventReport({ apifyToken: APIFY_TOKEN, aiKey: AI_KEY, query, from, to, emit: send })
+      .then(async ({ data, model }) => {
+        send({ type: 'phase', msg: 'Generando el .docx…' });
+        const buf = await buildReportDocx(data);
+        send({ type: 'done', filename: `${data.meta.folio}.docx`, model, stats: data._stats, docx: buf.toString('base64') });
+      })
+      .catch(e => send({ type: 'error', msg: e.message }))
+      .finally(() => { reporting = false; res.end(); });
     return;
   }
 

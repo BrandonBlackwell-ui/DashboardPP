@@ -387,7 +387,7 @@ Reglas duras:
 
 ${dataPrompt}`;
 
-async function callAI(apiKey, prompt, models) {
+export async function callAI(apiKey, prompt, models) {
   for (const model of models) {
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
