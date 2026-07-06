@@ -27,22 +27,30 @@ export function attachVoiceRelay(server, { geminiKey }) {
   const wss = new WebSocketServer({ noServer: true });
 
   // Allowlist de orígenes; '*' (o sin definir) deja pasar todo, igual que el CORS HTTP.
-  const allowed = process.env.ALLOWED_ORIGIN || '*';
-  const originOk = (origin) => allowed === '*' || !origin || origin === allowed;
+  // Acepta lista separada por comas y normaliza la barra final para evitar falsos 403.
+  const norm = (s) => (s || '').trim().replace(/\/+$/, '');
+  const allowList = norm(process.env.ALLOWED_ORIGIN || '*').split(',').map(norm).filter(Boolean);
+  const allowAll = allowList.length === 0 || allowList.includes('*');
+  const originOk = (origin) => allowAll || !origin || allowList.includes(norm(origin));
+  console.log(`[voz] allowlist de origenes: ${allowAll ? '* (todos)' : allowList.join(', ')}`);
 
   server.on('upgrade', (req, socket, head) => {
     let pathname = '/';
     try { pathname = new URL(req.url, 'http://localhost').pathname; } catch { /* noop */ }
     if (pathname !== '/voz') { socket.destroy(); return; }
-    if (!originOk(req.headers.origin)) {
+    const origin = req.headers.origin;
+    if (!originOk(origin)) {
+      console.warn(`[voz] 403 upgrade rechazado. origin="${origin}" no está en la allowlist.`);
       socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
       socket.destroy();
       return;
     }
+    console.log(`[voz] upgrade aceptado. origin="${origin || '(sin origin)'}"`);
     wss.handleUpgrade(req, socket, head, ws => wss.emit('connection', ws, req));
   });
 
   wss.on('connection', (client) => {
+    console.log('[voz] cliente conectado al relay.');
     let google = null;
     let googleReady = false;
     const pendingAudio = [];
@@ -62,12 +70,14 @@ export function attachVoiceRelay(server, { geminiKey }) {
       try { msg = JSON.parse(raw.toString()); } catch { return; }
 
       if (msg.type === 'start') {
-        if (!geminiKey) { toClient({ type: 'error', msg: 'Falta GEMINI_API_KEY en el servidor.' }); return; }
+        if (!geminiKey) { console.warn('[voz] start sin GEMINI_API_KEY'); toClient({ type: 'error', msg: 'Falta GEMINI_API_KEY en el servidor.' }); return; }
         if (google) return; // ya iniciada
 
+        console.log(`[voz] start recibido. Conectando a Gemini (${GEMINI_MODEL})...`);
         google = new WebSocket(`${GEMINI_WS}?key=${geminiKey}`);
 
         google.onopen = () => {
+          console.log('[voz] WS a Gemini abierto, enviando setup.');
           google.send(JSON.stringify({
             setup: {
               model: GEMINI_MODEL,
@@ -92,6 +102,7 @@ export function attachVoiceRelay(server, { geminiKey }) {
           try { data = JSON.parse(text); } catch { return; }
 
           if (data.setupComplete) {
+            console.log('[voz] Gemini setupComplete → ready.');
             googleReady = true;
             toClient({ type: 'ready' });
             pendingAudio.forEach(sendAudioToGoogle);
@@ -113,8 +124,17 @@ export function attachVoiceRelay(server, { geminiKey }) {
           }
         };
 
-        google.onerror = () => toClient({ type: 'error', msg: 'Error de conexión con Gemini.' });
-        google.onclose = (ev) => toClient({ type: 'closed', code: ev?.code });
+        google.onerror = (ev) => {
+          console.error('[voz] error WS Gemini:', ev?.message || ev?.error?.message || 'sin detalle');
+          toClient({ type: 'error', msg: 'Error de conexión con Gemini.' });
+        };
+        google.onclose = (ev) => {
+          const reason = ev?.reason ? ` reason="${ev.reason}"` : '';
+          console.log(`[voz] WS Gemini cerrado. code=${ev?.code}${reason} (ready=${googleReady})`);
+          // Si Gemini cierra ANTES de estar listo, es un fallo (modelo/key/formato): repórtalo como error.
+          if (!googleReady) toClient({ type: 'error', msg: `Gemini cerró la conexión (code ${ev?.code}${reason}).` });
+          else toClient({ type: 'closed', code: ev?.code });
+        };
         return;
       }
 
