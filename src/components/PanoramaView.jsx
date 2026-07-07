@@ -68,6 +68,32 @@ export default function PanoramaView({ data, isDesktop }) {
     } finally { setBusy(''); }
   };
 
+  const SectionEditor = ({ field, label }) => {
+    if (!isAdmin || !editing || !draft) return null;
+    const value = draft[field] || '';
+    return (
+      <div style={{ marginTop:14, background:'#FAF8F5',
+        border:'1px solid rgba(176,130,47,0.22)', borderRadius:3, padding:12 }}>
+        <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, letterSpacing:'0.11em',
+          textTransform:'uppercase', color:C.goldDeep, fontWeight:700, marginBottom:7 }}>
+          Editando esta seccion · una linea = un punto
+        </div>
+        <label style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, letterSpacing:'0.08em',
+          textTransform:'uppercase', color:'#6B6253', display:'block', marginBottom:6 }}>
+          {label}
+        </label>
+        <textarea
+          value={value}
+          onChange={e => setDraft(d => ({ ...d, [field]: e.target.value }))}
+          rows={Math.max(3, (value.match(/\n/g) || []).length + 1)}
+          style={{ width:'100%', fontFamily:"'Geist',sans-serif", fontSize:13.5, lineHeight:1.5,
+            color:C.ink, background:'#FFFDF9', border:'1px solid rgba(33,28,23,0.15)',
+            borderRadius:3, padding:'9px 11px', resize:'vertical', boxSizing:'border-box' }}
+        />
+      </div>
+    );
+  };
+
   // Fallback if no AI analysis is generated yet
   if (!ai) {
     return (
@@ -274,7 +300,7 @@ export default function PanoramaView({ data, isDesktop }) {
       )}
 
       {/* Editor del panorama (admin) */}
-      {isAdmin && editing && draft && (
+      {false && isAdmin && editing && draft && (
         <motion.div variants={item} style={{ marginBottom: 20, background: C.card,
           border: '1px solid rgba(33,28,23,0.13)', borderRadius: 4, padding: 18 }}>
           <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10, letterSpacing: '0.12em',
@@ -376,6 +402,7 @@ export default function PanoramaView({ data, isDesktop }) {
               {ai.resumen_ejecutivo}
             </div>
           )}
+          <SectionEditor field="resumen" label="Resumen ejecutivo" />
         </div>
       </motion.div>
 
@@ -399,6 +426,7 @@ export default function PanoramaView({ data, isDesktop }) {
                 </div>
               ))}
             </div>
+            <SectionEditor field="alertas" label="Alertas de crisis" />
           </div>
         </motion.div>
       )}
@@ -420,6 +448,7 @@ export default function PanoramaView({ data, isDesktop }) {
               </div>
             ))}
           </div>
+          <SectionEditor field="plan" label="Plan de accion" />
         </div>
 
         {/* Areas of Opportunity */}
@@ -436,6 +465,7 @@ export default function PanoramaView({ data, isDesktop }) {
               </div>
             ))}
           </div>
+          <SectionEditor field="oportunidades" label="Mejoras y oportunidades" />
         </div>
 
       </motion.div>
