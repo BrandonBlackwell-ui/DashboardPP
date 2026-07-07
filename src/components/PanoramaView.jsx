@@ -68,7 +68,7 @@ export default function PanoramaView({ data, isDesktop }) {
     } finally { setBusy(''); }
   };
 
-  const SectionEditor = ({ field, label }) => {
+  const InlineEditorDisabled = ({ field, label }) => {
     if (!isAdmin || !editing || !draft) return null;
     const value = draft[field] || '';
     return (
@@ -92,6 +92,37 @@ export default function PanoramaView({ data, isDesktop }) {
         />
       </div>
     );
+  };
+
+  const draftLines = (field, fallback) => {
+    if (editing && draft) {
+      const lines = (draft[field] || '').split('\n');
+      return lines.length ? lines : [''];
+    }
+    return Array.isArray(fallback) ? fallback : (fallback ? [fallback] : []);
+  };
+
+  const updateDraftLine = (field, idx, value) => {
+    setDraft(d => {
+      const lines = (d?.[field] || '').split('\n');
+      lines[idx] = value;
+      return { ...d, [field]: lines.join('\n') };
+    });
+  };
+
+  const editableTextStyle = {
+    width:'100%',
+    minHeight:34,
+    border:'1px solid rgba(176,130,47,0.32)',
+    borderRadius:3,
+    background:'#FFFDF9',
+    color:'#2A241C',
+    fontFamily:"'Geist',sans-serif",
+    fontSize:14,
+    lineHeight:1.5,
+    padding:'8px 10px',
+    resize:'vertical',
+    boxSizing:'border-box'
   };
 
   // Fallback if no AI analysis is generated yet
@@ -388,7 +419,21 @@ export default function PanoramaView({ data, isDesktop }) {
             <h2 style={{ fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:19, color:C.ink, margin:0 }}>Resumen Ejecutivo de Reputación</h2>
           </div>
           
-          {Array.isArray(ai.resumen_ejecutivo) ? (
+          {editing && draft ? (
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {draftLines('resumen', ai.resumen_ejecutivo).map((bullet, idx) => (
+                <div key={idx} style={{ display:'flex', gap:12, alignItems:'flex-start', background:'#FAF8F5', border:'1px solid rgba(33,28,23,0.06)', padding:'12px 14px', borderRadius:3 }}>
+                  <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, color:C.goldDeep, fontWeight:700, paddingTop:8 }}>0{idx+1}</span>
+                  <textarea
+                    value={bullet}
+                    onChange={e => updateDraftLine('resumen', idx, e.target.value)}
+                    rows={Math.max(2, Math.ceil((bullet || '').length / 110))}
+                    style={editableTextStyle}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : Array.isArray(ai.resumen_ejecutivo) ? (
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {ai.resumen_ejecutivo.map((bullet, idx) => (
                 <div key={idx} style={{ display:'flex', gap:12, alignItems:'flex-start', background:'#FAF8F5', border:'1px solid rgba(33,28,23,0.06)', padding:'12px 14px', borderRadius:3 }}>
@@ -402,7 +447,6 @@ export default function PanoramaView({ data, isDesktop }) {
               {ai.resumen_ejecutivo}
             </div>
           )}
-          <SectionEditor field="resumen" label="Resumen ejecutivo" />
         </div>
       </motion.div>
 
@@ -419,14 +463,22 @@ export default function PanoramaView({ data, isDesktop }) {
               <h2 style={{ fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:18, color:C.crim, margin:0 }}>Alertas de Crisis & Focos Rojos</h2>
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-              {ai.alertas.map((a, i) => (
+              {draftLines('alertas', ai.alertas).map((a, i) => (
                 <div key={i} style={{ display:'flex', gap:10, alignItems:'flex-start', background:'#FFF8F7', border:'1px solid rgba(220,53,69,0.08)', padding:'12px 14px', borderRadius:3 }}>
                   <span style={{ width:6, height:6, borderRadius:'50%', background:C.crim, marginTop:7, flexShrink:0 }} />
-                  <span style={{ fontSize:13.5, lineHeight:1.45, color:'#4A2C2A' }}>{a}</span>
+                  {editing && draft ? (
+                    <textarea
+                      value={a}
+                      onChange={e => updateDraftLine('alertas', i, e.target.value)}
+                      rows={Math.max(2, Math.ceil((a || '').length / 105))}
+                      style={{ ...editableTextStyle, fontSize:13.5 }}
+                    />
+                  ) : (
+                    <span style={{ fontSize:13.5, lineHeight:1.45, color:'#4A2C2A' }}>{a}</span>
+                  )}
                 </div>
               ))}
             </div>
-            <SectionEditor field="alertas" label="Alertas de crisis" />
           </div>
         </motion.div>
       )}
@@ -441,14 +493,22 @@ export default function PanoramaView({ data, isDesktop }) {
             <h3 style={{ fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:17, color:C.ink, margin:0 }}>Cosas por Hacer</h3>
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {ai.plan_accion?.map((act, idx) => (
+            {draftLines('plan', ai.plan_accion).map((act, idx) => (
               <div key={idx} style={{ display:'flex', gap:10, alignItems:'flex-start', background:'#F5F8F5', border:'1px solid rgba(40,167,69,0.06)', padding:'10px 12px', borderRadius:3 }}>
                 <span style={{ color:C.teal, fontWeight:'bold', fontSize:14, flexShrink:0, marginTop:1 }}>✓</span>
-                <span style={{ fontSize:13, lineHeight:1.45, color:'#2A241C' }}>{act}</span>
+                {editing && draft ? (
+                  <textarea
+                    value={act}
+                    onChange={e => updateDraftLine('plan', idx, e.target.value)}
+                    rows={Math.max(2, Math.ceil((act || '').length / 70))}
+                    style={{ ...editableTextStyle, fontSize:13 }}
+                  />
+                ) : (
+                  <span style={{ fontSize:13, lineHeight:1.45, color:'#2A241C' }}>{act}</span>
+                )}
               </div>
             ))}
           </div>
-          <SectionEditor field="plan" label="Plan de accion" />
         </div>
 
         {/* Areas of Opportunity */}
@@ -458,14 +518,22 @@ export default function PanoramaView({ data, isDesktop }) {
             <h3 style={{ fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:17, color:C.ink, margin:0 }}>Mejoras y Oportunidades</h3>
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {ai.oportunidades?.map((op, idx) => (
+            {draftLines('oportunidades', ai.oportunidades).map((op, idx) => (
               <div key={idx} style={{ display:'flex', gap:10, alignItems:'flex-start', background:'#FDF9F2', border:'1px solid rgba(176,130,47,0.10)', padding:'10px 12px', borderRadius:3 }}>
                 <span style={{ color:C.goldDeep, fontWeight:'bold', fontSize:14, flexShrink:0, marginTop:1 }}>✦</span>
-                <span style={{ fontSize:13, lineHeight:1.45, color:'#2A241C' }}>{op}</span>
+                {editing && draft ? (
+                  <textarea
+                    value={op}
+                    onChange={e => updateDraftLine('oportunidades', idx, e.target.value)}
+                    rows={Math.max(2, Math.ceil((op || '').length / 70))}
+                    style={{ ...editableTextStyle, fontSize:13 }}
+                  />
+                ) : (
+                  <span style={{ fontSize:13, lineHeight:1.45, color:'#2A241C' }}>{op}</span>
+                )}
               </div>
             ))}
           </div>
-          <SectionEditor field="oportunidades" label="Mejoras y oportunidades" />
         </div>
 
       </motion.div>
