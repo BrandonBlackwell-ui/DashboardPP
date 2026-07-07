@@ -14,6 +14,20 @@ const SOCIAL_NETS = [
 
 export default function SocialListeningView({ activeNet, onNetChange, date, plat, data, isDesktop, noData, calendarSummary }) {
   const available = SOCIAL_NETS.filter(n => data?.themes?.[n.key]);
+  const selectedNet = available.some(n => n.key === activeNet) ? activeNet : available[0]?.key;
+
+  if (!selectedNet) {
+    return (
+      <div style={{ padding: isDesktop ? '40px 36px' : '28px 18px', color:C.ink }}>
+        <h1 style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:isDesktop ? 34 : 29, margin:'0 0 8px' }}>
+          Social Listening.
+        </h1>
+        <p style={{ fontSize:14, color:'#6B6253', margin:0 }}>
+          Todavia no hay redes de escucha publica cargadas para mostrar.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -22,7 +36,7 @@ export default function SocialListeningView({ activeNet, onNetChange, date, plat
         borderBottom:'1px solid rgba(33,28,23,0.12)', padding:'0 28px' }}>
         <div style={{ display:'flex', gap:2, overflowX:'auto', scrollbarWidth:'none', paddingTop:10, paddingBottom:0 }}>
           {available.map(n => {
-            const isActive = activeNet === n.key;
+            const isActive = selectedNet === n.key;
             return (
               <motion.button
                 key={n.key}
@@ -56,12 +70,14 @@ export default function SocialListeningView({ activeNet, onNetChange, date, plat
       {/* Network content */}
       <AnimatePresence mode="wait">
         <motion.div
-          key={activeNet}
+          key={selectedNet}
           initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-8 }}
           transition={{ duration:0.18 }}>
           <ThemeView
-            tab={activeNet} date={date} plat={plat} data={data}
-            isDesktop={isDesktop} noData={noData} calendarSummary={calendarSummary}
+            tab={selectedNet} date={date} plat={plat} data={data}
+            isDesktop={isDesktop}
+            noData={selectedNet === activeNet ? noData : false}
+            calendarSummary={selectedNet === activeNet ? calendarSummary : false}
             isSocialListening={true} />
         </motion.div>
       </AnimatePresence>

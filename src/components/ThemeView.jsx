@@ -360,6 +360,11 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
       if (isNaN(d)) return date;
       return `${d.getDate()} ${MESES[d.getMonth()]} ${d.getFullYear()}`;
     })();
+    const dayLabel = (() => {
+      if (!date || date === 'todas') return 'esta fecha';
+      const d = new Date(date + 'T12:00:00');
+      return isNaN(d) ? date : `${d.getDate()} de ${MESES[d.getMonth()]}`;
+    })();
     return (
       <div style={{ padding:'40px 24px', textAlign:'center' }}>
         <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, letterSpacing:'0.18em',
@@ -369,7 +374,7 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
         <div style={{ fontFamily:"'Geist',sans-serif", fontWeight:500, fontSize:22,
           color:'#211C17', marginBottom:8 }}>Sin datos para esta fecha.</div>
         <p style={{ fontSize:13, color:'#6B6253' }}>
-          No se subió un reporte de <strong>{t.label}</strong> para el {dayInt} de junio.
+          No se subió un reporte de <strong>{t.label}</strong> para el {dayLabel}.
         </p>
       </div>
     );
@@ -1780,3 +1785,4 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
     </motion.div>
   );
 }
+
