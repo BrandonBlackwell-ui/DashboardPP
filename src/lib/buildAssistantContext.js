@@ -2,6 +2,8 @@
 // front (PA_DATA, voces, medios) + el histórico (CALENDAR_DATA) para comparativas.
 // Es texto plano; se envía como systemInstruction a Gemini Live.
 
+import { conversationState } from '../utils/helpers';
+
 const NET_LABEL = {
   facebook: 'Facebook', instagram: 'Instagram', x: 'X/Twitter', tiktok: 'TikTok',
   google_news: 'Google News', redes_propias: 'Redes Propias', resumen: 'Panorama',
@@ -18,10 +20,10 @@ export function buildAssistantContext() {
   const media = window.ALL_MEDIA_DATA || [];
   const L = [];
 
-  L.push('Eres el asistente de voz del dashboard de reputación de Pepe Aguilar, hecho por Blackwell Strategy.');
+  L.push('Te llamas ORWELL, el asistente de voz del dashboard de reputación de Pepe Aguilar, hecho por Blackwell Strategy. Si te preguntan tu nombre, responde que eres Orwell.');
   L.push('Estás hablando DIRECTAMENTE con Pepe Aguilar. Dirígete a él siempre como "Pepe". Sé amable, cordial, servicial y cercano; suena humano y cálido, nunca robótico.');
   L.push('Respondes SOLO con los datos de este contexto (monitoreo de redes y prensa sobre Pepe Aguilar y su familia). No inventes cifras. Si te preguntan algo fuera de estos datos, acláralo con amabilidad. Responde breve, directo y en español, como un analista de confianza que reporta a su cliente.');
-  L.push('MUY IMPORTANTE — tu PRIMERA intervención de la conversación: sin importar lo que diga Pepe (aunque solo salude con un "hola"), salúdalo por su nombre con calidez y dale de inmediato un resumen rápido del panorama general (sentimiento favorable/crítico, nivel de riesgo y lo más relevante del día). Ejemplo de tono: "¡Hola Pepe, qué gusto escucharte hoy! Te traigo el análisis: en general estás en [X]% favorable, con riesgo [nivel], y lo más importante es [...]". Después de ese resumen inicial, responde puntual a lo que te pregunte.');
+  L.push('MUY IMPORTANTE — tu PRIMERA intervención de la conversación: sin importar lo que diga Pepe (aunque solo salude con un "hola"), salúdalo por su nombre con calidez y dale de inmediato un resumen rápido del panorama general (sentimiento favorable/crítico, nivel de riesgo y lo más relevante del día). Ejemplo de tono: "¡Hola Pepe, soy Orwell, qué gusto escucharte hoy! Te traigo el análisis: en general estás en [X]% favorable, con riesgo [nivel], y lo más importante es [...]". Después de ese resumen inicial, responde puntual a lo que te pregunte.');
   L.push(`Fecha del último análisis: ${fdate(D.meta?.latest_ai_report?.date_key) || D.meta?.range_label || 'reciente'}.`);
   L.push('');
 
@@ -29,6 +31,18 @@ export function buildAssistantContext() {
   const res = themes.resumen?.ai_analysis;
   if (res) {
     const s = res.sentimiento || {};
+
+    // Semáforo "Estado de la Conversación" (umbrales BW-26-07-PA-KPI-002).
+    const sem = conversationState({
+      favorable: (Number(s.favorable) || 0) + (Number(s.neutral) || 0),
+      critico: s.critico,
+    });
+    L.push('=== SEMÁFORO · ESTADO DE LA CONVERSACIÓN ===');
+    L.push(`El semáforo está en ${sem.tag.toUpperCase()} — "${sem.label}" (${sem.riesgo}). Favorable+neutral ${sem.favorable}%, crítica ${sem.critico}%. ${sem.meaning}`);
+    L.push(`Si Pepe pregunta "¿cómo voy?", "¿hay riesgo?" o "¿qué significan los números?", explícale este semáforo en lenguaje simple: verde = zona sana, amarillo = pide atención, rojo = protocolo de crisis. El color lo manda la peor de las dos lecturas. Acción a seguir en este nivel: ${sem.actions.join(' ')}`);
+    L.push('Regla: el nivel oficial es el promedio de la semana; si un solo día toca rojo, se activa alerta de crisis.');
+    L.push('');
+
     L.push('=== PANORAMA CONSOLIDADO (IA) ===');
     L.push(`Sentimiento general: ${s.favorable ?? '?'}% favorable, ${s.neutral ?? '?'}% neutral, ${s.critico ?? '?'}% crítico. Nivel de riesgo: ${res.nivel_riesgo || '?'}.`);
     if (arr(res.resumen_ejecutivo).length) L.push('Resumen ejecutivo:\n- ' + arr(res.resumen_ejecutivo).join('\n- '));

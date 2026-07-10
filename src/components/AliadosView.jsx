@@ -485,6 +485,11 @@ export default function AliadosView({ data, isDesktop }) {
 
   const notesFor = (m) => (newsPosts || []).filter(p => matchesMedia(p.username, m.nombre));
 
+  // Solo mostramos medios con al menos una nota real respaldada en la base.
+  // Mientras cargan las notas (newsPosts === null) se muestran todos provisionalmente.
+  const allMedia = window.ALL_MEDIA_DATA || [];
+  const visibleMedia = newsPosts === null ? allMedia : allMedia.filter(m => notesFor(m).length > 0);
+
   const totalEngagement = [...allies, ...critics].reduce((s, v) => s + v.engagement, 0);
   const totalPosts = [...allies, ...critics].reduce((s, v) => s + (v.posts || 0), 0);
   const maxEng = Math.max(...[...allies, ...critics].map(v => v.engagement), 1);
@@ -552,14 +557,14 @@ export default function AliadosView({ data, isDesktop }) {
         </motion.div>
 
         {/* Medios de comunicación */}
-        {(window.ALL_MEDIA_DATA || []).length > 0 && (
+        {visibleMedia.length > 0 && (
           <motion.div variants={item} style={{ padding: isDesktop ? '28px 28px 0' : '24px 18px 0' }}>
             <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12, paddingBottom:8,
               borderBottom:`2px solid ${C.goldDeep}` }}>
               <span style={{ width:8, height:8, borderRadius:'50%', background:C.goldDeep, flex:'none' }} />
               <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, letterSpacing:'0.14em',
                 textTransform:'uppercase', color:C.goldDeep, fontWeight:700 }}>
-                Medios de comunicación · {window.ALL_MEDIA_DATA.length}
+                Medios de comunicación · {visibleMedia.length}
               </span>
               <span style={{ marginLeft:'auto', fontFamily:"'Geist Mono',monospace", fontSize:9,
                 color:'#8A7E6A', textTransform:'uppercase', letterSpacing:'0.06em' }}>
@@ -567,12 +572,12 @@ export default function AliadosView({ data, isDesktop }) {
               </span>
             </div>
             <div style={{ display:'grid', gridTemplateColumns: isDesktop ? '1fr 1fr' : '1fr', gap:10 }}>
-              {window.ALL_MEDIA_DATA.map((m, i) => {
+              {visibleMedia.map((m, i) => {
                 const tonoColor = m.tono === 'favorable' ? C.teal : m.tono === 'critico' ? C.crim : '#8A7E6A';
                 const tonoLabel = m.tono === 'favorable' ? 'Favorable' : m.tono === 'critico' ? 'Crítico' : 'Neutral';
                 const realNotes = notesFor(m);
                 // Conteo real deduplicado; si aún no cargan las notas, usa el de la IA
-                const count = newsPosts === null ? m.notas : (realNotes.length || m.notas);
+                const count = newsPosts === null ? m.notas : realNotes.length;
                 return (
                   <button key={i} onClick={() => setSelectedMedia({ medio: m, notes: realNotes })}
                     style={{ textAlign:'left', font:'inherit', cursor:'pointer',

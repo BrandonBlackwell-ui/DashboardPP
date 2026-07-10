@@ -50,6 +50,81 @@ export function pill(ink,bg,bd) {
     textTransform:'uppercase',whiteSpace:'nowrap',color:ink,background:bg,border:`1px solid ${bd}` };
 }
 
+// ─── Semáforo · Estado de la Conversación (spec BW-26-07-PA-KPI-002) ───────────
+// Dos lecturas simultáneas: favorable (mayor = mejor) y crítica (menor = mejor).
+// El color general es la PEOR de las dos. Nivel = promedio semanal (evaluación),
+// el dashboard corre a diario para monitoreo operativo.
+export const SEMAFORO_MIN_VOLUME = 500;
+
+const numPct = (x) => {
+  const n = Number(String(x ?? '').replace(/[^0-9.-]/g, ''));
+  return Number.isFinite(n) ? Math.max(0, Math.min(100, Math.round(n))) : 0;
+};
+
+// Rangos del PDF. Favorable: >=60 verde · 40-59 amarillo · <40 rojo.
+export function convLevelFavorable(fav) {
+  if (fav >= 60) return 0;
+  if (fav >= 40) return 1;
+  return 2;
+}
+// Crítica: <=30 verde · 31-39 amarillo · >=40 rojo.
+export function convLevelCritica(crit) {
+  if (crit <= 30) return 0;
+  if (crit < 40) return 1;
+  return 2;
+}
+
+const SEMAFORO_META = {
+  0: { key:'verde', label:'Zona sana', tag:'Verde', c:C.teal, bg:C.tealBg, bd:C.tealBd,
+       meaning:'La conversación está a favor y la crítica no domina la agenda. La lectura pública se mueve en el rango deseado.',
+       riesgo:'Riesgo bajo',
+       actions:[
+         'Mantener el ritmo de contenido y replicar los comentarios positivos.',
+         'Reaccionar con likes a menciones de valor y comentar posts que refuercen la narrativa.',
+         'Documentar las publicaciones que funcionaron para repetir el patrón.',
+         'Monitorear temas y detectar riesgos potenciales antes de que escalen.',
+       ] },
+  1: { key:'amarillo', label:'Observación · pide atención', tag:'Amarillo', c:C.amber, bg:C.amberBg, bd:C.amberBd,
+       meaning:'La conversación favorable se desacelera o la crítica escaló en algún pico con foco identificable. Todavía no es alerta, pero pide atención.',
+       riesgo:'Riesgo medio',
+       actions:[
+         'Diagnosticar los temas que hacen girar la conversación.',
+         'Apuntalar contenido positivo desde las cuentas corporativas (Machin).',
+         'Evaluar posibles posturas reactivas.',
+         'Responder a los comentarios que generan volumen de conversación.',
+       ] },
+  2: { key:'rojo', label:'Crítica · protocolo', tag:'Rojo', c:C.crim, bg:C.crimBg, bd:C.crimBd,
+       meaning:'La crítica domina la conversación y marca la agenda mediática; la conversación se movió a terreno negativo.',
+       riesgo:'Riesgo alto',
+       actions:[
+         'Coordinación inmediata interagencias.',
+         'Redacción de postura oficial sobre el foco identificado.',
+         'Entrevistas estratégicas con medios aliados para reencuadrar y activación de voces aliadas (columnistas, creadores).',
+         'Pausa de contenido comercial 48 horas.',
+       ] },
+};
+
+export function conversationState({ favorable = 0, critico = 0, volume = null, minVolume = SEMAFORO_MIN_VOLUME } = {}) {
+  const fav = numPct(favorable);
+  const crit = numPct(critico);
+  const favLevel = convLevelFavorable(fav);
+  const critLevel = convLevelCritica(crit);
+  const rank = Math.max(favLevel, critLevel);
+  const insufficient = volume != null && volume < minVolume;
+  return {
+    rank,
+    favorable: fav,
+    critico: crit,
+    favLevel,
+    critLevel,
+    driver: critLevel >= favLevel ? 'critica' : 'favorable', // qué lectura empuja el color
+    insufficient,
+    volume,
+    minVolume,
+    ...SEMAFORO_META[rank],
+  };
+}
+
 export function getWeekendDates(dateStr) {
   const dateObj = new Date(dateStr + 'T12:00:00');
   if (dateObj.getDay() === 5) { // 5 is Friday

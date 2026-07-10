@@ -9,6 +9,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { MESSAGE_FRAMEWORK_PROMPT, RATIONALE_SYSTEM, buildRationalePrompt } from './message-framework.js';
 
 // ─── Supabase ─────────────────────────────────────────────────────────────────
 const SUPABASE_URL = 'https://aeywtloohrhyxvmxqzqe.supabase.co';
@@ -54,9 +55,11 @@ async function runActor(token, actorId, input, maxCharge, label) {
 }
 
 // ─── Relevancia ───────────────────────────────────────────────────────────────
-const RELEVANT_KW = ['pepe aguilar','pepeaguilar','angela aguilar','angelaaguilar',
-  'leonardo aguilar','leonardoaguilar','emiliano aguilar','aneliz','antonio aguilar',
-  'familia aguilar','familiaaguilar','dinast','los aguilar','losaguilar','aguilar'];
+// Objetivo: Pepe Aguilar. La familia solo como colectivo (familia/los/dinastia Aguilar),
+// NO se monitorea a Angela ni a miembros sueltos por su cuenta, y se quita el comodín
+// suelto 'aguilar' porque dejaba pasar posts que solo hablan de Angela.
+const RELEVANT_KW = ['pepe aguilar','pepeaguilar',
+  'familia aguilar','familiaaguilar','dinast','los aguilar','losaguilar'];
 const isRelevant = t => RELEVANT_KW.some(k => (t||'').toLowerCase().includes(k));
 
 // Google News: solo notas sobre Pepe o la familia Aguilar como colectivo.
@@ -82,7 +85,20 @@ async function upsertReport(themeKey, themeLabel, dateKey) {
 
 async function insertPosts(reportId, themeKey, posts) {
   if (!posts.length) return [];
-  const rows = posts.map(p => ({ ...p, report_id: reportId, theme_key: themeKey, sentiment: null }));
+  // 1) Dedup dentro del lote por URL (el scraper a veces repite la misma nota).
+  const seenUrl = new Set();
+  let unique = posts.filter(p => {
+    const k = (p.url || '').trim();
+    if (!k || seenUrl.has(k)) return false;
+    seenUrl.add(k);
+    return true;
+  });
+  // 2) Dedup contra lo ya guardado en este reporte (evita duplicar en re-corridas).
+  const { data: existing } = await supabase.from('scraped_posts').select('url').eq('report_id', reportId);
+  const have = new Set((existing || []).map(e => e.url));
+  unique = unique.filter(p => !have.has(p.url));
+  if (!unique.length) return [];
+  const rows = unique.map(p => ({ ...p, report_id: reportId, theme_key: themeKey, sentiment: null }));
   const { data, error } = await supabase.from('scraped_posts').insert(rows).select('id, url, likes, comments_count');
   if (error) throw new Error(error.message);
   return data || [];
@@ -143,12 +159,19 @@ const normTikTok = (items, from, to) => items.map(p => ({
   _subs: p.videoMeta?.subtitleLinks || p.subtitleLinks || null,
 })).filter(p => p.text && p.url && inDate(p.published_date, from, to) && isRelevant(p.text + p.username));
 
-const normGoogleNews = (items, from, to) => items.map(p => ({
-  platform:'google_news', username: p.source || p.sourceDomain || '',
-  text: p.title || '', url: p.articleUrl || p.link || '',
-  published_date: p.publishedAt || p.date || null,
-  likes:0, comments_count:0, shares:0, retweets:0, views:0,
-})).filter(p => p.text && p.url && inDate(p.published_date, from, to) && isRelevantNews(p.text));
+// Limpia el nombre de la fuente ("Ir a Milenio" -> "Milenio") y saca el dominio del URL.
+const cleanSource = s => (s || '').replace(/^\s*ir a\s+/i, '').replace(/\s+/g, ' ').trim();
+const domainFromUrl = url => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } };
+const normGoogleNews = (items, from, to) => items.map(p => {
+  const url = p.articleUrl || p.link || p.url || '';
+  return {
+    platform:'google_news',
+    username: cleanSource(p.source || p.sourceDomain) || domainFromUrl(url),
+    text: p.title || '', url,
+    published_date: p.publishedAt || p.date || null,
+    likes:0, comments_count:0, shares:0, retweets:0, views:0,
+  };
+}).filter(p => p.text && p.url && inDate(p.published_date, from, to) && isRelevantNews(p.text));
 
 // Owned normalizers — sin filtro de fecha, últimos 5 posts del perfil
 const normOwnedInstagram = (items) => {
@@ -384,10 +407,13 @@ Reglas duras:
 - La lectura de cada red debe citar evidencia concreta (autores, temas, numeros), no generalidades.
 - medios_destacados es EXCLUSIVAMENTE para fuentes de prensa de google_news (notas de prensa). NO pongas ahi cuentas de Instagram/Facebook/X/TikTok aunque sean paginas de medios o espectaculos — esas van en aliados_destacados o criticos_destacados segun su tono. Incluye toda fuente de google_news con al menos 1 nota: nombre, dominio web del medio (ej "heraldodemexico.com.mx" — deducelo de la URL de la nota si esta en los datos), platform "google_news", alcance ("macro" nacional, "medio" regional), cuantas notas, tono y temas.
 - Si se dio analisis del periodo anterior, calcula tendencia por red y llena comparativa_historica con deltas reales. Si no, omite comparativa_historica y usa "estable".
+- ANCLA EL ANALISIS AL MARCO ESTRATEGICO de abajo: cada recomendacion (resumen_ejecutivo, plan_accion, oportunidades, recomendacion por red) debe estar guiada por los pilares y mensajes clave. Si un tema reactivo (Angela, Nodal, amuleto Tri, etc.) aparece, considera el pivote del marco al recomendar. No agregues campos extra al JSON: el marco guia el CONTENIDO del analisis normal, no cambia su estructura.
+
+${MESSAGE_FRAMEWORK_PROMPT}
 
 ${dataPrompt}`;
 
-export async function callAI(apiKey, prompt, models) {
+export async function callAI(apiKey, prompt, models, systemPrompt = AI_PROMPT_SYSTEM) {
   for (const model of models) {
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -400,7 +426,7 @@ export async function callAI(apiKey, prompt, models) {
       body: JSON.stringify({
         model, response_format: { type: 'json_object' },
         messages: [
-          { role:'system', content: AI_PROMPT_SYSTEM },
+          { role:'system', content: systemPrompt },
           { role:'user', content: prompt },
         ],
       }),
@@ -521,6 +547,17 @@ async function enrichAndSaveAI(apiKey, themeKey, dateKey, allPostsByTheme) {
   // Resiliente por si la columna 'approved' aún no existe en Supabase.
   const { error: upErr } = await supabase.from('reports').update({ ai_analysis: analysis, approved: false }).eq('id', report.id);
   if (upErr) await supabase.from('reports').update({ ai_analysis: analysis }).eq('id', report.id);
+
+  // Segunda llamada — SOLO en el panorama: "analisis del analisis" que explica el porque
+  // citando el documento de mensajes. Es de uso interno (admin); el cliente no lo ve.
+  if (themeKey === 'resumen') {
+    try {
+      const { analysis: rationale } = await callAI(apiKey, buildRationalePrompt(analysis), models, RATIONALE_SYSTEM);
+      const { error: rErr } = await supabase.from('reports').update({ admin_rationale: rationale }).eq('id', report.id);
+      if (rErr) console.warn(`[analisis] no se pudo guardar admin_rationale (¿existe la columna?): ${rErr.message}`);
+    } catch (e) { console.warn(`[analisis] fundamento admin falló: ${e?.message || e}`); }
+  }
+
   return { themeKey, model, sentimiento: analysis.sentimiento, nivel_riesgo: analysis.nivel_riesgo };
 }
 
@@ -542,11 +579,9 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
       { query:'"Pepe Aguilar" OR "los Aguilar"', startDate:DATE, endDate:DATE, maxResults:50 }, 0.12, 'fb_search'),
     runActor(apifyToken, 'apidojo/instagram-hashtag-scraper',
       { keyword:'pepeaguilar', until:DATE, getPosts:true, getReels:false, maxItems:25 }, 0.05, 'ig_hash1').then(async r1 => {
-        const r2 = await runActor(apifyToken, 'apidojo/instagram-hashtag-scraper',
-          { keyword:'angelaaguilar', until:DATE, getPosts:true, getReels:false, maxItems:25 }, 0.05, 'ig_hash2');
         const r3 = await runActor(apifyToken, 'apidojo/instagram-hashtag-scraper',
           { keyword:'losaguilar', until:DATE, getPosts:true, getReels:false, maxItems:25 }, 0.05, 'ig_hash3');
-        return [...r1, ...r2, ...r3];
+        return [...r1, ...r3];
       }),
     runActor(apifyToken, 'apidojo/tweet-scraper',
       { searchTerms:[`"Pepe Aguilar" OR "los Aguilar" -filter:retweets -filter:replies since:${DATE} until:${DNEXT}`],
@@ -554,7 +589,7 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
     runActor(apifyToken, 'sentry/tiktok-search-api',
       { keywords:['Pepe Aguilar', 'los Aguilar'], maxVideosPerKeyword:15, maxVideosTotal:30, sortOrder:'mostViews', datePosted:'today', includePhotoPosts:false }, 0.15, 'tt_search'),
     runActor(apifyToken, 'sourabhbgp/google-news-scraper',
-      { urls:['"Pepe Aguilar"'], mode:'search', maxResults:20, dateFrom:DATE, dateTo:DATE, language:'es', country:'MX', includeFullText:false, fullCoverage:false }, 0.04, 'gn'),
+      { urls:['"Pepe Aguilar"'], mode:'search', maxResults:35, dateFrom:DATE, dateTo:DATE, language:'es', country:'MX', includeFullText:false, fullCoverage:false }, 0.04, 'gn'),
     // Propios
     runActor(apifyToken, 'coderx/instagram-profile-scraper-api',
       { usernames:[OWNED.instagram] }, 0.03, 'own_ig'),

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { MESSAGE_FRAMEWORK_PROMPT, RATIONALE_SYSTEM, buildRationalePrompt } from './message-framework.js';
 
 const SUPABASE_URL = 'https://aeywtloohrhyxvmxqzqe.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFleXd0bG9vaHJoeXh2bXhxenFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MzY2NzksImV4cCI6MjA5ODQxMjY3OX0.um2x046pEAJhlK6g98brVPFbc1nKFO8ixSUzmoU8dZw';
@@ -86,6 +87,7 @@ Reglas duras:
 - CUANDO HAYA COMENTARIOS EXTRAIDOS: cita 1-2 textualmente (entre comillas, breves) para mostrar QUE dijo la gente, no solo la metrica.
 - Si se te dio el analisis del periodo anterior, calcula tendencia por red (mejorando/estable/empeorando) y llena comparativa_historica con deltas reales. Si no hay periodo anterior, omite comparativa_historica y usa "estable" como tendencia.
 - La lectura de cada red debe citar evidencia concreta (autores, temas, numeros de los datos), no generalidades.
+- ANCLA EL ANALISIS AL MARCO ESTRATEGICO de abajo: cada punto de resumen_ejecutivo, plan_accion, oportunidades y cada recomendacion por red debe estar guiado por los pilares y mensajes clave. Si aparece un tema reactivo (Angela, Nodal, amuleto Tri, etc.), considera el pivote del marco. No agregues campos extra al JSON: el marco guia el CONTENIDO, no la estructura.
 - Se factual y directo. Nada poetico.
 
 Devuelve EXCLUSIVAMENTE JSON valido con esta forma. Los "__CALCULA__" son marcadores: reemplazalos contando los posts/comentarios reales. Nunca entregues numeros del ejemplo sin calcular:
@@ -138,6 +140,8 @@ Devuelve EXCLUSIVAMENTE JSON valido con esta forma. Los "__CALCULA__" son marcad
     ]
   }
 }
+
+${MESSAGE_FRAMEWORK_PROMPT}
 
 Datos:
 ${dataPrompt}`;
@@ -204,8 +208,8 @@ function modelsForReport({ report, overrideModel }) {
   ];
 }
 
-async function callOpenRouter({ apiKey, prompt, models }) {
-
+async function callOpenRouter({ apiKey, prompt, models, system }) {
+  const systemContent = system || 'Eres un analista experto en reputacion, opinion publica y crisis. Responde solo JSON valido.';
   for (const model of models) {
     console.log(`Solicitando analisis a ${model}...`);
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -219,10 +223,7 @@ async function callOpenRouter({ apiKey, prompt, models }) {
       body: JSON.stringify({
         model,
         messages: [
-          {
-            role: 'system',
-            content: 'Eres un analista experto en reputacion, opinion publica y crisis. Responde solo JSON valido.',
-          },
+          { role: 'system', content: systemContent },
           { role: 'user', content: prompt },
         ],
         response_format: { type: 'json_object' },
@@ -412,6 +413,18 @@ async function run() {
   if (error) throw new Error(error.message);
 
   console.log(`Analisis guardado en Supabase con ${model}.`);
+
+  // Segunda llamada — SOLO en el panorama: fundamento interno (admin) citando el documento.
+  if (report.theme_key === 'resumen') {
+    try {
+      const { analysis: rationale } = await callOpenRouter({
+        apiKey: args.apiKey, prompt: buildRationalePrompt(analysis), models, system: RATIONALE_SYSTEM,
+      });
+      const { error: rErr } = await supabase.from('reports').update({ admin_rationale: rationale }).eq('id', report.id);
+      if (rErr) console.warn(`No se pudo guardar admin_rationale (¿existe la columna?): ${rErr.message}`);
+      else console.log('Fundamento interno (admin_rationale) guardado.');
+    } catch (e) { console.warn(`Fundamento admin falló: ${e?.message || e}`); }
+  }
   console.log(JSON.stringify({
     report_id: report.id,
     theme_key: report.theme_key,

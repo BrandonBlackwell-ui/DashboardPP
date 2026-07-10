@@ -239,6 +239,7 @@ function buildThemeFromScrapedData(rep) {
     label: rep.theme_label,
     es: esLabel(rep.theme_key),
     ai_analysis: ai,
+    admin_rationale: rep.admin_rationale || null, // solo llega si la query lo pidió (admin)
     aiDerived: hasAi,
     sentiment: { pos: posPct, neu: neuPct, neg: negPct, posC: posC, neuC: neuC, negC: negC },
     risk: { level: riskLevel, negPct: negPct, attention: negPct > 20 },
@@ -284,13 +285,17 @@ function buildThemeFromScrapedData(rep) {
 // Fetch all uploaded reports from Supabase and apply them to window.PA_DATA / CALENDAR_DATA
 export async function loadFromSupabase() {
   try {
+    // El fundamento interno (admin_rationale) SOLO se consulta si el rol es admin;
+    // el cliente pp2026 nunca lo pide, así que ni siquiera llega a su navegador.
+    const isAdminSel = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('bw_role') === 'admin');
+    const RAT = isAdminSel ? ', admin_rationale' : '';
     const SELECT_WITH_APPROVED = `
-        id, date_key, theme_key, theme_label, filename, created_at, ai_analysis, approved,
+        id, date_key, theme_key, theme_label, filename, created_at, ai_analysis, approved${RAT},
         scraped_posts(*, scraped_comments(*)),
         allies_critics_voices(*)
       `;
     const SELECT_LEGACY = `
-        id, date_key, theme_key, theme_label, filename, created_at, ai_analysis,
+        id, date_key, theme_key, theme_label, filename, created_at, ai_analysis${RAT},
         scraped_posts(*, scraped_comments(*)),
         allies_critics_voices(*)
       `;

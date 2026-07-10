@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Donut from './Donut';
-import { C, riskMeta, pill } from '../utils/helpers';
+import Semaforo from './Semaforo';
+import { C, pill } from '../utils/helpers';
 import { supabase } from '../lib/supabase';
 
 const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.07 } } };
@@ -267,7 +268,15 @@ export default function PanoramaView({ data, isDesktop }) {
 
   // AI analysis loaded successfully!
   const sent = ai.sentimiento || { favorable: 0, neutral: 100, critico: 0 };
-  const rm = riskMeta(ai.nivel_riesgo);
+
+  // Volumen de menciones del período (posts + comentarios de todas las redes) para el semáforo.
+  const convVolume = Object.entries(data?.themes || {})
+    .filter(([k]) => k !== 'resumen')
+    .reduce((sum, [, t]) => sum
+      + (Number(t?.totals?.posts) || 0)
+      + (t?.platforms || []).reduce((s, p) => s + (Number(p.comments) || 0), 0), 0);
+  // La "Crítica" del semáforo combina favorable+neutral vs crítica: favorable = fav+neutral.
+  const semFav = (Number(sent.favorable) || 0) + (Number(sent.neutral) || 0);
 
   return (
     <motion.div variants={stagger} initial="hidden" animate="visible"
@@ -392,16 +401,8 @@ export default function PanoramaView({ data, isDesktop }) {
           </div>
         </div>
 
-        {/* Risk Card */}
-        <div style={{ display:'flex', flexDirection:'column', justifyContent:'center', background:rm.bg, border:`1px solid ${rm.bd}`, borderRadius:3, padding:20, position:'relative', overflow:'hidden' }}>
-          <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, letterSpacing:'0.12em', textTransform:'uppercase', color:rm.ink }}>NIVEL DE RIESGO DE CRISIS</div>
-          <div style={{ fontSize:32, fontWeight:600, color:rm.ink, marginTop:4, textTransform:'capitalize' }}>
-            {rm.label.replace('_', ' ')}
-          </div>
-          <div style={{ fontSize:13, color:'#6B6253', marginTop:6, lineHeight:1.4 }}>
-            Evaluación experta basada en el impacto de los focos críticos detectados.
-          </div>
-        </div>
+        {/* Semáforo — Estado de la Conversación (reemplaza la tarjeta de riesgo, mismo espacio) */}
+        <Semaforo favorable={semFav} critico={sent.critico} volume={convVolume} isDesktop={isDesktop} compact />
 
       </motion.div>
 
@@ -449,6 +450,82 @@ export default function PanoramaView({ data, isDesktop }) {
           )}
         </div>
       </motion.div>
+
+      {/* Fundamento del análisis — SOLO ADMIN (el cliente pp2026 nunca lo ve).
+          Segunda llamada a la IA que explica POR QUÉ se analizó así, citando BW-26-07-PA-MSG-001. */}
+      {isAdmin && resumenTheme?.admin_rationale && (() => {
+        const ar = resumenTheme.admin_rationale;
+        return (
+          <motion.div variants={item} style={{ marginBottom: 20 }}>
+            <div style={{ background: 'rgba(176,130,47,0.06)', border: `1px solid ${C.amberBd}`, borderRadius: 4, padding: 22 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                <span style={{ ...pill(C.goldDeep, C.amberBg, C.amberBd) }}>SOLO ADMIN · NO VISIBLE PARA EL CLIENTE</span>
+              </div>
+              <h2 style={{ fontFamily: "'Geist',sans-serif", fontWeight: 600, fontSize: 18, color: C.ink, margin: '4px 0 4px' }}>
+                Por qué se analizó así
+              </h2>
+              <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8A7E6A', marginBottom: 14 }}>
+                Fundamento citando BW-26-07-PA-MSG-001 (Mensajes Maestros)
+              </div>
+
+              {ar.resumen && (
+                <div style={{ fontSize: 14, lineHeight: 1.55, color: '#2A241C', marginBottom: 16 }}>{ar.resumen}</div>
+              )}
+
+              {Array.isArray(ar.fundamentos) && ar.fundamentos.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+                  {ar.fundamentos.map((f, i) => (
+                    <div key={i} style={{ background: '#FFFDF9', border: '1px solid rgba(176,130,47,0.18)', borderRadius: 3, padding: '12px 14px' }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, marginBottom: 4 }}>{f.conclusion}</div>
+                      {f.referencia_doc && (
+                        <span style={{ ...pill(C.goldDeep, C.amberBg, C.amberBd), marginBottom: 6 }}>{f.referencia_doc}</span>
+                      )}
+                      {f.cita && (
+                        <div style={{ fontSize: 12.5, fontStyle: 'italic', color: '#5A5044', margin: '6px 0', paddingLeft: 10, borderLeft: `2px solid ${C.gold}` }}>
+                          “{f.cita}”
+                        </div>
+                      )}
+                      {f.por_que && <div style={{ fontSize: 13, lineHeight: 1.45, color: '#3A332A' }}>{f.por_que}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {Array.isArray(ar.reactivos_detectados) && ar.reactivos_detectados.length > 0 && (
+                <div style={{ marginBottom: Array.isArray(ar.brechas) && ar.brechas.length ? 14 : 0 }}>
+                  <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8A7E6A', fontWeight: 600, marginBottom: 8 }}>Temas reactivos detectados</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {ar.reactivos_detectados.map((r, i) => {
+                      const riesgo = (r.manejo || '').toLowerCase() === 'riesgo';
+                      const m = riesgo ? { c: C.crim, bg: C.crimBg, bd: C.crimBd } : { c: C.teal, bg: C.tealBg, bd: C.tealBd };
+                      return (
+                        <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                          <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 9.5, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: m.c, background: m.bg, border: `1px solid ${m.bd}`, borderRadius: 999, padding: '2px 8px', flexShrink: 0, marginTop: 1 }}>{r.manejo || '—'}</span>
+                          <span style={{ fontSize: 13, lineHeight: 1.45, color: '#2A241C' }}><b>{r.tema}:</b> {r.pivote_doc}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {Array.isArray(ar.brechas) && ar.brechas.length > 0 && (
+                <div>
+                  <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8A7E6A', fontWeight: 600, marginBottom: 8 }}>Brechas vs el documento</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {ar.brechas.map((b, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+                        <span style={{ color: C.goldDeep, fontWeight: 'bold', fontSize: 13, flexShrink: 0, marginTop: 1 }}>›</span>
+                        <span style={{ fontSize: 13, lineHeight: 1.45, color: '#2A241C' }}>{b}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        );
+      })()}
 
       {/* Alerts / Red Flags Block */}
       {ai.alertas && ai.alertas.length > 0 && (

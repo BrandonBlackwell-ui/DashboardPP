@@ -173,16 +173,33 @@ export async function getDashboardData(args = {}) {
     };
   });
 
+  const nombresVoces = (lista) => (Array.isArray(lista) ? lista : [])
+    .map(v => (typeof v === 'string' ? v : (v?.username || v?.nombre || '')))
+    .filter(Boolean)
+    .slice(0, 8);
+
   const aiHighlights = reports
-    .map(r => ({
-      date: r.date_key,
-      platform: PLATFORM_LABELS[r.theme_key] || r.theme_key,
-      lectura: r.ai_analysis?.lectura || r.ai_analysis?.resumen || '',
-      alertas: r.ai_analysis?.alertas || [],
-      aliados: r.ai_analysis?.aliados || r.ai_analysis?.voces?.aliados || [],
-      contrarios: r.ai_analysis?.contrarios || r.ai_analysis?.voces?.contrarios || [],
-    }))
-    .filter(x => x.lectura || x.alertas?.length || x.aliados?.length || x.contrarios?.length)
+    .map(r => {
+      const ai = r.ai_analysis || {};
+      // La "lectura" real vive en el desglose de la red; si no, usa el resumen ejecutivo.
+      const lecturaRed = ai.desglose_por_red?.[r.theme_key]?.lectura;
+      const resumenEj = Array.isArray(ai.resumen_ejecutivo)
+        ? ai.resumen_ejecutivo.join(' · ')
+        : (ai.resumen_ejecutivo || '');
+      const alertas = (Array.isArray(ai.alertas) ? ai.alertas : [])
+        .map(a => (typeof a === 'string' ? a : (a?.text || a?.alerta || ''))).filter(Boolean);
+      return {
+        date: r.date_key,
+        platform: PLATFORM_LABELS[r.theme_key] || r.theme_key,
+        lectura: lecturaRed || resumenEj || '',
+        nivel_riesgo: ai.nivel_riesgo || '',
+        alertas,
+        oportunidades: Array.isArray(ai.oportunidades) ? ai.oportunidades : [],
+        aliados: nombresVoces(ai.analisis_voces?.aliados_destacados),
+        contrarios: nombresVoces(ai.analisis_voces?.criticos_destacados),
+      };
+    })
+    .filter(x => x.lectura || x.alertas.length || x.aliados.length || x.contrarios.length)
     .slice(0, 12);
 
   return {
@@ -217,7 +234,65 @@ const VOICE_TOOLS = [{
   }],
 }];
 
-export function attachVoiceRelay(server, { geminiKey }) {
+// ─── Memoria de conversaciones (para dar sensación de continuidad) ─────────────
+// Trae el resumen de las últimas 1-2 sesiones. Solo resúmenes cortos → costo mínimo de tokens.
+async function fetchRecentMemory(maxSessions = 2) {
+  if (!supabase) return '';
+  try {
+    const { data } = await supabase
+      .from('voice_sessions')
+      .select('created_at, summary')
+      .not('summary', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(maxSessions);
+    if (!data?.length) return '';
+    const bloques = data.reverse().map(s => `- (${(s.created_at || '').slice(0, 10)}) ${s.summary}`);
+    return `\n=== MEMORIA DE CONVERSACIONES ANTERIORES ===\nContexto de lo último que habló Pepe contigo. Retómalo con naturalidad SOLO si es relevante (ej. "la última vez me comentaste que te preocupaba Instagram, ¿seguimos con eso?"). No lo recites literal.\n${bloques.join('\n')}\n`;
+  } catch { return ''; }
+}
+
+// Al cerrar la sesión: resume la charla y la guarda para la próxima vez.
+async function summarizeAndStore({ transcript, questions, aiKey }) {
+  if (!supabase) return;
+  const userTurns = transcript.filter(t => t.role === 'user');
+  if (!userTurns.length) return; // sesión vacía, no guardar
+
+  let summary = '';
+  if (aiKey) {
+    try {
+      const convo = transcript
+        .map(t => `${t.role === 'user' ? 'Pepe' : 'Orwell'}: ${t.text}`)
+        .join('\n').slice(0, 6000);
+      const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${aiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash-lite',
+          messages: [
+            { role: 'system', content: 'Resume en 2-3 frases y en español de qué habló Pepe con el asistente y qué le preocupaba o pidió. Breve y factual, sin preámbulos ni comillas.' },
+            { role: 'user', content: convo },
+          ],
+        }),
+      });
+      const j = await resp.json();
+      summary = j.choices?.[0]?.message?.content?.trim() || '';
+    } catch (e) { console.warn('[voz] resumen falló:', e?.message || e); }
+  }
+  if (!summary) summary = 'Pepe preguntó: ' + questions.slice(0, 5).join(' | ');
+
+  try {
+    await supabase.from('voice_sessions').insert({
+      ended_at: new Date().toISOString(),
+      turns: userTurns.length,
+      user_questions: questions,
+      transcript,
+      summary,
+    });
+    console.log(`[voz] sesión guardada en voice_sessions (${userTurns.length} turnos, ${questions.length} preguntas).`);
+  } catch (e) { console.warn('[voz] no se pudo guardar la sesión (¿existe la tabla voice_sessions?):', e?.message || e); }
+}
+
+export function attachVoiceRelay(server, { geminiKey, aiKey }) {
   const wss = new WebSocketServer({ noServer: true });
 
   // Allowlist de orígenes; '*' (o sin definir) deja pasar todo, igual que el CORS HTTP.
@@ -249,6 +324,18 @@ export function attachVoiceRelay(server, { geminiKey }) {
     let googleReady = false;
     const pendingAudio = [];
 
+    // Estado de la sesión para capturar preguntas y guardar memoria al final.
+    const transcript = [];
+    const questions = [];
+    let userBuf = '';
+    let asstBuf = '';
+    let saved = false;
+    const finalize = () => {
+      if (saved) return;
+      saved = true;
+      summarizeAndStore({ transcript, questions, aiKey }).catch(() => {});
+    };
+
     const toClient = (obj) => { try { client.send(JSON.stringify(obj)); } catch { /* closed */ } };
 
     const sendAudioToGoogle = (b64) => {
@@ -260,13 +347,16 @@ export function attachVoiceRelay(server, { geminiKey }) {
       }
     };
 
-    client.on('message', (raw) => {
+    client.on('message', async (raw) => {
       let msg;
       try { msg = JSON.parse(raw.toString()); } catch { return; }
 
       if (msg.type === 'start') {
         if (!geminiKey) { console.warn('[voz] start sin GEMINI_API_KEY'); toClient({ type: 'error', msg: 'Falta GEMINI_API_KEY en el servidor.' }); return; }
         if (google) return; // ya iniciada
+
+        // Trae la memoria de sesiones anteriores antes de abrir Gemini (costo mínimo: solo resúmenes).
+        const memoria = await fetchRecentMemory();
 
         console.log(`[voz] start recibido. Conectando a Gemini (${GEMINI_MODEL})...`);
         google = new WebSocket(`${GEMINI_WS}?key=${geminiKey}`);
@@ -279,6 +369,8 @@ export function attachVoiceRelay(server, { geminiKey }) {
               generationConfig: { responseModalities: ['AUDIO'] },
               systemInstruction: { parts: [{ text: `${msg.context || ''}
 
+Te llamas ORWELL. Si Pepe te pregunta tu nombre o cómo te llamas, responde con calidez que eres Orwell, su analista de reputación. Puedes presentarte como Orwell en tu primer saludo.
+${memoria}
 Tambien tienes acceso a la herramienta get_dashboard_data para consultar Supabase en vivo. Usala SIEMPRE que Pepe pregunte por fechas, rangos, historico, "semana pasada", "ayer", comparativas, posts, comentarios, links, aliados o contrarios que no esten explicitamente en el contexto visible. No inventes datos: primero consulta la herramienta y despues responde.` }] },
               tools: VOICE_TOOLS,
               // Habilita transcripción de lo que dice el usuario y lo que responde Gemini.
@@ -334,10 +426,19 @@ Tambien tienes acceso a la herramienta get_dashboard_data para consultar Supabas
               if (part.text) toClient({ type: 'text', role: 'assistant', text: part.text });
             }
             // Transcripciones (llegan en fragmentos; audio y texto pueden venir en el mismo mensaje).
-            if (sc.outputTranscription?.text) toClient({ type: 'text', role: 'assistant', text: sc.outputTranscription.text });
-            if (sc.inputTranscription?.text) toClient({ type: 'text', role: 'user', text: sc.inputTranscription.text });
+            if (sc.outputTranscription?.text) { toClient({ type: 'text', role: 'assistant', text: sc.outputTranscription.text }); asstBuf += sc.outputTranscription.text; }
+            if (sc.inputTranscription?.text) { toClient({ type: 'text', role: 'user', text: sc.inputTranscription.text }); userBuf += sc.inputTranscription.text; }
             if (sc.interrupted) toClient({ type: 'interrupted' });
-            if (sc.turnComplete) toClient({ type: 'turn_complete' });
+            if (sc.turnComplete) {
+              toClient({ type: 'turn_complete' });
+              // Cierra el turno: guarda lo que dijo Pepe (pregunta) y lo que respondió Orwell.
+              const u = userBuf.trim();
+              const a = asstBuf.trim();
+              if (u) { transcript.push({ role: 'user', text: u }); questions.push(u); }
+              if (a) transcript.push({ role: 'assistant', text: a });
+              userBuf = '';
+              asstBuf = '';
+            }
           }
         };
 
@@ -362,11 +463,12 @@ Tambien tienes acceso a la herramienta get_dashboard_data para consultar Supabas
       }
 
       if (msg.type === 'stop') {
+        finalize();
         try { google?.close(); } catch { /* noop */ }
       }
     });
 
-    client.on('close', () => { try { google?.close(); } catch { /* noop */ } });
+    client.on('close', () => { finalize(); try { google?.close(); } catch { /* noop */ } });
   });
 
   return wss;

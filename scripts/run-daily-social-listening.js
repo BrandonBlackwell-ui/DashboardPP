@@ -39,9 +39,11 @@ const nextDay = (d) => {
 const DATE_NEXT = nextDay(TARGET_DATE);
 
 // Relevance keywords (any post must contain at least one)
-const RELEVANT = ['pepe aguilar', 'pepeaguilar', 'angela aguilar', 'angelaaguilar',
-  'leonardo aguilar', 'leonardoaguilar', 'emiliano aguilar', 'aneliz', 'antonio aguilar',
-  'familia aguilar', 'familiaaguilar', 'dinast', 'aguilar'];
+// Objetivo: Pepe Aguilar. La familia solo como colectivo (familia/los/dinastia Aguilar),
+// NO se monitorea a Angela ni a miembros sueltos por su cuenta, y se quita el comodín
+// suelto 'aguilar' porque dejaba pasar posts que solo hablan de Angela.
+const RELEVANT = ['pepe aguilar', 'pepeaguilar',
+  'familia aguilar', 'familiaaguilar', 'los aguilar', 'losaguilar', 'dinast'];
 const isRelevant = (text) => {
   const t = (text || '').toLowerCase();
   return RELEVANT.some(k => t.includes(k));
@@ -202,19 +204,24 @@ function normalizeInstagram(items) {
 }
 
 function normalizeGoogleNews(items) {
+  const cleanSource = s => (s || '').replace(/^\s*ir a\s+/i, '').replace(/\s+/g, ' ').trim();
+  const domainFromUrl = url => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } };
   return items
-    .map(p => ({
+    .map(p => {
+      const url = p.articleUrl || p.link || p.url || '';
+      return {
       platform: 'google_news',
-      username: p.source || p.sourceDomain || p.author || '',
+      username: cleanSource(p.source || p.sourceDomain || p.author) || domainFromUrl(url),
       text: p.title || p.headline || '',
-      url: p.articleUrl || p.link || p.url || '',
+      url,
       published_date: p.publishedAt || p.date || p.pubDate || null,
       likes: 0,
       comments_count: 0,
       shares: 0,
       retweets: 0,
       views: 0,
-    }))
+      };
+    })
     .filter(p => p.text && p.url)
     .filter(p => {
       if (!p.published_date) return true;
@@ -286,7 +293,7 @@ async function runFacebook() {
 
 async function runInstagram() {
   console.log('\n📸 INSTAGRAM');
-  const KEYWORDS = ['pepeaguilar', 'angelaaguilar', 'familiaaguilar', 'dinastiaaguilar'];
+  const KEYWORDS = ['pepeaguilar', 'familiaaguilar', 'dinastiaaguilar'];
   const all = [];
   const seen = new Set();
 
