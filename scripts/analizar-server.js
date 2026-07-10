@@ -21,9 +21,30 @@ const AI_KEY      = process.env.OPENROUTER_API_KEY;
 const GEMINI_KEY  = process.env.GEMINI_API_KEY;
 const PORT        = process.env.PORT || 3001;
 
-if (!APIFY_TOKEN || !AI_KEY) {
-  console.error('Faltan variables de entorno: APIFY_TOKEN y OPENROUTER_API_KEY');
-  process.exit(1);
+const requiredEnv = {
+  APIFY_TOKEN,
+  OPENROUTER_API_KEY: AI_KEY,
+};
+
+function missingEnv(names = Object.keys(requiredEnv)) {
+  return names.filter(name => !requiredEnv[name]);
+}
+
+function requireEnv(res, names) {
+  const missing = missingEnv(names);
+  if (!missing.length) return true;
+
+  res.writeHead(503, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({
+    error: 'Faltan variables de entorno en el servidor',
+    missing,
+  }));
+  return false;
+}
+
+const missingAtBoot = missingEnv();
+if (missingAtBoot.length) {
+  console.warn(`Servidor iniciado con variables faltantes: ${missingAtBoot.join(', ')}`);
 }
 
 let running = false;
@@ -39,14 +60,16 @@ const server = http.createServer((req, res) => {
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
   // Health check
-  if (url.pathname === '/status') {
+  if (url.pathname === '/' || url.pathname === '/status') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, running }));
+    res.end(JSON.stringify({ ok: true, running, missingEnv: missingEnv() }));
     return;
   }
 
   // Analizar
   if (url.pathname === '/analizar') {
+    if (!requireEnv(res, ['APIFY_TOKEN', 'OPENROUTER_API_KEY'])) return;
+
     if (running) {
       res.writeHead(409, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Ya hay un análisis en curso' }));
@@ -85,6 +108,8 @@ const server = http.createServer((req, res) => {
 
   // Re-análisis IA sin scraping (usa data ya guardada en Supabase)
   if (url.pathname === '/reanalizar') {
+    if (!requireEnv(res, ['OPENROUTER_API_KEY'])) return;
+
     if (running) {
       res.writeHead(409, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Ya hay un análisis en curso' }));
@@ -114,6 +139,8 @@ const server = http.createServer((req, res) => {
   // Deep-dive de comentarios de piezas específicas.
   // GET /comentarios?u=instagram~<url>&u=tiktok~<url>   (param 'u' repetible: plataforma~url)
   if (url.pathname === '/comentarios') {
+    if (!requireEnv(res, ['APIFY_TOKEN'])) return;
+
     const items = url.searchParams.getAll('u').map(v => {
       const i = v.indexOf('~');
       return i === -1 ? null : { platform: v.slice(0, i).trim(), url: v.slice(i + 1).trim() };
@@ -141,6 +168,8 @@ const server = http.createServer((req, res) => {
   // Reporte de evento (self-service admin): scrapea/filtra/IA + genera .docx
   // GET /reporte-evento?query=<evento>&from=YYYY-MM-DD&to=YYYY-MM-DD  (SSE)
   if (url.pathname === '/reporte-evento') {
+    if (!requireEnv(res, ['APIFY_TOKEN', 'OPENROUTER_API_KEY'])) return;
+
     const query = url.searchParams.get('query');
     const from  = url.searchParams.get('from');
     const to    = url.searchParams.get('to') || from;
@@ -173,7 +202,7 @@ const server = http.createServer((req, res) => {
 });
 
 // Asistente de voz (Gemini Live) — puente WebSocket en /voz
-attachVoiceRelay(server, { geminiKey: GEMINI_KEY });
+attachVoiceRelay(server, { geminiKey: GEMINI_KEY, aiKey: AI_KEY });
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Analizar Server escuchando en puerto ${PORT}`);

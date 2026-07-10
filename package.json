@@ -10,7 +10,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "daily:pepe": "node scripts/daily-pepe-analysis.js"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
