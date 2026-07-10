@@ -15,6 +15,7 @@ import { runFullAnalysis, runAIOnly, scrapeCommentsForUrls } from './run-full-an
 import { generateEventReport } from './event-report.js';
 import { buildReportDocx } from './report-docx.js';
 import { attachVoiceRelay } from './voice-relay.js';
+import { dateInZoneWithOffset, runDailyPepeAnalysis } from './daily-pepe-analysis.js';
 
 const APIFY_TOKEN = process.env.APIFY_TOKEN;
 const AI_KEY      = process.env.OPENROUTER_API_KEY;
@@ -49,6 +50,54 @@ if (missingAtBoot.length) {
 
 let running = false;
 let reporting = false;
+let dailyRunning = false;
+let lastDailyTargetDate = null;
+
+function getMexicoCityClock(now = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: process.env.DAILY_ANALYSIS_TIME_ZONE || 'America/Mexico_City',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(now);
+
+  return Object.fromEntries(parts.map(part => [part.type, part.value]));
+}
+
+function startDailyAnalysisScheduler() {
+  if (process.env.ENABLE_DAILY_ANALYSIS === 'false') {
+    console.log('[daily-pepe] Scheduler desactivado por ENABLE_DAILY_ANALYSIS=false');
+    return;
+  }
+
+  const scheduledHour = Number.parseInt(process.env.DAILY_ANALYSIS_HOUR || '7', 10);
+  const scheduledMinute = Number.parseInt(process.env.DAILY_ANALYSIS_MINUTE || '0', 10);
+
+  const tick = () => {
+    const clock = getMexicoCityClock();
+    const hour = Number(clock.hour);
+    const minute = Number(clock.minute);
+    if (hour !== scheduledHour || minute !== scheduledMinute) return;
+
+    const targetDate = dateInZoneWithOffset();
+    if (dailyRunning || lastDailyTargetDate === targetDate) return;
+
+    dailyRunning = true;
+    lastDailyTargetDate = targetDate;
+    console.log(`[daily-pepe] Disparador Railway iniciado para ${targetDate}`);
+
+    runDailyPepeAnalysis({ date: targetDate })
+      .catch(error => console.error('[daily-pepe] Fallo el disparador diario:', error))
+      .finally(() => { dailyRunning = false; });
+  };
+
+  tick();
+  setInterval(tick, 60 * 1000);
+  console.log(`[daily-pepe] Scheduler activo: ${String(scheduledHour).padStart(2, '0')}:${String(scheduledMinute).padStart(2, '0')} America/Mexico_City`);
+}
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
@@ -206,7 +255,8 @@ attachVoiceRelay(server, { geminiKey: GEMINI_KEY, aiKey: AI_KEY });
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Analizar Server escuchando en puerto ${PORT}`);
-  console.log(`APIFY_TOKEN: ${APIFY_TOKEN ? '✓' : '✗'}`);
-  console.log(`OPENROUTER_API_KEY: ${AI_KEY ? '✓' : '✗'}`);
-  console.log(`GEMINI_API_KEY (voz): ${GEMINI_KEY ? '✓' : '✗'}`);
+  console.log(`APIFY_TOKEN: ${APIFY_TOKEN ? 'ok' : 'missing'}`);
+  console.log(`OPENROUTER_API_KEY: ${AI_KEY ? 'ok' : 'missing'}`);
+  console.log(`GEMINI_API_KEY (voz): ${GEMINI_KEY ? 'ok' : 'missing'}`);
+  startDailyAnalysisScheduler();
 });

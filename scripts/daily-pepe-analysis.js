@@ -25,7 +25,7 @@ function zonedDateParts(date, timeZone) {
   };
 }
 
-function dateInZoneWithOffset({ now = new Date(), timeZone = TIME_ZONE, offsetDays = DATE_OFFSET_DAYS } = {}) {
+export function dateInZoneWithOffset({ now = new Date(), timeZone = TIME_ZONE, offsetDays = DATE_OFFSET_DAYS } = {}) {
   const { year, month, day } = zonedDateParts(now, timeZone);
   const utcNoon = new Date(Date.UTC(year, month - 1, day, 12));
   utcNoon.setUTCDate(utcNoon.getUTCDate() - offsetDays);
@@ -70,19 +70,22 @@ const emit = event => {
   }
 };
 
-async function main() {
+export async function runDailyPepeAnalysis({ date, emit: customEmit = emit } = {}) {
   const apifyToken = requireEnv('APIFY_TOKEN');
   const aiKey = requireEnv('OPENROUTER_API_KEY');
-  const date = getArg('date') || process.env.DAILY_ANALYSIS_DATE || dateInZoneWithOffset();
+  const dateKey = date || process.env.DAILY_ANALYSIS_DATE || dateInZoneWithOffset();
 
-  console.log(`[daily-pepe] Iniciando analisis completo para ${date}`);
+  console.log(`[daily-pepe] Iniciando analisis completo para ${dateKey}`);
   console.log(`[daily-pepe] Zona base: ${TIME_ZONE}; offset dias: ${DATE_OFFSET_DAYS}`);
 
-  const summary = await runFullAnalysis({ apifyToken, aiKey, date, emit });
+  const summary = await runFullAnalysis({ apifyToken, aiKey, date: dateKey, emit: customEmit });
   console.log(`[daily-pepe] Analisis guardado en Supabase para ${summary.date}`);
+  return summary;
 }
 
-main().catch(error => {
-  console.error('[daily-pepe] Fallo el analisis diario:', error);
-  process.exit(1);
-});
+if (process.argv[1]?.endsWith('daily-pepe-analysis.js')) {
+  runDailyPepeAnalysis({ date: getArg('date') }).catch(error => {
+    console.error('[daily-pepe] Fallo el analisis diario:', error);
+    process.exit(1);
+  });
+}
