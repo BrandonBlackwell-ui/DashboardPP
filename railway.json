@@ -7,7 +7,7 @@
   "deploy": {
     "startCommand": "node scripts/analizar-server.js",
     "healthcheckPath": "/status",
-    "healthcheckTimeout": 30,
+    "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE"
   }
 }
