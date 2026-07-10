@@ -54,17 +54,23 @@ let dailyRunning = false;
 let lastDailyTargetDate = null;
 
 function getMexicoCityClock(now = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: process.env.DAILY_ANALYSIS_TIME_ZONE || 'America/Mexico_City',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).formatToParts(now);
-
-  return Object.fromEntries(parts.map(part => [part.type, part.value]));
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: process.env.DAILY_ANALYSIS_TIME_ZONE || 'America/Mexico_City',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(now);
+    return Object.fromEntries(parts.map(part => [part.type, part.value]));
+  } catch {
+    // Fallback si el runtime no trae datos de zonas horarias (ICU): CDMX = UTC-6 todo el año.
+    const t = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+    const p = n => String(n).padStart(2, '0');
+    return { year: String(t.getUTCFullYear()), month: p(t.getUTCMonth() + 1), day: p(t.getUTCDate()), hour: p(t.getUTCHours()), minute: p(t.getUTCMinutes()) };
+  }
 }
 
 function startDailyAnalysisScheduler() {
@@ -77,21 +83,26 @@ function startDailyAnalysisScheduler() {
   const scheduledMinute = Number.parseInt(process.env.DAILY_ANALYSIS_MINUTE || '0', 10);
 
   const tick = () => {
-    const clock = getMexicoCityClock();
-    const hour = Number(clock.hour);
-    const minute = Number(clock.minute);
-    if (hour !== scheduledHour || minute !== scheduledMinute) return;
+    // Blindado: un error del scheduler jamás debe tumbar el servidor web (ni su healthcheck).
+    try {
+      const clock = getMexicoCityClock();
+      const hour = Number(clock.hour);
+      const minute = Number(clock.minute);
+      if (hour !== scheduledHour || minute !== scheduledMinute) return;
 
-    const targetDate = dateInZoneWithOffset();
-    if (dailyRunning || lastDailyTargetDate === targetDate) return;
+      const targetDate = dateInZoneWithOffset();
+      if (dailyRunning || lastDailyTargetDate === targetDate) return;
 
-    dailyRunning = true;
-    lastDailyTargetDate = targetDate;
-    console.log(`[daily-pepe] Disparador Railway iniciado para ${targetDate}`);
+      dailyRunning = true;
+      lastDailyTargetDate = targetDate;
+      console.log(`[daily-pepe] Disparador Railway iniciado para ${targetDate}`);
 
-    runDailyPepeAnalysis({ date: targetDate })
-      .catch(error => console.error('[daily-pepe] Fallo el disparador diario:', error))
-      .finally(() => { dailyRunning = false; });
+      runDailyPepeAnalysis({ date: targetDate })
+        .catch(error => console.error('[daily-pepe] Fallo el disparador diario:', error))
+        .finally(() => { dailyRunning = false; });
+    } catch (error) {
+      console.error('[daily-pepe] Error en el tick del scheduler (ignorado):', error?.message || error);
+    }
   };
 
   tick();
@@ -258,5 +269,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`APIFY_TOKEN: ${APIFY_TOKEN ? 'ok' : 'missing'}`);
   console.log(`OPENROUTER_API_KEY: ${AI_KEY ? 'ok' : 'missing'}`);
   console.log(`GEMINI_API_KEY (voz): ${GEMINI_KEY ? 'ok' : 'missing'}`);
-  startDailyAnalysisScheduler();
+  // El scheduler nunca debe impedir que el server quede escuchando (healthcheck).
+  try { startDailyAnalysisScheduler(); }
+  catch (e) { console.error('[daily-pepe] No se pudo iniciar el scheduler (server sigue arriba):', e?.message || e); }
 });

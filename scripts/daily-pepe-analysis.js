@@ -10,19 +10,20 @@ const TIME_ZONE = process.env.DAILY_ANALYSIS_TIME_ZONE || 'America/Mexico_City';
 const DATE_OFFSET_DAYS = Number.parseInt(process.env.DAILY_ANALYSIS_DATE_OFFSET_DAYS || '1', 10);
 
 function zonedDateParts(date, timeZone) {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(date);
-
-  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
-  return {
-    year: Number(values.year),
-    month: Number(values.month),
-    day: Number(values.day),
-  };
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(date);
+    const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    return { year: Number(values.year), month: Number(values.month), day: Number(values.day) };
+  } catch {
+    // Fallback sin datos de zona (ICU): CDMX = UTC-6 todo el año.
+    const t = new Date(date.getTime() - 6 * 60 * 60 * 1000);
+    return { year: t.getUTCFullYear(), month: t.getUTCMonth() + 1, day: t.getUTCDate() };
+  }
 }
 
 export function dateInZoneWithOffset({ now = new Date(), timeZone = TIME_ZONE, offsetDays = DATE_OFFSET_DAYS } = {}) {
