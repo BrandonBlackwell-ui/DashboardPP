@@ -23,8 +23,30 @@ import { createClient } from '@supabase/supabase-js';
 
 const GEMINI_MODEL = process.env.GEMINI_LIVE_MODEL || 'models/gemini-3.1-flash-live-preview';
 const GEMINI_WS = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://aeywtloohrhyxvmxqzqe.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFleXd0bG9vaHJoeXh2bXhxenFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MzY2NzksImV4cCI6MjA5ODQxMjY3OX0.um2x046pEAJhlK6g98brVPFbc1nKFO8ixSUzmoU8dZw';
+const DEFAULT_SUPABASE_URL = 'https://aeywtloohrhyxvmxqzqe.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFleXd0bG9vaHJoeXh2bXhxenFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MzY2NzksImV4cCI6MjA5ODQxMjY3OX0.um2x046pEAJhlK6g98brVPFbc1nKFO8ixSUzmoU8dZw';
+
+function cleanEnv(value) {
+  return String(value || '').trim().replace(/^['"]|['"]$/g, '');
+}
+
+function resolveSupabaseUrl() {
+  const configured = cleanEnv(process.env.SUPABASE_URL);
+  const candidate = configured || DEFAULT_SUPABASE_URL;
+  try {
+    const url = new URL(candidate);
+    if (url.protocol !== 'https:' || !url.hostname.endsWith('.supabase.co')) {
+      throw new Error('not a Supabase project URL');
+    }
+    return url.toString().replace(/\/$/, '');
+  } catch {
+    console.warn('[voz] SUPABASE_URL invalida; usando URL default del proyecto.');
+    return DEFAULT_SUPABASE_URL;
+  }
+}
+
+const SUPABASE_URL = resolveSupabaseUrl();
+const SUPABASE_KEY = cleanEnv(process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY);
 const supabase = SUPABASE_KEY ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
 const PLATFORM_LABELS = {
