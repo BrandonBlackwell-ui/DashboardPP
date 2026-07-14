@@ -47,7 +47,7 @@ export const APIFY_DAILY_ANALYZE_PLAN = {
       hardCapUsd: 0.38,
       actors: [
         { key: 'x_search', actor: 'igolaizola/x-twitter-scraper-ppe', capUsd: 0.05, maxItems: 100 },
-        { key: 'google_news', actor: 'sourabhbgp/google-news-scraper', capUsd: 0.02, maxItems: 10 },
+        { key: 'google_news', actor: 'data_xplorer/google-news-scraper-fast', capUsd: 0.08, maxItems: 40 },
         { key: 'tiktok_search', actor: 'sentry/tiktok-search-api', capUsd: 0.08, maxItems: 10 },
         { key: 'facebook_search', actor: 'igview-owner/facebook-old-posts-search', capUsd: 0.08, maxItems: 10 },
         {

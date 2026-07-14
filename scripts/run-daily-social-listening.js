@@ -208,11 +208,14 @@ function normalizeGoogleNews(items) {
   const domainFromUrl = url => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } };
   return items
     .map(p => {
-      const url = p.articleUrl || p.link || p.url || '';
+      const url = p.url || p.articleUrl || p.link || '';   // decodeUrls:true → URL real del medio
+      const domain = p.domain || domainFromUrl(url);
       return {
       platform: 'google_news',
-      username: cleanSource(p.source || p.sourceDomain || p.author) || domainFromUrl(url),
+      username: cleanSource(p.source || p.sourceDomain || p.author) || domain,
+      domain,
       text: p.title || p.headline || '',
+      descr: p.description || '',
       url,
       published_date: p.publishedAt || p.date || p.pubDate || null,
       likes: 0,
@@ -228,7 +231,7 @@ function normalizeGoogleNews(items) {
       const d = p.published_date.slice(0, 10);
       return d >= TARGET_DATE && d < DATE_NEXT;
     })
-    .filter(p => isRelevant(p.text));
+    .filter(p => isRelevant(p.text + ' ' + (p.descr || '')));
 }
 
 // ─── Supabase helpers ─────────────────────────────────────────────────────────
@@ -264,7 +267,8 @@ async function insertPosts(reportId, themeKey, posts) {
     console.log('  ↳ 0 posts relevantes — nada que guardar');
     return;
   }
-  const rows = posts.map(({ _reactions, ...p }) => ({
+  // domain/descr son auxiliares (relevancia/etiqueta de medio); no son columnas de scraped_posts.
+  const rows = posts.map(({ _reactions, domain, descr, ...p }) => ({
     ...p,
     report_id: reportId,
     theme_key: themeKey,
@@ -364,19 +368,17 @@ async function runTikTok() {
 async function runGoogleNews() {
   console.log('\n📰 GOOGLE NEWS');
   const raw = await runAndFetch(
-    'sourabhbgp/google-news-scraper',
+    'data_xplorer/google-news-scraper-fast',
     {
-      urls: ['"Pepe Aguilar"'],
-      mode: 'search',
-      maxResults: 20,
-      dateFrom: TARGET_DATE,
-      dateTo: TARGET_DATE,
-      language: 'es',
-      country: 'MX',
-      includeFullText: false,
-      fullCoverage: false,
+      keywords: ['Pepe Aguilar'],
+      region_language: process.env.GOOGLE_NEWS_REGION || 'MX:es-419',
+      timeframe: '1d', // últimas 24h; el reporte diario corre sobre "hoy"
+      maxArticles: 40,
+      decodeUrls: true,
+      extractDescriptions: true,
+      extractImages: false,
     },
-    0.04,
+    0.08,
   );
   const posts = normalizeGoogleNews(raw);
   console.log(`  ↳ Artículos relevantes post-filtro: ${posts.length}`);

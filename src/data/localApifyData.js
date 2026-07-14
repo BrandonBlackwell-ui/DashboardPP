@@ -1108,11 +1108,11 @@ const actorMeta = [
   },
   {
     platform: 'google_news',
-    name: 'recomendado: sourabhbgp/google-news-scraper',
-    status: 'fecha exacta nativa, links reales, requiere post-filtro por publishedAt',
-    cost: '0.01 USD prueba / 10 resultados',
-    recommendedMaxItems: 10,
-    fields: ['titulo', 'medio', 'fecha publicada', 'url real', 'imagen', 'autor'],
+    name: 'recomendado: data_xplorer/google-news-scraper-fast',
+    status: 'edición MX (region_language), URL decodificada + descripción; ventana relativa (timeframe) + post-filtro por publishedAt',
+    cost: '~0.04 USD / 40 resultados (cap 0.08)',
+    recommendedMaxItems: 40,
+    fields: ['title', 'source', 'description', 'url', 'publishedAt', 'image'],
     missing: ['sentimiento IA', 'tema IA', 'audiencia del medio', 'url verificada'],
   },
   {

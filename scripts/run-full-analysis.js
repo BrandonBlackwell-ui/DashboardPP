@@ -98,7 +98,7 @@ async function insertPosts(reportId, themeKey, posts) {
   const have = new Set((existing || []).map(e => e.url));
   unique = unique.filter(p => !have.has(p.url));
   if (!unique.length) return [];
-  const rows = unique.map(p => ({ ...p, report_id: reportId, theme_key: themeKey, sentiment: null }));
+  const rows = unique.map(({ domain, descr, ...p }) => ({ ...p, report_id: reportId, theme_key: themeKey, sentiment: null }));
   const { data, error } = await supabase.from('scraped_posts').insert(rows).select('id, url, likes, comments_count');
   if (error) throw new Error(error.message);
   return data || [];
@@ -163,15 +163,17 @@ const normTikTok = (items, from, to) => items.map(p => ({
 const cleanSource = s => (s || '').replace(/^\s*ir a\s+/i, '').replace(/\s+/g, ' ').trim();
 const domainFromUrl = url => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } };
 const normGoogleNews = (items, from, to) => items.map(p => {
-  const url = p.articleUrl || p.link || p.url || '';
+  const url = p.url || p.articleUrl || p.link || '';   // decodeUrls:true → URL real del medio
+  const domain = p.domain || domainFromUrl(url);
   return {
     platform:'google_news',
-    username: cleanSource(p.source || p.sourceDomain) || domainFromUrl(url),
+    username: cleanSource(p.source || p.sourceDomain) || domain,
+    domain, descr: p.description || '',
     text: p.title || '', url,
     published_date: p.publishedAt || p.date || null,
     likes:0, comments_count:0, shares:0, retweets:0, views:0,
   };
-}).filter(p => p.text && p.url && inDate(p.published_date, from, to) && isRelevantNews(p.text));
+}).filter(p => p.text && p.url && inDate(p.published_date, from, to) && isRelevantNews(p.text + ' ' + (p.descr || '')));
 
 // Owned normalizers — sin filtro de fecha, últimos 5 posts del perfil
 const normOwnedInstagram = (items) => {
@@ -588,8 +590,9 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
         sort:'Top', maxItems:100 }, 0.10, 'x_search'),
     runActor(apifyToken, 'sentry/tiktok-search-api',
       { keywords:['Pepe Aguilar', 'los Aguilar'], maxVideosPerKeyword:15, maxVideosTotal:30, sortOrder:'mostViews', datePosted:'today', includePhotoPosts:false }, 0.15, 'tt_search'),
-    runActor(apifyToken, 'sourabhbgp/google-news-scraper',
-      { urls:['"Pepe Aguilar"'], mode:'search', maxResults:35, dateFrom:DATE, dateTo:DATE, language:'es', country:'MX', includeFullText:false, fullCoverage:false }, 0.04, 'gn'),
+    runActor(apifyToken, 'data_xplorer/google-news-scraper-fast',
+      { keywords:['Pepe Aguilar'], region_language: process.env.GOOGLE_NEWS_REGION || 'MX:es-419', timeframe:'1d',
+        maxArticles:40, decodeUrls:true, extractDescriptions:true, extractImages:false }, 0.08, 'gn'),
     // Propios
     runActor(apifyToken, 'coderx/instagram-profile-scraper-api',
       { usernames:[OWNED.instagram] }, 0.03, 'own_ig'),

@@ -279,7 +279,7 @@ Resultado de prueba:
 - Trae links reales de medios, no solo redirects de Google.
 - Aun asi puede traer resultados con `publishedAt` del dia anterior dentro de la busqueda, por lo que se debe filtrar localmente por fecha exacta.
 
-Decision:
+Decision (anterior, ya superada):
 
 Usar `sourabhbgp/google-news-scraper` como actor principal de Google News.
 
@@ -288,6 +288,34 @@ Configuracion de prueba:
 - Usar `maxResults: 10`.
 - Usar `maxTotalChargeUsd: 0.10`.
 - No activar `includeFullText` en pruebas.
+
+Actor actual (2026-07-14):
+
+```text
+data_xplorer/google-news-scraper-fast
+```
+
+Input usado (edición nacional MX):
+
+```json
+{
+  "keywords": ["Pepe Aguilar"],
+  "region_language": "MX:es-419",
+  "timeframe": "1d",
+  "maxArticles": 40,
+  "decodeUrls": true,
+  "extractDescriptions": true,
+  "extractImages": false
+}
+```
+
+Notas:
+
+- `region_language: "MX:es-419"` prioriza portales nacionales de México (configurable con env `GOOGLE_NEWS_REGION`).
+- `decodeUrls` da la URL real del medio (se saca `domain` de ahí); `extractDescriptions` alimenta el filtro de relevancia (título + descripción).
+- Campos de salida: `title`, `url`, `source`, `description`, `publishedAt`, `image`.
+- **Ventana relativa, no fecha exacta**: el actor filtra por `timeframe` (`1d/7d/30d/1y/all`) relativo a hoy. `gnTimeframe()` en los scripts elige el bucket mínimo que cubre la fecha objetivo; el recorte al día exacto se mantiene con el post-filtro por `publishedAt` (`>= date_from && < date_to`). Para históricos viejos el bucket se ensancha y trae más ruido antes de filtrar.
+- Cap de gasto `maxTotalChargeUsd: 0.08` (≈0.04 reales por 40 notas).
 - No activar `fullCoverage` en pruebas.
 
 Configuracion de produccion inicial:
@@ -1654,7 +1682,7 @@ Reglas de escalado:
 ## Pendientes
 
 - Buscar y probar un actor de TikTok que acepte rango exacto `from/to`.
-- Mantener `sourabhbgp/google-news-scraper` como Google News barato probado; buscar alternativa solo si necesitamos impacto/alcance.
+- Google News usa `data_xplorer/google-news-scraper-fast` como único actor (edición MX `es-419`, URL decodificada + descripción, `timeframe:'1d'` = últimas 24h + post-filtro). Los actores anteriores (`sourabhbgp`, `crawlerbros`, `easyapi`) quedan solo como registro histórico.
 - Armar lista de cuentas Instagram a monitorear con `coderx/instagram-profile-scraper-api`.
 - Seguir buscando actor de Instagram por keyword/hashtag que sea estable y reciente.
 - Validar YouTube con presupuesto aprobado o input/schema correcto.
