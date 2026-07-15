@@ -27,6 +27,38 @@ const OWNED = {
   x:         'https://x.com/PepeAguilar',
 };
 
+// ─── Prensa: watchlist de portales (RSS directo, GRATIS, sin Apify) ──────────
+// Cada portal: { name, search: 'https://SITIO/?s={kw}&feed=rss2' } → feed de búsqueda
+// WordPress (busca en el texto completo del sitio; {kw} se sustituye por cada término),
+// o { name, feeds: ['url-rss-fija'] } → se filtra por NEWS_KW en título+descripción.
+// trusted:true (ej. Google Alerts) NO se re-filtra: Google ya filtró por la query.
+// El ORDEN importa para el dedup: portales con URL real primero, Google News RSS al final
+// (sus links son redirects) para que siempre gane la mejor versión de cada nota.
+const MEDIA_WATCHLIST = [
+  // Verificado 2026-07-14: búsqueda WP real (término basura → 0 items). Espectáculos fuerte.
+  { name: 'Tribuna', search: 'https://www.tribuna.com.mx/?s={kw}&feed=rss2' },
+  // Alertas de "Pepe Aguilar" del usuario: Google ya filtró por la query → trusted (no se
+  // re-filtra por keywords). Sus links vienen envueltos; unwrapGoogleUrl saca la URL real.
+  { name: 'Google Alerts', trusted: true, feeds: [
+    'https://www.google.com/alerts/feeds/08157044076431884555/17076835080919692837',
+    'https://www.google.com/alerts/feeds/08157044076431884555/1331091741186604113',
+  ] },
+  { name: 'Google News RSS', search: 'https://news.google.com/rss/search?q={kw}&hl=es-419&gl=MX&ceid=MX:es-419' },
+];
+const WATCHLIST_SEARCH_TERMS = ['"Pepe Aguilar"', '"los Aguilar"', '"dinastía Aguilar"'];
+
+// Páginas/perfiles de FB de medios a vigilar: [{ name, source: 'https://www.facebook.com/...' }].
+// ~$0.06 por página POR CORRIDA (con el cron diario = por día). Vacío = no corre nada.
+const FACEBOOK_WATCH_PAGES = [];
+
+// Google News (actor data_xplorer): maxArticles es POR keyword y cobra ~$1/1000 resultados,
+// así que el tope de gasto escala con el número de keywords para no truncar a la mitad.
+const GN_KEYWORDS = ['Pepe Aguilar'];
+const GN_MAX_ARTICLES = 40;
+const GN_CAP = +(0.02 + GN_KEYWORDS.length * (GN_MAX_ARTICLES / 1000) * 1.6).toFixed(3);
+// Días de prensa hacia atrás desde la fecha del reporte (1 = solo ese día → timeframe '1d').
+const NEWS_LOOKBACK_DAYS = Math.max(1, parseInt(process.env.NEWS_LOOKBACK_DAYS, 10) || 1);
+
 // ─── Helpers Apify ────────────────────────────────────────────────────────────
 async function apifyRun(token, actorId, input, maxChargeUsd) {
   const encoded = actorId.replace('/', '~');
@@ -70,7 +102,11 @@ const isRelevantNews = t => NEWS_KW.some(k => (t||'').toLowerCase().includes(k))
 
 const nextDay  = d => { const dt = new Date(d+'T12:00:00Z'); dt.setDate(dt.getDate()+1); return dt.toISOString().slice(0,10); };
 const daysAgo  = (d, n) => { const dt = new Date(d+'T12:00:00Z'); dt.setDate(dt.getDate()-n); return dt.toISOString().slice(0,10); };
-const inDate   = (dateStr, from, to) => { if (!dateStr) return true; const d = dateStr.slice(0,10); return d >= from && d < to; };
+// Ventana exacta por timestamp (ms); 'to' exclusivo. Post sin fecha parseable se conserva
+// (mejor incluir que perder por dato faltante).
+const inRange    = (dateStr, fromTs, toTs) => { if (!dateStr) return true; const t = Date.parse(dateStr); return Number.isNaN(t) ? true : (t >= fromTs && t < toTs); };
+const dayStartTs = d => Date.parse(d + 'T00:00:00Z');
+const safeIso    = d => { const t = Date.parse(d || ''); return Number.isNaN(t) ? null : new Date(t).toISOString(); };
 
 // ─── Supabase helpers ─────────────────────────────────────────────────────────
 async function upsertReport(themeKey, themeLabel, dateKey) {
@@ -98,7 +134,7 @@ async function insertPosts(reportId, themeKey, posts) {
   const have = new Set((existing || []).map(e => e.url));
   unique = unique.filter(p => !have.has(p.url));
   if (!unique.length) return [];
-  const rows = unique.map(({ domain, descr, ...p }) => ({ ...p, report_id: reportId, theme_key: themeKey, sentiment: null }));
+  const rows = unique.map(({ domain, descr, via, ...p }) => ({ ...p, report_id: reportId, theme_key: themeKey, sentiment: null }));
   const { data, error } = await supabase.from('scraped_posts').insert(rows).select('id, url, likes, comments_count');
   if (error) throw new Error(error.message);
   return data || [];
@@ -118,7 +154,7 @@ const normX = (items, from, to) => items.map(p => ({
   published_date: p.created_at || p.createdAt || null,
   likes: +( p.likeCount || p.likes || 0), comments_count: +(p.replyCount || p.comments || 0),
   retweets: +(p.retweetCount || p.retweets || 0), views: +(p.viewCount || p.views || 0), shares: 0,
-})).filter(p => p.text && p.url && inDate(p.published_date, from, to) && isRelevant(p.text));
+})).filter(p => p.text && p.url && inRange(p.published_date, from, to) && isRelevant(p.text));
 
 const normFacebook = (items, from, to) => items.map(p => {
   const rx = +(p.reactions_count || p.reactionsCount || 0);
@@ -136,7 +172,7 @@ const normFacebook = (items, from, to) => items.map(p => {
     fb_sad:   +(p.sad  || p.sadCount  || 0),
     fb_angry: +(p.angry|| p.angryCount|| 0),
   };
-}).filter(p => p.text && p.url && inDate(p.published_date, from, to) && isRelevant(p.text));
+}).filter(p => p.text && p.url && inRange(p.published_date, from, to) && isRelevant(p.text));
 
 const normInstagram = (items, from, to) => items.map(p => {
   const code = p.code || p.shortCode || '';
@@ -147,7 +183,7 @@ const normInstagram = (items, from, to) => items.map(p => {
     likes: +(p.likeCount || p.likesCount || 0), comments_count: +(p.commentCount || p.commentsCount || 0),
     views: +(p.video?.playCount || p.videoPlayCount || 0), shares:0, retweets:0,
   };
-}).filter(p => p.text && p.url && inDate(p.published_date, from, to) && isRelevant(p.text + p.username));
+}).filter(p => p.text && p.url && inRange(p.published_date, from, to) && isRelevant(p.text + p.username));
 
 const normTikTok = (items, from, to) => items.map(p => ({
   platform:'tiktok', username: p.author || p.nickname || p.authorMeta?.name || '',
@@ -157,23 +193,161 @@ const normTikTok = (items, from, to) => items.map(p => ({
   shares: +(p.shareCount || 0), views: +(p.playCount || p.plays || 0), retweets:0,
   followers: +(p.followers || p.authorMeta?.fans || 0),
   _subs: p.videoMeta?.subtitleLinks || p.subtitleLinks || null,
-})).filter(p => p.text && p.url && inDate(p.published_date, from, to) && isRelevant(p.text + p.username));
+})).filter(p => p.text && p.url && inRange(p.published_date, from, to) && isRelevant(p.text + p.username));
 
 // Limpia el nombre de la fuente ("Ir a Milenio" -> "Milenio") y saca el dominio del URL.
 const cleanSource = s => (s || '').replace(/^\s*ir a\s+/i, '').replace(/\s+/g, ' ').trim();
 const domainFromUrl = url => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } };
-const normGoogleNews = (items, from, to) => items.map(p => {
-  const url = p.url || p.articleUrl || p.link || '';   // decodeUrls:true → URL real del medio
-  const domain = p.domain || domainFromUrl(url);
-  return {
-    platform:'google_news',
-    username: cleanSource(p.source || p.sourceDomain) || domain,
-    domain, descr: p.description || '',
-    text: p.title || '', url,
-    published_date: p.publishedAt || p.date || null,
-    likes:0, comments_count:0, shares:0, retweets:0, views:0,
+const tsToIso = ts => { const n = +ts; if (!n) return null; return new Date(n > 1e12 ? n : n * 1000).toISOString(); };
+const normGoogleNews = (items, from, to) => {
+  const seen = new Set();
+  return items.map(p => {
+    const url = p.url || p.articleUrl || p.link || '';   // decodeUrls:true → URL real del medio
+    const domain = p.domain || domainFromUrl(url);
+    return {
+      platform:'google_news',
+      username: cleanSource(p.source || p.sourceDomain) || domain,
+      domain, descr: p.description || '',
+      text: p.title || '', url,
+      published_date: p.publishedAt || p.date || tsToIso(p.publishedTimestamp),
+      likes:0, comments_count:0, shares:0, retweets:0, views:0,
+    };
+  }).filter(p => {
+    if (!p.text || !p.url) return false;
+    if (!inRange(p.published_date, from, to)) return false;
+    if (!isRelevantNews(p.text + ' ' + (p.descr || ''))) return false;
+    if (seen.has(p.url)) return false; // varias keywords pueden repetir la misma nota
+    seen.add(p.url);
+    return true;
+  });
+};
+
+// ─── Prensa local: watchlist de portales por RSS directo (GRATIS, sin Apify) ──
+const stripCdata = s => (s || '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1');
+// Dos pasadas de quitar tags: Google Alerts (Atom) escapa el HTML dentro del título
+// (&lt;b&gt;...), así que hay que decodificar entidades y volver a quitar tags.
+const stripTags  = s => stripCdata(s).replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<')
+  .replace(/&gt;/g, '>').replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)).replace(/&quot;/g, '"')
+  .replace(/&#8220;|&#8221;/g, '"').replace(/&nbsp;/g, ' ')
+  .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+function parseRssItems(xml) {
+  const blocks = [...xml.matchAll(/<(item|entry)[\s>]([\s\S]*?)<\/\1>/g)].map(m => m[2]);
+  return blocks.map(b => {
+    const pick = tag => (b.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i')) || [])[1] || '';
+    const linkAttr = (b.match(/<link[^>]*href="([^"]+)"/i) || [])[1] || '';
+    const sourceName = stripTags(pick('source')); // Google News RSS: nombre del medio real
+    let title = stripTags(pick('title'));
+    // Google News RSS pone "Titular - Medio"; quita el sufijo si coincide con el source
+    if (sourceName && title.toLowerCase().endsWith(' - ' + sourceName.toLowerCase())) {
+      title = title.slice(0, -(sourceName.length + 3)).trim();
+    }
+    return {
+      title, sourceName,
+      url: stripTags(pick('link')) || linkAttr || stripTags(pick('guid')),
+      description: stripTags(pick('description') || pick('summary') || pick('content:encoded')).slice(0, 400),
+      published_date: stripTags(pick('pubDate') || pick('published') || pick('dc:date') || pick('updated')) || null,
+    };
+  }).filter(i => i.title && i.url);
+}
+
+// Google Alerts envuelve los links: google.com/url?...&url=REAL → desenvuelve.
+// El feed trae el href con entidades escapadas (&amp;), hay que decodificar antes de parsear.
+const unwrapGoogleUrl = u => {
+  const decoded = (u || '').replace(/&amp;/g, '&');
+  try {
+    const parsed = new URL(decoded);
+    if (/(^|\.)google\.com$/.test(parsed.hostname) && parsed.pathname === '/url') {
+      return parsed.searchParams.get('url') || parsed.searchParams.get('q') || decoded;
+    }
+  } catch { /* keep original */ }
+  return decoded;
+};
+
+async function fetchFeed(url, attempt = 1) {
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; RSS reader)' }, signal: AbortSignal.timeout(20000) });
+    if (!res.ok) throw new Error(`${url} → ${res.status}`);
+    return parseRssItems(await res.text());
+  } catch (e) {
+    if (attempt < 2) return fetchFeed(url, attempt + 1); // 1 reintento (timeouts intermitentes)
+    throw e;
+  }
+}
+
+// Las notas salen como platform 'google_news' para integrarse a la misma sección de
+// prensa/medios del dashboard; 'via' y 'domain' son auxiliares (no se insertan a Supabase).
+async function scrapeWatchlist(portals, searchTerms, fromTs, toTs, isRelevantFeed, log) {
+  const seen = new Set();
+  const out = [];
+  const toPost = (item, portalName) => {
+    const url = unwrapGoogleUrl(item.url);
+    const domain = domainFromUrl(url);
+    return {
+      platform: 'google_news',
+      // sourceName (Google News RSS) > dominio real (Alerts) > nombre del portal
+      username: item.sourceName || (portalName && !/google/i.test(portalName) ? portalName : domain) || domain,
+      domain, via: portalName,
+      text: item.title, descr: item.description, url,
+      published_date: safeIso(item.published_date),
+      likes: 0, comments_count: 0, shares: 0, retweets: 0, views: 0,
+    };
   };
-}).filter(p => p.text && p.url && inDate(p.published_date, from, to) && isRelevantNews(p.text + ' ' + (p.descr || '')));
+  for (const portal of portals) {
+    const jobs = [];
+    // Feed de búsqueda (una petición por término): el sitio ya buscó en texto completo
+    if (portal.search) {
+      for (const kw of searchTerms) {
+        jobs.push(fetchFeed(portal.search.replace('{kw}', encodeURIComponent(kw)))
+          .then(items => items.map(i => ({ i, filtered: false }))));
+      }
+    }
+    // Feeds fijos: se filtran por keywords, salvo trusted:true (ej. Google Alerts)
+    for (const f of (portal.feeds || [])) {
+      jobs.push(fetchFeed(f).then(items => items.map(i => ({ i, filtered: !portal.trusted }))));
+    }
+    const results = await Promise.allSettled(jobs);
+    let count = 0;
+    for (const r of results) {
+      if (r.status === 'rejected') { log(`✗ prensa ${portal.name}: ${r.reason?.message}`); continue; }
+      for (const { i, filtered } of r.value) {
+        const post = toPost(i, portal.name);
+        if (!inRange(post.published_date, fromTs, toTs)) continue;
+        if (filtered && !isRelevantFeed(post.text + ' ' + post.descr)) continue;
+        if (seen.has(post.url)) continue;
+        seen.add(post.url);
+        out.push(post); count++;
+      }
+    }
+    log(`prensa ${portal.name}: ${count} notas`);
+  }
+  return out;
+}
+
+// Páginas/perfiles de FB vigilados (medios). Mismo actor que redes propias,
+// pero filtrando por ventana + relevancia.
+const normWatchFacebook = (items, pageName, from, to) => items.map(p => ({
+  platform: 'facebook', username: p.authorName || pageName,
+  text: p.text || p.message || '', url: p.permalink || p.url || '',
+  published_date: p.publishTimeIso || p.date || null,
+  likes: +(p.reactionCount || p.reactionsCount || 0), comments_count: +(p.commentCount || 0),
+  shares: +(p.shareCount || p.sharesCount || 0), retweets: 0, views: 0,
+})).filter(p => p.text && p.url && inRange(p.published_date, from, to) && isRelevant(p.text));
+
+// Dedup de prensa multi-vía: la misma nota puede llegar por portal directo, actor de GN
+// y Google News RSS. Claves: URL exacta y título+medio normalizados. Se conserva la
+// PRIMERA aparición → pasar primero las fuentes con URL real.
+const dedupePress = (posts) => {
+  const seen = new Set();
+  return posts.filter(p => {
+    const t = (p.text || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    const s = (p.username || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    const keys = [p.url, t && s ? `${t}|${s}` : null].filter(Boolean);
+    if (keys.some(k => seen.has(k))) return false;
+    keys.forEach(k => seen.add(k));
+    return true;
+  });
+};
 
 // Owned normalizers — sin filtro de fecha, últimos 5 posts del perfil
 const normOwnedInstagram = (items) => {
@@ -564,18 +738,32 @@ async function enrichAndSaveAI(apiKey, themeKey, dateKey, allPostsByTheme) {
 }
 
 // ─── Exportable orchestrator ──────────────────────────────────────────────────
-export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.log }) {
+export async function runFullAnalysis({ apifyToken, aiKey, date, from, to, emit = console.log }) {
   const DATE       = date || new Date().toISOString().slice(0,10);
   const DNEXT      = nextDay(DATE);
   const OWNED_FROM = daysAgo(DATE, 7); // propios: últimos 7 días
 
-  const summary = { date: DATE, phases: {}, posts: {}, comments: {}, ai: {}, startedAt: new Date().toISOString() };
+  // Ventana exacta opcional (ISO con zona, ej. '2026-07-14T17:00:00-06:00'): si viene,
+  // TODAS las fuentes recortan por timestamp exacto; sin ella, el día completo DATE.
+  const hasWindow = !!(from && to && !Number.isNaN(Date.parse(from)) && !Number.isNaN(Date.parse(to)));
+  const fromTs = hasWindow ? Date.parse(from) : dayStartTs(DATE);
+  const toTs   = hasWindow ? Date.parse(to)   : dayStartTs(DNEXT);
+
+  // Prensa: ventana propia (lookback de N días) y timeframe relativo del actor de GN.
+  // El actor filtra relativo a HOY; elegimos el bucket mínimo que cubre la ventana y
+  // el recorte exacto lo hace inRange().
+  const newsFromTs = hasWindow ? fromTs : dayStartTs(NEWS_LOOKBACK_DAYS > 1 ? daysAgo(DATE, NEWS_LOOKBACK_DAYS - 1) : DATE);
+  const newsToTs   = toTs;
+  const newsDaysBack = Math.max(0, Math.ceil((Date.now() - newsFromTs) / 86400000));
+  const newsTimeframe = newsDaysBack <= 1 ? '1d' : newsDaysBack <= 7 ? '7d' : newsDaysBack <= 30 ? '30d' : newsDaysBack <= 365 ? '1y' : 'all';
+
+  const summary = { date: DATE, window: hasWindow ? { from, to } : { day: DATE }, phases: {}, posts: {}, comments: {}, ai: {}, startedAt: new Date().toISOString() };
   const allSavedPosts = {}; // themeKey → array of saved post records {id, url, likes, comments_count}
 
   // ── FASE A: Todo Apify en paralelo ─────────────────────────────────────────
   emit({ type:'phase', phase:'A', msg:'Iniciando scraping en paralelo (público + propios)...' });
 
-  const [fbR, igR, xR, ttR, gnR, ownIgR, ownFbR, ownTtR, ownYtR, ownXR] = await Promise.allSettled([
+  const [fbR, igR, xR, ttR, gnR, ownIgR, ownFbR, ownTtR, ownYtR, ownXR, wlR, fbwR] = await Promise.allSettled([
     // Público
     runActor(apifyToken, 'igview-owner/facebook-old-posts-search',
       { query:'"Pepe Aguilar" OR "los Aguilar"', startDate:DATE, endDate:DATE, maxResults:50 }, 0.12, 'fb_search'),
@@ -591,8 +779,9 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
     runActor(apifyToken, 'sentry/tiktok-search-api',
       { keywords:['Pepe Aguilar', 'los Aguilar'], maxVideosPerKeyword:15, maxVideosTotal:30, sortOrder:'mostViews', datePosted:'today', includePhotoPosts:false }, 0.15, 'tt_search'),
     runActor(apifyToken, 'data_xplorer/google-news-scraper-fast',
-      { keywords:['Pepe Aguilar'], region_language: process.env.GOOGLE_NEWS_REGION || 'MX:es-419', timeframe:'1d',
-        maxArticles:40, decodeUrls:true, extractDescriptions:true, extractImages:false }, 0.08, 'gn'),
+      { keywords: GN_KEYWORDS, region_language: process.env.GOOGLE_NEWS_REGION || 'MX:es-419', timeframe: newsTimeframe,
+        maxArticles: GN_MAX_ARTICLES, decodeUrls:true, extractDescriptions:true, extractImages:false,
+        proxyConfiguration: { useApifyProxy: true } }, GN_CAP, 'gn'),
     // Propios
     runActor(apifyToken, 'coderx/instagram-profile-scraper-api',
       { usernames:[OWNED.instagram] }, 0.03, 'own_ig'),
@@ -603,17 +792,52 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, emit = console.
     fetchYouTubeRSS(),
     runActor(apifyToken, 'scraper_one/x-profile-posts-scraper',
       { profileUrls:[OWNED.x], resultsLimit:10, skipPinnedPosts:true }, 0.05, 'own_x'),
+    // Prensa gratis: watchlist RSS (portales + Google News RSS). Sin Apify, $0.
+    scrapeWatchlist(MEDIA_WATCHLIST, WATCHLIST_SEARCH_TERMS, newsFromTs, newsToTs, isRelevantNews,
+      m => emit({ type:'log', msg: m })),
+    // Páginas de FB de medios vigiladas (~$0.06 c/u). Lista vacía → no corre nada.
+    FACEBOOK_WATCH_PAGES.length ? (async () => {
+      const rs = await Promise.allSettled(FACEBOOK_WATCH_PAGES.map(pg =>
+        runActor(apifyToken, 'unseenuser/fb-posts',
+          { mode:'profile', sources:[pg.source], maxPosts:20, includeTopComments:false,
+            fetchAllComments:false, fetchCommentReplies:false, enrichSinglePostFields:false }, 0.06, `fbw:${pg.name}`)
+          .then(items => ({ pg, items }))));
+      const out = [];
+      for (const r of rs) {
+        if (r.status === 'rejected') { emit({ type:'error', msg:`fb_page: ${r.reason?.message}` }); continue; }
+        const posts = normWatchFacebook(r.value.items, r.value.pg.name, fromTs, toTs);
+        emit({ type:'log', msg:`fb_page ${r.value.pg.name}: ${posts.length} posts (de ${r.value.items.length} recientes)` });
+        out.push(...posts);
+      }
+      return out;
+    })() : Promise.resolve([]),
   ]);
 
   emit({ type:'phase_done', phase:'A', msg:'Scraping completado. Guardando en Supabase...' });
 
+  // Prensa combinada multi-vía, en orden de calidad de URL para el dedup:
+  // portales de la watchlist (URL real) → actor de GN (URL decodificada) → Google News RSS (redirects).
+  const wlPosts = wlR.status === 'fulfilled' ? (wlR.value || []) : [];
+  if (wlR.status === 'rejected') emit({ type:'error', msg:`prensa_watchlist: ${wlR.reason?.message}` });
+  const wlPortals   = wlPosts.filter(p => !/google news rss/i.test(p.via || ''));
+  const wlGoogleRss = wlPosts.filter(p =>  /google news rss/i.test(p.via || ''));
+  const gnPosts = gnR.status === 'fulfilled' ? normGoogleNews(gnR.value, newsFromTs, newsToTs) : [];
+  const pressPosts = dedupePress([...wlPortals, ...gnPosts, ...wlGoogleRss]);
+  if (wlPosts.length) emit({ type:'log', msg:`prensa: ${pressPosts.length} notas únicas (${wlPortals.length} portales + ${gnPosts.length} actor GN + ${wlGoogleRss.length} GN RSS, antes de dedup)` });
+
+  // Posts de páginas de FB vigiladas → se integran a la red Facebook.
+  const fbwPosts = fbwR.status === 'fulfilled' ? (fbwR.value || []) : [];
+
   // Normalizar y guardar — público
   const nets = [
-    { key:'facebook',    result:fbR,  norm: items => normFacebook(items, DATE, DNEXT),   label:'Facebook',    cap:50  },
-    { key:'instagram',   result:igR,  norm: items => normInstagram(items, DATE, DNEXT),  label:'Instagram',   cap:75  },
-    { key:'x',           result:xR,   norm: items => normX(items, DATE, DNEXT),          label:'X',           cap:100 },
-    { key:'tiktok',      result:ttR,  norm: items => normTikTok(items, DATE, DNEXT),     label:'TikTok',      cap:30  },
-    { key:'google_news', result:gnR,  norm: items => normGoogleNews(items, DATE, DNEXT), label:'Google News', cap:20  },
+    { key:'facebook',    result:fbR,  norm: items => [...normFacebook(items, fromTs, toTs), ...fbwPosts], label:'Facebook', cap:50 },
+    { key:'instagram',   result:igR,  norm: items => normInstagram(items, fromTs, toTs),  label:'Instagram',   cap:75  },
+    { key:'x',           result:xR,   norm: items => normX(items, fromTs, toTs),          label:'X',           cap:100 },
+    { key:'tiktok',      result:ttR,  norm: items => normTikTok(items, fromTs, toTs),     label:'TikTok',      cap:30  },
+    // La prensa ya viene normalizada y deduplicada (actor + watchlist); si el actor de GN
+    // falló pero la watchlist trajo notas, la red no se cae.
+    { key:'google_news', result: (gnR.status === 'fulfilled' || wlPosts.length) ? { status:'fulfilled', value: pressPosts } : gnR,
+      norm: items => items, label:'Google News', cap:0 },
   ];
 
   for (const { key, result, norm, label, cap } of nets) {
@@ -857,3 +1081,6 @@ if (process.argv[1]?.endsWith('run-full-analysis.js')) {
 
   runFullAnalysis({ apifyToken: apify, aiKey: ai, date, emit }).catch(e => { console.error(e); process.exit(1); });
 }
+
+// Exportados para pruebas (la watchlist es RSS gratis y se puede validar sin Apify).
+export { scrapeWatchlist, parseRssItems, fetchFeed, dedupePress, MEDIA_WATCHLIST, WATCHLIST_SEARCH_TERMS };

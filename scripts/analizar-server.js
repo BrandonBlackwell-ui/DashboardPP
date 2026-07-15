@@ -137,6 +137,10 @@ const server = http.createServer((req, res) => {
     }
 
     const date = url.searchParams.get('date') || new Date().toISOString().slice(0, 10);
+    // Ventana exacta opcional (ISO con zona, ej. from=2026-07-14T17:00:00-06:00&to=...):
+    // si vienen ambas, todas las fuentes recortan por timestamp exacto en vez del día completo.
+    const from = url.searchParams.get('from') || undefined;
+    const to   = url.searchParams.get('to')   || undefined;
 
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -149,12 +153,14 @@ const server = http.createServer((req, res) => {
     };
 
     running = true;
-    send({ type: 'start', date });
+    send({ type: 'start', date, ...(from && to ? { from, to } : {}) });
 
     runFullAnalysis({
       apifyToken: APIFY_TOKEN,
       aiKey:      AI_KEY,
       date,
+      from,
+      to,
       emit:       send,
     })
       .catch(e => send({ type: 'error', msg: e.message }))
