@@ -16,6 +16,9 @@ import VoiceAssistant from './components/VoiceAssistant';
 const SOCIAL_KEYS = ['facebook', 'instagram', 'x', 'tiktok', 'google_news'];
 import ExportModal from './components/ExportModal';
 import LoginGate from './components/LoginGate';
+import ModeSelect from './components/ModeSelect';
+import VoiceOrbView from './components/VoiceOrbView';
+import PendingApprovals from './components/PendingApprovals';
 import { loadFromSupabase, loadThemeByDate } from './lib/loadFromSupabase';
 import { getFridayDateKey } from './utils/helpers';
 import { applyLocalApifyData, LOCAL_APIFY_DATE_KEY, buildThemes } from './data/localApifyData';
@@ -60,6 +63,7 @@ function Loading() {
 export default function App() {
   const [authed, setAuthed] = useState(() => sessionStorage.getItem('bw_auth') === '1');
   const isAdmin = sessionStorage.getItem('bw_role') === 'admin';
+  const [mode, setMode] = useState(null); // null = pantalla de entrada | 'dashboard' | 'voice'
   const { data, calData, refreshData } = useData();
   const isDesktop = useBreakpoint();
   const [tab, setTab] = useState('panorama');
@@ -110,6 +114,12 @@ export default function App() {
   }, [authed, data, calData]);
 
   if (!authed) return <LoginGate onAuth={() => setAuthed(true)} />;
+
+  // Pantalla de entrada: Dashboard o Agente de Voz (la carga de datos sigue en background)
+  if (!mode) return <ModeSelect onPick={setMode} isDesktop={isDesktop} />;
+
+  // Agente de voz en pantalla completa (orbe)
+  if (mode === 'voice') return <VoiceOrbView onBack={() => setMode(null)} isDesktop={isDesktop} />;
 
   if (bootLoading || !data) {
     return (
@@ -338,7 +348,8 @@ export default function App() {
             {viewContent}
           </DesktopShell>
         )}
-        {data && isAdmin && <VoiceAssistant />}
+        {data && <VoiceAssistant />}
+        {data && isAdmin && <PendingApprovals />}
       </div>
     );
   }
@@ -361,7 +372,8 @@ export default function App() {
             dateOptions={dateOptions} onPanoChange={setPano} onDateChange={handleDateChange} onPlatChange={setPlat}
             panoramaDate={panoramaDate} onPanoramaDateChange={setPanoramaDate} />
           {viewContent}
-          {isAdmin && <VoiceAssistant />}
+          <VoiceAssistant />
+          {isAdmin && <PendingApprovals />}
         </>)}
       </div>
     </div>
