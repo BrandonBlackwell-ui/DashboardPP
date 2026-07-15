@@ -505,7 +505,11 @@ function buildDataPrompt({ report, posts, comments, previousAnalysis }) {
   }
   out += `--- PUBLICACIONES (${posts.length}) ---\n`;
   posts.forEach((p, i) => {
-    out += `${i+1}. [${p.platform}] @${p.username} | ${p.published_date?.slice(0,10)} | likes:${p.likes} comentarios:${p.comments_count} views:${p.views} | "${truncate(p.text)}" | ${p.url}\n`;
+    // Desglose de reacciones de FB cuando existe: haha/angry/sad altos son señal de
+    // burla o molestia que el total de likes esconde — la IA debe poder verlo.
+    const rxTotal = (p.fb_like||0)+(p.fb_love||0)+(p.fb_haha||0)+(p.fb_wow||0)+(p.fb_sad||0)+(p.fb_angry||0);
+    const rx = rxTotal ? ` reacciones[👍${p.fb_like||0} ❤️${p.fb_love||0} 😂${p.fb_haha||0} 😮${p.fb_wow||0} 😢${p.fb_sad||0} 😡${p.fb_angry||0}]` : '';
+    out += `${i+1}. [${p.platform}] @${p.username} | ${p.published_date?.slice(0,10)} | likes:${p.likes} comentarios:${p.comments_count} views:${p.views}${rx} | "${truncate(p.text)}" | ${p.url}\n`;
   });
   if (comments.length) {
     // Muestra representativa: los más gustados primero (no todos, para no inflar el prompt)
@@ -579,6 +583,7 @@ ATENCION: los numeros de abajo son marcadores de posicion ("__CALCULA__"). DEBES
 
 Reglas duras:
 - No inventes datos. Aliados/criticos deben existir en los datos. Los porcentajes suman 100.
+- CUANDO UN POST TRAIGA reacciones[👍 ❤️ 😂 😮 😢 😡]: usa el desglose como señal. Si 😂 (haha) o 😡 (angry) dominan o superan a 👍, es probable burla/molestia aunque el total de reacciones sea alto — menciónalo en la lectura con los números (ej: "el reel juntó 4,777 reacciones pero 2,664 son 😂 vs 1,400 👍: la gente se rie, no aplaude"). No infieras sentimiento SOLO por reacciones: crúzalo con los comentarios.
 - NO incluyas las cuentas propias de Pepe Aguilar (pepeaguilar_oficial, PepeAguilar, etc.) ni a él mismo como aliado o contrario: él es el sujeto del análisis, no una voz externa.
 - SE ESPECIFICO SIEMPRE: cada punto del resumen_ejecutivo, cada alerta y cada oportunidad debe decir QUIEN (autor con @ o nombre del medio), DONDE (en que red), CUANDO (fecha) y CUANTO (numeros reales: likes, comentarios, views, cantidad de notas o posts). Prohibido lo ambiguo tipo "se confirma X" o "hay criticas" sin decir quien lo publico, en que red y con que engagement. Ejemplo MAL: "Se confirma la realizacion de conciertos en Colombia". Ejemplo BIEN: "El Heraldo de Mexico publico el 1 jul la confirmacion de conciertos en Neiva, Colombia; la nota fue replicada en 3 medios mas y el post de @radioformula en X junto 5,839 likes".
 - CUANDO HAYA COMENTARIOS EXTRAIDOS: cita 1-2 comentarios textualmente (entre comillas, breves) que representen lo que dijo la gente, para no quedarte solo en la metrica. Ejemplo: "el post junto 450k likes; los comentarios celebran ('por fin unidos como familia') aunque algunos critican ('puro show mediatico')". Prioriza citar comentarios reales por encima de generalizar.
@@ -669,13 +674,14 @@ async function enrichAndSaveAI(apiKey, themeKey, dateKey, allPostsByTheme) {
     }
     prompt = AI_PROMPT_TEMPLATE(buildResumenPrompt({ networkResults, previousAnalysis }));
   } else {
-    // Red individual: posts + muestra de comentarios crudos
-    posts = allPostsByTheme[themeKey] || [];
+    // Red individual: posts + muestra de comentarios crudos.
+    // Preferir SIEMPRE los registros de la BD: traen texto, red y el desglose de
+    // reacciones fb_*; los posts en memoria (insertPosts) solo traen id/url/likes.
     const { data: postRecs } = await supabase.from('scraped_posts')
-      .select('id,platform,username,text,url,published_date,likes,comments_count,views,followers')
+      .select('id,platform,username,text,url,published_date,likes,comments_count,views,followers,fb_like,fb_love,fb_haha,fb_wow,fb_sad,fb_angry')
       .eq('report_id', report.id);
     const postIds = (postRecs || []).map(p => p.id);
-    if (!posts.length && postRecs?.length) posts = postRecs;
+    posts = postRecs?.length ? postRecs : (allPostsByTheme[themeKey] || []);
     let comments = [];
     if (postIds.length) {
       const { data: cmts } = await supabase.from('scraped_comments').select('*').in('post_id', postIds);
