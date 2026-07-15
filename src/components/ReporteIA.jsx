@@ -68,12 +68,14 @@ function MiniTrend({ calDays, isDesktop }) {
     <Card>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:8, marginBottom:8 }}>
         <CardTitle color={C.ink}>Evolución del período · {fmtDateKey(first.dk)} → {fmtDateKey(last.dk)}</CardTitle>
+        {/* Color = el de cada línea (favorable verde, crítico rojo); la flecha ▲/▼
+            indica si subió o bajó en el período. */}
         <div style={{ display:'flex', gap:14 }}>
-          <span style={{ fontFamily:MONO, fontSize:10.5, color: deltaPos >= 0 ? C.teal : C.crim, fontWeight:700 }}>
-            Favorable {deltaPos >= 0 ? '+' : ''}{deltaPos} pts
+          <span style={{ fontFamily:MONO, fontSize:10.5, color: C.teal, fontWeight:700 }}>
+            Favorable {deltaPos >= 0 ? '▲' : '▼'} {deltaPos >= 0 ? '+' : ''}{deltaPos} pts
           </span>
-          <span style={{ fontFamily:MONO, fontSize:10.5, color: deltaNeg <= 0 ? C.teal : C.crim, fontWeight:700 }}>
-            Crítico {deltaNeg >= 0 ? '+' : ''}{deltaNeg} pts
+          <span style={{ fontFamily:MONO, fontSize:10.5, color: C.crim, fontWeight:700 }}>
+            Crítico {deltaNeg >= 0 ? '▲' : '▼'} {deltaNeg >= 0 ? '+' : ''}{deltaNeg} pts
           </span>
         </div>
       </div>
