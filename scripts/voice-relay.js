@@ -181,6 +181,11 @@ export async function getDashboardData(args = {}) {
 
   const topPosts = (posts || []).slice(0, 15).map(p => {
     const report = byReport.get(p.report_id);
+    // Desglose de reacciones de FB: si 😂/😡 dominan sobre 👍 es burla/molestia (señal clave).
+    const rxTotal = (p.fb_like||0)+(p.fb_love||0)+(p.fb_haha||0)+(p.fb_wow||0)+(p.fb_sad||0)+(p.fb_angry||0);
+    const reactions = rxTotal
+      ? { like: p.fb_like||0, love: p.fb_love||0, haha: p.fb_haha||0, wow: p.fb_wow||0, sad: p.fb_sad||0, angry: p.fb_angry||0 }
+      : undefined;
     return {
       date: report?.date_key || '',
       platform: PLATFORM_LABELS[report?.theme_key || p.platform] || report?.theme_key || p.platform || '',
@@ -191,6 +196,7 @@ export async function getDashboardData(args = {}) {
       views: p.views || 0,
       comments_count: p.comments_count || 0,
       sentiment: p.sentiment || '',
+      ...(reactions ? { reactions } : {}),
       comments: commentsByPost[p.id] || [],
     };
   });
@@ -224,6 +230,37 @@ export async function getDashboardData(args = {}) {
     .filter(x => x.lectura || x.alertas.length || x.aliados.length || x.contrarios.length)
     .slice(0, 12);
 
+  // Comparativa vs el periodo anterior del mismo largo: "¿voy mejor o peor?" es la
+  // pregunta que más importa; se responde sin que Pepe tenga que pedirla dos veces.
+  let comparativa = null;
+  try {
+    const days = Math.max(1, Math.round((Date.parse(to) - Date.parse(from)) / 86400000) + 1);
+    const prevTo = iso(shiftDays(new Date(from + 'T12:00:00'), -1));
+    const prevFrom = iso(shiftDays(new Date(from + 'T12:00:00'), -days));
+    const avgSent = async (f, t) => {
+      const { data } = await supabase
+        .from('reports').select('ai_analysis')
+        .gte('date_key', f).lte('date_key', t)
+        .eq('theme_key', 'resumen').not('ai_analysis', 'is', null);
+      let fav = 0, cri = 0, n = 0;
+      for (const r of data || []) {
+        const s = r.ai_analysis?.sentimiento || {};
+        const fv = Number(s.favorable || 0), cr = Number(s.critico || 0);
+        if (fv || cr) { fav += fv; cri += cr; n++; }
+      }
+      return n ? { favorable: Math.round(fav / n), critico: Math.round(cri / n), dias_con_datos: n } : null;
+    };
+    const [actual, anterior] = await Promise.all([avgSent(from, to), avgSent(prevFrom, prevTo)]);
+    if (actual && anterior) {
+      comparativa = {
+        periodo_actual: { from, to, ...actual },
+        periodo_anterior: { from: prevFrom, to: prevTo, ...anterior },
+        delta: { favorable: actual.favorable - anterior.favorable, critico: actual.critico - anterior.critico },
+        nota: 'delta positivo en favorable = va mejor; delta positivo en critico = empeoró. Úsalo para decirle a Pepe si va mejor o peor que el periodo anterior, con los puntos de diferencia.',
+      };
+    }
+  } catch { /* comparativa es best-effort */ }
+
   return {
     from,
     to,
@@ -234,6 +271,7 @@ export async function getDashboardData(args = {}) {
     by_platform: byPlatform,
     top_posts: topPosts,
     ai_highlights: aiHighlights,
+    ...(comparativa ? { comparativa } : {}),
     instruction: 'Responde en español, breve y claro. Si el usuario pide links, menciona que puede abrirlos en el dashboard y cita los URLs disponibles.',
   };
 }
@@ -258,8 +296,9 @@ const VOICE_TOOLS = [{
 
 // ─── Memoria de conversaciones (para dar sensación de continuidad) ─────────────
 // Trae el resumen de las últimas 1-2 sesiones. Solo resúmenes cortos → costo mínimo de tokens.
+// Devuelve también la fecha de la última sesión para calcular "novedades desde entonces".
 async function fetchRecentMemory(maxSessions = 2) {
-  if (!supabase) return '';
+  if (!supabase) return { block: '', lastDate: null };
   try {
     const { data } = await supabase
       .from('voice_sessions')
@@ -267,19 +306,106 @@ async function fetchRecentMemory(maxSessions = 2) {
       .not('summary', 'is', null)
       .order('created_at', { ascending: false })
       .limit(maxSessions);
-    if (!data?.length) return '';
+    if (!data?.length) return { block: '', lastDate: null };
+    const lastDate = (data[0].created_at || '').slice(0, 10) || null;
     const bloques = data.reverse().map(s => `- (${(s.created_at || '').slice(0, 10)}) ${s.summary}`);
-    return `\n=== MEMORIA DE CONVERSACIONES ANTERIORES ===\nContexto de lo último que habló Pepe contigo. Retómalo con naturalidad SOLO si es relevante (ej. "la última vez me comentaste que te preocupaba Instagram, ¿seguimos con eso?"). No lo recites literal.\n${bloques.join('\n')}\n`;
+    const block = `\n=== MEMORIA DE CONVERSACIONES ANTERIORES ===\nContexto de lo último que habló Pepe contigo. Retómalo con naturalidad SOLO si es relevante (ej. "la última vez me comentaste que te preocupaba Instagram, ¿seguimos con eso?"). No lo recites literal.\n${bloques.join('\n')}\n`;
+    return { block, lastDate };
+  } catch { return { block: '', lastDate: null }; }
+}
+
+// ─── Perfil persistente de Pepe (memoria larga entre sesiones) ─────────────────
+// Hechos duraderos que el resumidor va extrayendo: temas que le preocupan, cómo le
+// gusta que le hablen, pendientes. Es lo que hace que Orwell "lo conozca".
+async function fetchProfile(maxFacts = 15) {
+  if (!supabase) return { block: '', facts: [] };
+  try {
+    const { data } = await supabase
+      .from('voice_profile')
+      .select('fact, created_at')
+      .eq('active', true)
+      .order('created_at', { ascending: false })
+      .limit(maxFacts);
+    if (!data?.length) return { block: '', facts: [] };
+    const facts = data.map(f => f.fact);
+    const block = `\n=== PERFIL DE PEPE (lo que sabes de él por conversaciones pasadas) ===\nÚsalo para personalizar el trato: retoma sus pendientes, respeta sus preferencias, no le repitas lo que ya sabe. Nunca recites esta lista.\n${facts.map(f => `- ${f}`).join('\n')}\n`;
+    return { block, facts };
+  } catch { return { block: '', facts: [] }; }
+}
+
+// ─── Brief del día + novedades desde la última sesión (server-side) ────────────
+// Garantiza que Orwell SIEMPRE sepa lo de hoy aunque el contexto del navegador
+// llegue delgado (ej. Pepe entra directo al orbe de voz sin cargar el dashboard).
+async function fetchServerBrief(lastSessionDate) {
+  if (!supabase) return '';
+  try {
+    const { data: reps } = await supabase
+      .from('reports')
+      .select('date_key, theme_key, ai_analysis')
+      .not('ai_analysis', 'is', null)
+      .order('date_key', { ascending: false })
+      .limit(40);
+    if (!reps?.length) return '';
+
+    const L = [];
+    // Resumen más reciente (el panorama del último día analizado, ignorando placeholders migrados)
+    const latest = reps.find(r => r.theme_key === 'resumen' && r.ai_analysis?._fuente !== 'historico-migrado')
+      || reps.find(r => r.theme_key === 'resumen');
+    if (latest) {
+      const ai = latest.ai_analysis || {};
+      const s = ai.sentimiento || {};
+      L.push(`=== RESUMEN MÁS RECIENTE (${latest.date_key}, cargado por el servidor) ===`);
+      L.push(`Sentimiento: favorable ${s.favorable ?? '?'}% / neutral ${s.neutral ?? '?'}% / crítico ${s.critico ?? '?'}%. Riesgo: ${ai.nivel_riesgo || '?'}.`);
+      const pts = Array.isArray(ai.resumen_ejecutivo) ? ai.resumen_ejecutivo : [];
+      pts.slice(0, 3).forEach(p => L.push(`· ${compactText(p, 260)}`));
+    }
+    // Novedades desde la última conversación: alertas y días de riesgo nuevos
+    if (lastSessionDate) {
+      const nuevos = reps.filter(r => r.date_key > lastSessionDate && r.ai_analysis?._fuente !== 'historico-migrado');
+      const items = [];
+      for (const r of nuevos) {
+        const ai = r.ai_analysis || {};
+        if (['alto', 'muy_alto'].includes((ai.nivel_riesgo || '').toLowerCase())) {
+          items.push(`(${r.date_key}) ${PLATFORM_LABELS[r.theme_key] || r.theme_key} marcó riesgo ${ai.nivel_riesgo}.`);
+        }
+        (Array.isArray(ai.alertas) ? ai.alertas : []).slice(0, 1).forEach(a => {
+          const t = typeof a === 'string' ? a : (a?.text || a?.alerta || '');
+          if (t) items.push(`(${r.date_key}) ${compactText(t, 200)}`);
+        });
+      }
+      if (items.length) {
+        L.push(`\n=== NOVEDADES DESDE TU ÚLTIMA CONVERSACIÓN CON PEPE (${lastSessionDate}) ===`);
+        L.push('Esto pasó desde la última vez que hablaron. Tu PRIMER saludo debe abrir con lo más importante de aquí (máximo 2 cosas), como quien le cuenta a un amigo qué se perdió.');
+        [...new Set(items)].slice(0, 6).forEach(i => L.push(`- ${i}`));
+      }
+    }
+    return L.length ? `\n${L.join('\n')}\n` : '';
   } catch { return ''; }
 }
 
-// Al cerrar la sesión: resume la charla y la guarda para la próxima vez.
-async function summarizeAndStore({ transcript, questions, aiKey }) {
+// ─── Personalidad de Orwell (guía de estilo fija, va siempre en el prompt) ──────
+const ORWELL_STYLE = `
+=== PERSONALIDAD Y ESTILO (OBLIGATORIO) ===
+- Eres Orwell: el consejero de confianza de Pepe Aguilar en temas de reputación. No un robot que lee cifras: un analista cercano que lo conoce y quiere que le vaya bien.
+- Habla en español mexicano, cálido y directo. Frases cortas, lenguaje natural de conversación, cero jerga corporativa ("engagement rate" → "cuánta gente reaccionó").
+- ES UNA CONVERSACIÓN DE VOZ: responde en 2 a 4 frases por turno. Si hay más que contar, ofrece: "¿quieres que entre al detalle?".
+- Números HABLABLES: di "casi cinco mil likes", no "cuatro mil setecientos setenta y siete". Redondea siempre al hablar.
+- Celebra los logros con emoción genuina y el dato en la mano ("tu reel de la Feria rompió veintiún mil reacciones, Pepe — eso casi nadie lo logra").
+- Las malas noticias se dicen completas pero con salida: qué está pasando + qué se puede hacer. Nunca alarmes sin plan.
+- Si en un post de Facebook las reacciones de risa (haha) o enojo (angry) dominan sobre los likes, dilo: es señal de burla o molestia aunque el total se vea alto.
+- APERTURA: tu primer turno SIEMPRE saluda a Pepe por su nombre con calidez y dale un briefing corto (máximo 4 frases) con lo más importante de las NOVEDADES o del RESUMEN MÁS RECIENTE, y cierra preguntándole por dónde quiere empezar.
+- CIERRE RITUAL: cuando notes que la conversación va terminando (Pepe se despide o agradece), despídete dejando una cita concreta: recuérdale que cada mañana a las 7 llega el reporte nuevo y que te pregunte cómo amaneció la conversación. Que se quede con un motivo para volver mañana.
+`;
+
+// Al cerrar la sesión: resume la charla, extrae hechos duraderos para el perfil
+// y guarda ambos para la próxima vez.
+async function summarizeAndStore({ transcript, questions, aiKey, knownFacts = [] }) {
   if (!supabase) return;
   const userTurns = transcript.filter(t => t.role === 'user');
   if (!userTurns.length) return; // sesión vacía, no guardar
 
   let summary = '';
+  let facts = [];
   if (aiKey) {
     try {
       const convo = transcript
@@ -291,16 +417,31 @@ async function summarizeAndStore({ transcript, questions, aiKey }) {
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash-lite',
           messages: [
-            { role: 'system', content: 'Resume en 2-3 frases y en español de qué habló Pepe con el asistente y qué le preocupaba o pidió. Breve y factual, sin preámbulos ni comillas.' },
+            { role: 'system', content: `Analiza la conversación de Pepe Aguilar con su asistente de voz y devuelve SOLO JSON válido con esta forma exacta:
+{"resumen":"2-3 frases en español de qué habló y qué le preocupaba o pidió","hechos":["..."]}
+"hechos" = máximo 3 datos DURADEROS sobre Pepe que sirvan en futuras conversaciones: temas que le preocupan o interesan, preferencias de cómo quiere que le hablen, pendientes que dijo que haría, cosas que pidió no repetirle. NO incluyas datos puntuales del día (métricas, notas) ni nada que ya esté en esta lista de hechos conocidos: ${JSON.stringify(knownFacts.slice(0, 15))}. Si no hay hechos nuevos, "hechos" va vacío.` },
             { role: 'user', content: convo },
           ],
         }),
       });
       const j = await resp.json();
-      summary = j.choices?.[0]?.message?.content?.trim() || '';
+      const raw = (j.choices?.[0]?.message?.content || '').replace(/```json|```/g, '').trim();
+      try {
+        const parsed = JSON.parse(raw);
+        summary = String(parsed.resumen || '').trim();
+        facts = (Array.isArray(parsed.hechos) ? parsed.hechos : []).map(f => String(f).trim()).filter(Boolean).slice(0, 3);
+      } catch { summary = raw; }
     } catch (e) { console.warn('[voz] resumen falló:', e?.message || e); }
   }
   if (!summary) summary = 'Pepe preguntó: ' + questions.slice(0, 5).join(' | ');
+
+  // Hechos nuevos → perfil persistente (si la tabla no existe, solo avisa)
+  if (facts.length) {
+    try {
+      await supabase.from('voice_profile').insert(facts.map(fact => ({ fact })));
+      console.log(`[voz] ${facts.length} hecho(s) nuevos guardados en voice_profile.`);
+    } catch (e) { console.warn('[voz] no se pudo guardar el perfil (¿existe la tabla voice_profile?):', e?.message || e); }
+  }
 
   try {
     await supabase.from('voice_sessions').insert({
@@ -313,6 +454,9 @@ async function summarizeAndStore({ transcript, questions, aiKey }) {
     console.log(`[voz] sesión guardada en voice_sessions (${userTurns.length} turnos, ${questions.length} preguntas).`);
   } catch (e) { console.warn('[voz] no se pudo guardar la sesión (¿existe la tabla voice_sessions?):', e?.message || e); }
 }
+
+// Exportados también para pruebas (no requieren Gemini).
+export { fetchRecentMemory, fetchProfile, fetchServerBrief };
 
 export function attachVoiceRelay(server, { geminiKey, aiKey }) {
   const wss = new WebSocketServer({ noServer: true });
@@ -352,10 +496,11 @@ export function attachVoiceRelay(server, { geminiKey, aiKey }) {
     let userBuf = '';
     let asstBuf = '';
     let saved = false;
+    let knownFacts = []; // hechos del perfil ya conocidos (para no duplicar al extraer)
     const finalize = () => {
       if (saved) return;
       saved = true;
-      summarizeAndStore({ transcript, questions, aiKey }).catch(() => {});
+      summarizeAndStore({ transcript, questions, aiKey, knownFacts }).catch(() => {});
     };
 
     const toClient = (obj) => { try { client.send(JSON.stringify(obj)); } catch { /* closed */ } };
@@ -377,10 +522,19 @@ export function attachVoiceRelay(server, { geminiKey, aiKey }) {
         if (!geminiKey) { console.warn('[voz] start sin GEMINI_API_KEY'); toClient({ type: 'error', msg: 'Falta GEMINI_API_KEY en el servidor.' }); return; }
         if (google) return; // ya iniciada
 
-        // Trae la memoria de sesiones anteriores antes de abrir Gemini (costo mínimo: solo resúmenes).
-        const memoria = await fetchRecentMemory();
+        // Antes de abrir Gemini: memoria de sesiones, perfil de Pepe y brief del día
+        // (todo en paralelo; solo resúmenes cortos → costo mínimo de tokens).
+        const [memoria, perfil] = await Promise.all([fetchRecentMemory(), fetchProfile()]);
+        const brief = await fetchServerBrief(memoria.lastDate);
+        knownFacts = perfil.facts;
 
-        console.log(`[voz] start recibido. Conectando a Gemini (${GEMINI_MODEL})...`);
+        // Voz prebuilt de Gemini (más natural que la default). Configurable con
+        // VOICE_NAME en el entorno; VOICE_NAME=off la desactiva si diera problemas.
+        const voiceName = cleanEnv(process.env.VOICE_NAME) || 'Charon';
+        const speechConfig = voiceName.toLowerCase() === 'off' ? {}
+          : { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } } };
+
+        console.log(`[voz] start recibido. Conectando a Gemini (${GEMINI_MODEL}, voz=${voiceName})...`);
         google = new WebSocket(`${GEMINI_WS}?key=${geminiKey}`);
 
         google.onopen = () => {
@@ -388,11 +542,11 @@ export function attachVoiceRelay(server, { geminiKey, aiKey }) {
           google.send(JSON.stringify({
             setup: {
               model: GEMINI_MODEL,
-              generationConfig: { responseModalities: ['AUDIO'] },
+              generationConfig: { responseModalities: ['AUDIO'], ...speechConfig },
               systemInstruction: { parts: [{ text: `${msg.context || ''}
 
 Te llamas ORWELL. Si Pepe te pregunta tu nombre o cómo te llamas, responde con calidez que eres Orwell, su analista de reputación. Puedes presentarte como Orwell en tu primer saludo.
-${memoria}
+${ORWELL_STYLE}${memoria.block}${perfil.block}${brief}
 Tambien tienes acceso a la herramienta get_dashboard_data para consultar Supabase en vivo. Usala SIEMPRE que Pepe pregunte por fechas, rangos, historico, "semana pasada", "ayer", comparativas, posts, comentarios, links, aliados o contrarios que no esten explicitamente en el contexto visible. No inventes datos: primero consulta la herramienta y despues responde.` }] },
               tools: VOICE_TOOLS,
               // Habilita transcripción de lo que dice el usuario y lo que responde Gemini.
