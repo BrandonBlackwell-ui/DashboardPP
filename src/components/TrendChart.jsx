@@ -31,7 +31,10 @@ export default function TrendChart({ days, topics, onSelectDay, selected, showCh
   // Solo días con data — la línea conecta puntos reales, sin huecos
   const points = allDays.map(dk => {
     const dd = days[dk] || {};
-    const entries = activeTopics.map(t => dd[t.key]).filter(Boolean);
+    let entries = activeTopics.map(t => dd[t.key]).filter(Boolean);
+    // Días históricos migrados solo tienen el tema 'resumen' (sin desglose por red).
+    // En la vista agregada ("Todas") usamos ese resumen para que el histórico también grafique.
+    if (!entries.length && topicFilter === 'all' && dd.resumen) entries = [dd.resumen];
     if (!entries.length) return null;
     const pos = entries.reduce((s,e) => s + (e.pos||0), 0) / entries.length;
     const neg = entries.reduce((s,e) => s + (e.neg||0), 0) / entries.length;
