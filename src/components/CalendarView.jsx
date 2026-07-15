@@ -20,6 +20,9 @@ const TOPIC_META = {
 
 const DAYS_ES = ['dom','lun','mar','mié','jue','vie','sáb'];
 const MONTHS_ES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const MONTHS_ES_FULL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const monthKeyOf = dayKey => dayKey.slice(0, 7); // 'YYYY-MM'
+const monthLabel = mk => { const [y, m] = mk.split('-'); return `${MONTHS_ES_FULL[+m - 1]} ${y}`; };
 
 function dotColor(d) {
   if (!d) return '#D5CDB8';
@@ -64,6 +67,21 @@ export default function CalendarView({ calData, onGoTheme, isDesktop, supabaseKe
   const [selected, setSelected] = useState(lastDay);
   const selData = days[selected] || {};
 
+  // Agrupar por mes: la cuadrícula muestra solo el mes activo (evita el muro de cuadritos).
+  const months = [...new Set(allDays.map(monthKeyOf))]; // orden cronológico (allDays ya está ordenado)
+  const [selectedMonth, setSelectedMonth] = useState(monthKeyOf(selected));
+  const daysInMonth = allDays.filter(d => monthKeyOf(d) === selectedMonth);
+  // Seleccionar día + sincronizar el mes visible (p.ej. clic en la gráfica de otro mes).
+  const selectDay = dayKey => { setSelected(dayKey); setSelectedMonth(monthKeyOf(dayKey)); };
+  // Al cambiar de mes desde las pills: mantener el día si aplica, si no ir al último del mes.
+  const pickMonth = mk => {
+    setSelectedMonth(mk);
+    if (monthKeyOf(selected) !== mk) {
+      const inMonth = allDays.filter(d => monthKeyOf(d) === mk);
+      setSelected(inMonth[inMonth.length - 1] || selected);
+    }
+  };
+
   const startLabel = startDate.getDate() + ' ' + MONTHS_ES[startDate.getMonth()];
   const endLabel = endDate.getDate() + ' ' + MONTHS_ES[endDate.getMonth()] + ' ' + endDate.getFullYear();
   const totalDays = allDays.length;
@@ -98,13 +116,32 @@ export default function CalendarView({ calData, onGoTheme, isDesktop, supabaseKe
 
       {/* Sentiment trend over the full period */}
       <motion.div variants={item}>
-        <TrendChart days={days} allDays={allDays} topics={TOPICS} onSelectDay={setSelected} selected={selected} />
+        <TrendChart days={days} allDays={allDays} topics={TOPICS} onSelectDay={selectDay} selected={selected} />
       </motion.div>
 
-      {/* Calendar grid */}
+      {/* Month selector — la cuadrícula solo muestra el mes activo */}
+      {months.length > 1 && (
+        <motion.div variants={item} style={{ display:'flex', gap:6, flexWrap:'wrap', margin:'4px 0 12px' }}>
+          {months.map(mk => {
+            const isSel = mk === selectedMonth;
+            const nDays = allDays.filter(d => monthKeyOf(d) === mk).length;
+            return (
+              <motion.button key={mk} whileTap={{ scale:0.95 }} onClick={() => pickMonth(mk)}
+                style={{ fontFamily:"'Geist Mono',monospace", fontSize:12, fontWeight:600, letterSpacing:'0.06em',
+                  padding:'6px 12px', borderRadius:999, cursor:'pointer',
+                  color: isSel ? '#FBF8F1' : C.ink, background: isSel ? C.ink : C.card,
+                  border:`1px solid ${isSel ? C.ink : 'rgba(33,28,23,0.16)'}`, transition:'all 0.15s' }}>
+                {monthLabel(mk)} <span style={{ opacity:0.55 }}>· {nDays}</span>
+              </motion.button>
+            );
+          })}
+        </motion.div>
+      )}
+
+      {/* Calendar grid — solo el mes seleccionado */}
       <motion.div variants={item}
         style={{ display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:6, marginBottom:16 }}>
-        {allDays.map(dayKey => {
+        {daysInMonth.map(dayKey => {
           const date = new Date(dayKey + 'T12:00:00');
           const dayNum = date.getDate();
           const dayName = DAYS_ES[date.getDay()];
