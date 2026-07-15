@@ -131,9 +131,20 @@ export default function TrendChart({ days, topics, onSelectDay, selected, showCh
             {(p.dk === selected || hovered === i) && (
               <line x1={x(i)} x2={x(i)} y1={PAD_Y-4} y2={H-PAD_Y+4} stroke="rgba(33,28,23,0.25)" strokeWidth="1" strokeDasharray="3 2" />
             )}
-            <text x={x(i)} y={H-3} fontSize="8" fill={p.dk === selected || hovered === i ? '#211C17' : '#A9997B'}
-              fontWeight={p.dk === selected || hovered === i ? '700' : '400'}
-              textAnchor="middle" fontFamily="'Geist Mono',monospace">{dayLabel(p.dk)}</text>
+            {/* Con muchos días, etiquetar solo cada N puntos (siempre el primero, el último,
+                el seleccionado y el hover) para que las fechas no se encimen. */}
+            {(() => {
+              const step = Math.max(1, Math.ceil(n / 10));
+              const isKey = p.dk === selected || hovered === i;
+              const isEdge = i === 0 || i === n - 1;
+              const onStep = i % step === 0 && i < n - 1 - step / 2;
+              if (!isKey && !isEdge && !onStep) return null;
+              return (
+                <text x={x(i)} y={H-3} fontSize="8" fill={isKey ? '#211C17' : '#A9997B'}
+                  fontWeight={isKey ? '700' : '400'}
+                  textAnchor="middle" fontFamily="'Geist Mono',monospace">{dayLabel(p.dk)}</text>
+              );
+            })()}
           </g>
         ))}
         {/* Tooltip con valores */}

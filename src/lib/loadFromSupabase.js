@@ -343,15 +343,20 @@ export async function loadFromSupabase() {
     }
     window.SUPABASE_KEYS = keys;
 
+    // Los reports migrados del histórico viejo alimentan calendario/gráfica/aliados,
+    // pero NO deben competir por el Panorama ni las pestañas (son placeholders agregados).
+    const isMigrated = rep => rep.ai_analysis?._fuente === 'historico-migrado';
+
     // For PA_DATA.themes: use the record with the latest date_key per theme
     const latestByTheme = {};
     for (const rep of reports) {
+      if (isMigrated(rep)) continue;
       if (!latestByTheme[rep.theme_key] || rep.date_key > latestByTheme[rep.theme_key].date_key) {
         latestByTheme[rep.theme_key] = rep;
       }
     }
     const latestAiReport = reports
-      .filter(rep => rep.ai_analysis)
+      .filter(rep => rep.ai_analysis && !isMigrated(rep))
       .sort((a, b) => {
         const aTime = new Date(a.created_at || `${a.date_key}T00:00:00`).getTime();
         const bTime = new Date(b.created_at || `${b.date_key}T00:00:00`).getTime();
