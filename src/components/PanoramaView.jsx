@@ -161,7 +161,7 @@ export default function PanoramaView({ data, isDesktop }) {
           margin: 0,
           fontFamily: "'Geist',sans-serif"
         }}>
-          Todavia no hay un analisis reputacional consolidado guardado en Supabase para mostrar aqui.
+          Todavía no hay un análisis reputacional consolidado para esta fecha.
         </p>
       </motion.div>
     );
@@ -216,7 +216,7 @@ export default function PanoramaView({ data, isDesktop }) {
           margin: '0 0 28px 0',
           fontFamily: "'Geist',sans-serif"
         }}>
-          El análisis reputacional consolidado aún no ha sido procesado por Sonnet 4.6 en Supabase para esta fecha.
+          El análisis reputacional consolidado de esta fecha aún no está disponible.
         </p>
 
         {/* Executive Info Box */}

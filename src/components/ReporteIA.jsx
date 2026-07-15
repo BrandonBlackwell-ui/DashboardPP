@@ -100,11 +100,10 @@ export default function ReporteIA({ data, isDesktop }) {
       <div style={{ padding: '48px 24px', textAlign: 'center' }}>
         <div style={{ fontFamily: MONO, fontSize: 11, letterSpacing: '0.12em',
           textTransform: 'uppercase', color: C.goldDeep, fontWeight: 700, marginBottom: 10 }}>
-          Reporte IA pendiente
+          Reporte en preparación
         </div>
         <p style={{ fontSize: 13.5, color: muted, maxWidth: 420, margin: '0 auto', lineHeight: 1.5 }}>
-          El reporte se genera automáticamente cuando el análisis IA consolidado queda guardado en Supabase.
-          Corre el análisis con tema «resumen» para activarlo.
+          El reporte consolidado de esta fecha aún no está disponible.
         </p>
       </div>
     );

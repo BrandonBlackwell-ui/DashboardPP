@@ -1107,16 +1107,6 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
         </div>
       ) : !hasAiAnalysis ? (
         <div style={{ paddingBottom:24 }}>
-          <motion.div variants={item} style={{ padding:sectionPx }}>
-            <div style={{ background:C.card, border:'1px solid rgba(33,28,23,0.13)', borderRadius:3, padding:18 }}>
-              <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:11, letterSpacing:'0.12em', textTransform:'uppercase', color:C.goldDeep, fontWeight:600 }}>
-                Analisis IA pendiente
-              </div>
-              <div style={{ fontSize:14, lineHeight:1.5, color:'#2A241C', marginTop:8 }}>
-                Aqui solo se muestran publicaciones y comentarios extraidos. Sentimiento, riesgo, alertas, aliados y contrarios se llenan cuando el analisis IA queda guardado en Supabase.
-              </div>
-            </div>
-          </motion.div>
           {renderNetworkMap(false)}
         </div>
       ) : isOwned ? (

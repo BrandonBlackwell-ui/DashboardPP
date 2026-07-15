@@ -488,7 +488,7 @@ export async function loadFromSupabase() {
           theme_label: 'Panorama',
         }),
         label: 'Panorama',
-        es: 'Ultimo analisis reputacional generado por IA en Supabase.',
+        es: 'Último análisis reputacional consolidado.',
         sourceThemeKey: latestAiReport.theme_key,
         sourceThemeLabel: latestAiReport.theme_label,
       };
