@@ -571,8 +571,9 @@ export default function AliadosView({ data, isDesktop }) {
                 Cobertura acumulada
               </span>
             </div>
-            <div style={{ display:'grid', gridTemplateColumns: isDesktop ? '1fr 1fr' : '1fr', gap:10 }}>
-              {visibleMedia.map((m, i) => {
+            {(() => {
+              // Clasificar medios por tono: Aliados (favorable) / Contrarios (crítico) / Neutrales.
+              const mediaCard = (m, i) => {
                 const tonoColor = m.tono === 'favorable' ? C.teal : m.tono === 'critico' ? C.crim : '#8A7E6A';
                 const tonoLabel = m.tono === 'favorable' ? 'Favorable' : m.tono === 'critico' ? 'Crítico' : 'Neutral';
                 const realNotes = notesFor(m);
@@ -622,8 +623,27 @@ export default function AliadosView({ data, isDesktop }) {
                     )}
                   </button>
                 );
-              })}
-            </div>
+              };
+              const groups = [
+                { key:'favorable', label:'Aliados',    sub:'Cobertura favorable',    color:C.teal,   items: visibleMedia.filter(m => m.tono === 'favorable') },
+                { key:'critico',   label:'Contrarios', sub:'Cobertura crítica',      color:C.crim,   items: visibleMedia.filter(m => m.tono === 'critico') },
+                { key:'neutral',   label:'Neutrales',  sub:'Cobertura informativa',  color:'#8A7E6A', items: visibleMedia.filter(m => !m.tono || m.tono === 'neutral') },
+              ].filter(g => g.items.length);
+              return groups.map(g => (
+                <div key={g.key} style={{ marginBottom:16 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:8 }}>
+                    <span style={{ width:7, height:7, borderRadius:'50%', background:g.color, flex:'none' }} />
+                    <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, fontWeight:700,
+                      letterSpacing:'0.12em', textTransform:'uppercase', color:g.color }}>{g.label}</span>
+                    <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, color:'#8A7E6A',
+                      letterSpacing:'0.06em', textTransform:'uppercase' }}>· {g.sub} · {g.items.length}</span>
+                  </div>
+                  <div style={{ display:'grid', gridTemplateColumns: isDesktop ? '1fr 1fr' : '1fr', gap:10 }}>
+                    {g.items.map((m, i) => mediaCard(m, `${g.key}-${i}`))}
+                  </div>
+                </div>
+              ));
+            })()}
           </motion.div>
         )}
 
