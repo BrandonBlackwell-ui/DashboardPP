@@ -361,20 +361,24 @@ const normOwnedInstagram = (items) => {
   })).filter(p => p.url);
 };
 
+// apify/facebook-posts-scraper ($2/1000): trae el desglose real de reacciones por post
+// (reactionLikeCount, reactionLoveCount, reactionHahaCount, reactionWowCount,
+// reactionSadCount, reactionAngryCount). Fallbacks del actor anterior por tolerancia.
 const normOwnedFacebook = (items) => items.slice(0, 5).map(p => {
   const rx = p.reactions || p.reactionsBreakdown || {};
   return {
-    platform:'facebook', username: p.authorName || 'Pepe Aguilar',
-    text: p.text || p.message || '', url: p.permalink || p.url || '',
-    published_date: p.publishTimeIso || p.date || null,
-    likes: +(p.reactionCount || p.reactionsCount || 0),
-    comments_count: +(p.commentCount || 0), shares:0, retweets:0, views:0,
-    fb_like:  +(p.like  || rx.like  || p.likeCount  || 0),
-    fb_love:  +(p.love  || rx.love  || p.loveCount  || 0),
-    fb_haha:  +(p.haha  || rx.haha  || p.hahaCount  || 0),
-    fb_wow:   +(p.wow   || rx.wow   || p.wowCount   || 0),
-    fb_sad:   +(p.sad   || rx.sad   || p.sadCount   || 0),
-    fb_angry: +(p.angry || rx.angry || p.angryCount || 0),
+    platform:'facebook', username: p.user?.name || p.pageName || p.authorName || 'Pepe Aguilar',
+    text: p.text || p.message || '', url: p.url || p.topLevelUrl || p.permalink || '',
+    published_date: p.time || p.publishTimeIso || p.date || null,
+    likes: +(p.likes || p.reactionCount || p.reactionsCount || 0),
+    comments_count: +(p.comments || p.commentCount || 0),
+    shares: +(p.shares || p.shareCount || 0), retweets:0, views:0,
+    fb_like:  +(p.reactionLikeCount  || p.like  || rx.like  || 0),
+    fb_love:  +(p.reactionLoveCount  || p.love  || rx.love  || 0),
+    fb_haha:  +(p.reactionHahaCount  || p.haha  || rx.haha  || 0),
+    fb_wow:   +(p.reactionWowCount   || p.wow   || rx.wow   || 0),
+    fb_sad:   +(p.reactionSadCount   || p.sad   || rx.sad   || 0),
+    fb_angry: +(p.reactionAngryCount || p.angry || rx.angry || 0),
   };
 }).filter(p => p.url);
 
@@ -785,8 +789,10 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, from, to, emit 
     // Propios
     runActor(apifyToken, 'coderx/instagram-profile-scraper-api',
       { usernames:[OWNED.instagram] }, 0.03, 'own_ig'),
-    runActor(apifyToken, 'unseenuser/fb-posts',
-      { mode:'profile', sources:[OWNED.facebook], maxPosts:5, includeTopComments:false, fetchAllComments:false, fetchCommentReplies:false, enrichSinglePostFields:false }, 0.05, 'own_fb'),
+    // apify/facebook-posts-scraper ($2/1000, más barato que unseenuser $5/1000) y con
+    // desglose de reacciones por post — verificado 2026-07-15 con la página de Pepe.
+    runActor(apifyToken, 'apify/facebook-posts-scraper',
+      { startUrls: [{ url: `https://www.facebook.com/${OWNED.facebook}` }], resultsLimit: 5 }, 0.05, 'own_fb'),
     runActor(apifyToken, 'clockworks/tiktok-profile-scraper',
       { profiles:[OWNED.tiktok], resultsPerPage:13, shouldDownloadCovers:false, shouldDownloadSlideshowImages:false, shouldDownloadSubtitles:false, shouldDownloadVideos:false }, 0.04, 'own_tt'),
     fetchYouTubeRSS(),
@@ -1083,4 +1089,4 @@ if (process.argv[1]?.endsWith('run-full-analysis.js')) {
 }
 
 // Exportados para pruebas (la watchlist es RSS gratis y se puede validar sin Apify).
-export { scrapeWatchlist, parseRssItems, fetchFeed, dedupePress, MEDIA_WATCHLIST, WATCHLIST_SEARCH_TERMS };
+export { scrapeWatchlist, parseRssItems, fetchFeed, dedupePress, normOwnedFacebook, MEDIA_WATCHLIST, WATCHLIST_SEARCH_TERMS };

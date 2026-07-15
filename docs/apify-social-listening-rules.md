@@ -1683,6 +1683,7 @@ Reglas de escalado:
 
 - Buscar y probar un actor de TikTok que acepte rango exacto `from/to`.
 - Google News usa `data_xplorer/google-news-scraper-fast` como único actor (edición MX `es-419`, URL decodificada + descripción, `timeframe:'1d'` = últimas 24h + post-filtro). Los actores anteriores (`sourabhbgp`, `crawlerbros`, `easyapi`) quedan solo como registro histórico.
+- Facebook propio migrado a `apify/facebook-posts-scraper` ($2/1000 vs $5/1000 de `unseenuser/fb-posts`): trae el desglose real de reacciones por post (`reactionLikeCount/LoveCount/HahaCount/WowCount/SadCount/AngryCount`), verificado 2026-07-15 con la página de Pepe (el reel del 9 jul tenía más 😂 2,664 que 👍 1,400 — señal de burla que el total solo no muestra). `unseenuser` sigue en `facebookWatchPages`.
 - Armar lista de cuentas Instagram a monitorear con `coderx/instagram-profile-scraper-api`.
 - Seguir buscando actor de Instagram por keyword/hashtag que sea estable y reciente.
 - Validar YouTube con presupuesto aprobado o input/schema correcto.
