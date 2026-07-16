@@ -615,6 +615,45 @@ ${MESSAGE_FRAMEWORK_PROMPT}
 
 ${dataPrompt}`;
 
+// Estimación de sentimiento por palabras clave — SOLO para el piso de respaldo cuando
+// todos los modelos de IA fallan. No pretende reemplazar a la IA; da una señal básica
+// honesta en vez de dejar la red vacía.
+const FB_POS = ['grande','crack','hermoso','hermosa','precioso','preciosa','amor','te amo','felicidades','felicidad','orgullo','orgulloso','increible','increíble','excelente','maravillos','genio','talento','leyenda','viva','gracias','bravo','aplausos','bendicion','bendición','apoyo','lo mejor','exito','éxito','admiro','admiracion','admiración','encanta','bello','bella','fan'];
+const FB_NEG = ['horrible','asco','vergüenza','verguenza','ridiculo','ridículo','odio','pesimo','pésimo','fraude','mentira','mentiroso','hipocrita','hipócrita','soberbi','naco','corrient','basura','decepcion','decepción','critic','pierde','perdedor','burla','se compran','compra de premios','no merece','mediocre','fuchi','peor','callate','cállate','payaso'];
+function scoreSentiment(texts) {
+  let pos = 0, neg = 0, neu = 0;
+  for (const t of texts) {
+    const s = (t || '').toLowerCase();
+    if (!s) continue;
+    const p = FB_POS.some(k => s.includes(k));
+    const n = FB_NEG.some(k => s.includes(k));
+    if (n && !p) neg++; else if (p && !n) pos++; else neu++;
+  }
+  const total = pos + neg + neu || 1;
+  const favorable = Math.round(pos / total * 100);
+  const critico = Math.round(neg / total * 100);
+  return { favorable, critico, neutral: Math.max(0, 100 - favorable - critico), _counts: { pos, neg, neu, total } };
+}
+function buildFallbackAnalysis(posts, comments, dateKey) {
+  const texts = [...(posts || []).map(p => p.text), ...(comments || []).map(c => c.text)];
+  const sentimiento = scoreSentiment(texts);
+  const { pos, neg, neu, total } = sentimiento._counts;
+  delete sentimiento._counts;
+  const riesgo = sentimiento.critico >= 40 ? 'alto' : sentimiento.critico >= 25 ? 'medio' : 'bajo';
+  return {
+    _fallback: true,
+    sentimiento,
+    nivel_riesgo: riesgo,
+    resumen_ejecutivo: [
+      `Estimación automática del ${dateKey} (el análisis de IA no estuvo disponible este día). Sobre ${total} textos analizados por palabras clave: ${pos} favorables, ${neu} neutrales, ${neg} críticos.`,
+      `Las publicaciones y comentarios extraídos se muestran completos abajo; esta lectura es aproximada y conviene re-analizar cuando la IA esté disponible.`,
+    ],
+    alertas: sentimiento.critico >= 25 ? [`Estimación automática: carga crítica ~${sentimiento.critico}% (riesgo ${riesgo}). Verificar con re-análisis.`] : [],
+    oportunidades: [],
+    analisis_voces: { aliados_destacados: [], criticos_destacados: [], medios_destacados: [] },
+  };
+}
+
 export async function callAI(apiKey, prompt, models, systemPrompt = AI_PROMPT_SYSTEM) {
   const AI_TIMEOUT_MS = 90000; // corta un modelo colgado en vez de bloquear toda la corrida
   for (const model of models) {
@@ -680,6 +719,7 @@ async function enrichAndSaveAI(apiKey, themeKey, dateKey, allPostsByTheme) {
   }
 
   let posts = [];
+  let comments = [];
   let prompt;
 
   if (themeKey === 'resumen') {
@@ -711,7 +751,6 @@ async function enrichAndSaveAI(apiKey, themeKey, dateKey, allPostsByTheme) {
       .eq('report_id', report.id);
     const postIds = (postRecs || []).map(p => p.id);
     posts = postRecs?.length ? postRecs : (allPostsByTheme[themeKey] || []);
-    let comments = [];
     if (postIds.length) {
       const { data: cmts } = await supabase.from('scraped_comments').select('*').in('post_id', postIds);
       comments = cmts || [];
@@ -719,7 +758,17 @@ async function enrichAndSaveAI(apiKey, themeKey, dateKey, allPostsByTheme) {
     prompt = AI_PROMPT_TEMPLATE(buildDataPrompt({ report, posts, comments, previousAnalysis }));
   }
 
-  const { model, analysis } = await callAI(apiKey, prompt, models);
+  let model, analysis;
+  try {
+    ({ model, analysis } = await callAI(apiKey, prompt, models));
+  } catch (e) {
+    // Piso garantizado: si TODOS los modelos fallan, no dejamos la red sin capa de IA.
+    // Estimación automática por palabras clave sobre posts+comentarios reales, marcada
+    // como _fallback para que el admin sepa que no la generó la IA.
+    console.warn(`[${themeKey}] IA no disponible (${e?.message||e}); guardando estimación automática de respaldo.`);
+    model = 'fallback-local';
+    analysis = buildFallbackAnalysis(posts, comments, dateKey);
+  }
 
   // Normaliza sentimiento a enteros (GLM a veces devuelve "33", "25%" o "37.5")
   const toInt = v => { const n = Math.round(parseFloat(String(v).replace(/[^0-9.-]/g, ''))); return Number.isFinite(n) ? n : 0; };
