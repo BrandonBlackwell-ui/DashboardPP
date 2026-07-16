@@ -700,10 +700,10 @@ async function enrichAndSaveAI(apiKey, themeKey, dateKey, allPostsByTheme) {
   const report = rep[0];
 
   // Cadena de respaldo: si un modelo falla (2 intentos c/u en callAI), pasa al siguiente.
-  // Claude Sonnet va al final como último recurso confiable en todas las redes.
+  // Orden: GLM primero, luego Claude Opus 4.8 como respaldo fuerte, y al final los Gemini.
   const models = themeKey === 'resumen'
-    ? ['z-ai/glm-5.2', 'anthropic/claude-sonnet-5', 'google/gemini-2.5-flash']
-    : ['z-ai/glm-5.2', 'google/gemini-2.5-flash-lite', 'google/gemini-2.5-flash', 'anthropic/claude-sonnet-5'];
+    ? ['z-ai/glm-5.2', 'anthropic/claude-opus-4.8', 'google/gemini-2.5-flash']
+    : ['z-ai/glm-5.2', 'anthropic/claude-opus-4.8', 'google/gemini-2.5-flash-lite', 'google/gemini-2.5-flash'];
 
   // Análisis del período anterior → deja calcular tendencia real
   let previousAnalysis = null;
