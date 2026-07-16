@@ -460,24 +460,46 @@ export async function loadFromSupabase() {
         if (!k) continue;
         if (!mediaAgg[k]) {
           mediaAgg[k] = { nombre: m.nombre, platform: 'google_news',
-            dominio: m.dominio || '', alcance: m.alcance || 'medio', notasByDate: {}, temas: [],
-            tono: m.tono || 'neutral', titular: m.titular_ejemplo || '' };
+            dominio: m.dominio || '', alcance: m.alcance || 'medio', byDate: {}, temas: [],
+            titular: m.titular_ejemplo || '' };
         }
         const e = mediaAgg[k];
         if (!e.dominio && m.dominio) e.dominio = m.dominio;
-        e.notasByDate[rep.date_key] = Math.max(e.notasByDate[rep.date_key] || 0, Number(m.notas || 1));
+        const total = Number(m.notas || 0);
+        // Desglose por tono; si no viene (data vieja con un solo "tono"), lo derivamos.
+        let fav = Number(m.notas_favorables || 0), neu = Number(m.notas_neutrales || 0), crit = Number(m.notas_criticas || 0);
+        if (!fav && !neu && !crit) {
+          const t = m.tono || 'neutral';
+          const n = total || 1;
+          if (t === 'favorable') fav = n; else if (t === 'critico') crit = n; else neu = n;
+        }
+        const tot = total || (fav + neu + crit);
+        // Máximo por fecha (un medio puede repetirse en varios reportes del mismo día)
+        if (!e.byDate[rep.date_key] || tot > e.byDate[rep.date_key].total) {
+          e.byDate[rep.date_key] = { fav, neu, crit, total: tot };
+        }
         if (m.alcance === 'macro') e.alcance = 'macro';
         (m.temas || []).forEach(t => { if (!e.temas.includes(t)) e.temas.push(t); });
-        if (m.tono && m.tono !== 'neutral') e.tono = m.tono; // keep the strongest signal
         if (!e.titular && m.titular_ejemplo) e.titular = m.titular_ejemplo;
       }
     }
     window.ALL_MEDIA_DATA = Object.values(mediaAgg)
-      .map(({ notasByDate, ...e }) => ({
-        ...e,
-        notas: Object.values(notasByDate).reduce((s, n) => s + n, 0),
-        datesSeen: Object.keys(notasByDate).length,
-      }))
+      .map(({ byDate, ...e }) => {
+        const days = Object.values(byDate);
+        const fav = days.reduce((s, d) => s + d.fav, 0);
+        const neu = days.reduce((s, d) => s + d.neu, 0);
+        const crit = days.reduce((s, d) => s + d.crit, 0);
+        const notas = days.reduce((s, d) => s + (d.total || d.fav + d.neu + d.crit), 0);
+        const denom = fav + neu + crit || 1;
+        const favPct = Math.round(fav / denom * 100);
+        const critPct = Math.round(crit / denom * 100);
+        const neuPct = Math.max(0, 100 - favPct - critPct);
+        // Regla de clasificación: Mayoría + piso 40%.
+        let tono = 'neutral';
+        if (favPct >= 40 && fav > crit) tono = 'favorable';
+        else if (critPct >= 40 && crit > fav) tono = 'critico';
+        return { ...e, notas, datesSeen: days.length, fav, neu, crit, favPct, neuPct, critPct, tono };
+      })
       .sort((a, b) => b.notas - a.notas);
 
     if (latestAiReport && window.PA_DATA?.themes && !window.PA_DATA.themes.resumen?.ai_analysis) {

@@ -390,6 +390,83 @@ function ChartSection({ voices, side, label, maxEng, onSelect }) {
   );
 }
 
+// ── Fila de medio: barra = nº de notas; segmentos internos = mezcla de tono ─────
+function MediaBarRow({ item, side, maxNotas, index, onSelect }) {
+  const { medio: m, count, notes } = item;
+  const [hovered, setHovered] = useState(false);
+  const accent = side === 'favorable' ? C.teal : side === 'critico' ? C.crim : '#8A7E6A';
+  const pct = maxNotas > 0 ? Math.max(3, (count / maxNotas) * 100) : 3;
+  const tierLabel = m.alcance === 'macro' ? 'Nac' : 'Reg';
+  const hasMix = (m.favPct || 0) + (m.neuPct || 0) + (m.critPct || 0) > 0;
+  const seg = hasMix
+    ? [['#40916C', m.favPct || 0], ['#C4B89A', m.neuPct || 0], ['#C1453F', m.critPct || 0]]
+    : [[accent, 100]];
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: side === 'critico' ? 12 : -12 }} animate={{ opacity: 1, x: 0 }}
+      transition={{ type: 'spring', stiffness: 320, damping: 26, delay: index * 0.025 }}
+      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+      onClick={() => onSelect({ medio: m, notes })}
+      style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', cursor: 'pointer' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, width: 160, flex: 'none' }}>
+        {m.dominio
+          ? <img src={`https://www.google.com/s2/favicons?domain=${m.dominio}&sz=64`} alt="" width={13} height={13} style={{ borderRadius: 3, flex: 'none' }} onError={e => { e.target.style.display = 'none'; }} />
+          : <PlatformIcon platform="google_news" size={12} />}
+        <span style={{ flex: 1, minWidth: 0, fontFamily: "'Geist',sans-serif", fontSize: 12, fontWeight: hovered ? 700 : 500, color: hovered ? accent : C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.nombre}</span>
+        <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 8.5, color: m.alcance === 'macro' ? C.crim : C.goldDeep, flex: 'none' }}>{tierLabel}</span>
+      </div>
+      <div style={{ flex: 1, height: 22, background: 'rgba(33,28,23,0.07)', borderRadius: 2, overflow: 'hidden', position: 'relative' }}>
+        <motion.div initial={{ width: 0 }} animate={{ width: pct + '%' }}
+          transition={{ type: 'spring', stiffness: 180, damping: 28, delay: 0.1 + index * 0.02 }}
+          style={{ height: '100%', borderRadius: 2, overflow: 'hidden', display: 'flex', opacity: hovered ? 1 : 0.82, transition: 'opacity 0.15s' }}>
+          {seg.map(([col, w], j) => <div key={j} style={{ width: w + '%', height: '100%', background: col }} />)}
+        </motion.div>
+        {hovered && (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', paddingLeft: 8, pointerEvents: 'none' }}>
+            <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 9, color: '#fff', fontWeight: 600, textShadow: '0 1px 3px rgba(0,0,0,0.6)' }}>
+              {m.favPct || 0}% fav · {m.neuPct || 0}% neu · {m.critPct || 0}% crít · ver notas
+            </span>
+          </div>
+        )}
+      </div>
+      <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10, color: hovered ? accent : '#8A7E6A', width: 52, flex: 'none', textAlign: 'right', fontWeight: hovered ? 700 : 400 }}>
+        {count} {count === 1 ? 'nota' : 'notas'}
+      </span>
+    </motion.div>
+  );
+}
+
+// ── Columna de medios (aliados / contrarios / neutrales) ────────────────────────
+function MediaColumn({ items, side, label, sub, maxNotas, onSelect }) {
+  const accent = side === 'favorable' ? C.teal : side === 'critico' ? C.crim : '#8A7E6A';
+  const TOP = 10;
+  const shown = items.slice(0, TOP);
+  return (
+    <div style={{ marginBottom: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, paddingBottom: 8, borderBottom: `2px solid ${accent}` }}>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: accent, flex: 'none' }} />
+        <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: accent, fontWeight: 700 }}>{label} · {items.length}</span>
+        <span style={{ marginLeft: 'auto', fontFamily: "'Geist Mono',monospace", fontSize: 9, color: '#8A7E6A', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{sub}</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <div style={{ width: 160, flex: 'none' }} />
+        <div style={{ flex: 1, fontFamily: "'Geist Mono',monospace", fontSize: 8.5, color: '#A9997B', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Notas · tono (fav/neu/crít)</div>
+        <div style={{ width: 52, flex: 'none', fontFamily: "'Geist Mono',monospace", fontSize: 8.5, color: '#A9997B', textAlign: 'right' }}>Total</div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {shown.length
+          ? shown.map((it, i) => <MediaBarRow key={it.medio.nombre + i} item={it} side={side} maxNotas={maxNotas} index={i} onSelect={onSelect} />)
+          : <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10, color: '#8A7E6A', textTransform: 'uppercase', padding: '12px 0' }}>Sin medios en esta categoría.</div>}
+        {items.length > TOP && (
+          <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 9.5, color: '#A9997B', textTransform: 'uppercase', marginTop: 6, letterSpacing: '0.06em' }}>
+            + {items.length - TOP} medios más
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Panel de detalle de un medio: sus notas acumuladas ──────────────────────────
 function MediaDetail({ medio, notes, onClose, isDesktop }) {
   const accent = medio.tono === 'favorable' ? C.teal : medio.tono === 'critico' ? C.crim : C.goldDeep;
@@ -572,77 +649,28 @@ export default function AliadosView({ data, isDesktop }) {
               </span>
             </div>
             {(() => {
-              // Clasificar medios por tono: Aliados (favorable) / Contrarios (crítico) / Neutrales.
-              const mediaCard = (m, i) => {
-                const tonoColor = m.tono === 'favorable' ? C.teal : m.tono === 'critico' ? C.crim : '#8A7E6A';
-                const tonoLabel = m.tono === 'favorable' ? 'Favorable' : m.tono === 'critico' ? 'Crítico' : 'Neutral';
-                const realNotes = notesFor(m);
-                // Conteo real deduplicado; si aún no cargan las notas, usa el de la IA
-                const count = newsPosts === null ? m.notas : realNotes.length;
-                return (
-                  <button key={i} onClick={() => setSelectedMedia({ medio: m, notes: realNotes })}
-                    style={{ textAlign:'left', font:'inherit', cursor:'pointer',
-                    background:C.card, border:'1px solid rgba(33,28,23,0.13)',
-                    borderLeft:`3px solid ${tonoColor}`, borderRadius:3, padding:'12px 14px' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
-                      {m.dominio ? (
-                        <img src={`https://www.google.com/s2/favicons?domain=${m.dominio}&sz=64`}
-                          alt="" width={16} height={16}
-                          style={{ borderRadius:3, flex:'none' }}
-                          onError={e => { e.target.style.display='none'; }} />
-                      ) : (
-                        <PlatformIcon platform={m.platform} size={14} />
-                      )}
-                      <span style={{ fontFamily:"'Geist',sans-serif", fontWeight:600, fontSize:13.5,
-                        color:C.ink, flex:1, minWidth:0, whiteSpace:'nowrap', overflow:'hidden',
-                        textOverflow:'ellipsis' }}>{m.nombre}</span>
-                      <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:8.5, fontWeight:700,
-                        padding:'2px 7px', borderRadius:999, textTransform:'uppercase', letterSpacing:'0.05em',
-                        color: m.alcance === 'macro' ? C.crim : C.goldDeep,
-                        background: m.alcance === 'macro' ? C.crimBg : C.amberBg,
-                        border:`1px solid ${m.alcance === 'macro' ? C.crimBd : C.amberBd}` }}>
-                        {m.alcance === 'macro' ? 'Nacional' : 'Regional'}
-                      </span>
-                    </div>
-                    <div style={{ display:'flex', flexWrap:'wrap', gap:'3px 12px',
-                      fontFamily:"'Geist Mono',monospace", fontSize:9.5, color:'#8A7E6A',
-                      textTransform:'uppercase', marginBottom: m.temas.length ? 7 : 0 }}>
-                      <span style={{ fontWeight:700, color:C.ink }}>{count} {count === 1 ? 'nota' : 'notas'}</span>
-                      <span style={{ color:tonoColor, fontWeight:600 }}>{tonoLabel}</span>
-                      {m.datesSeen > 1 && <span>{m.datesSeen} días</span>}
-                      <span style={{ marginLeft:'auto', color:C.goldDeep, fontWeight:600 }}>Ver →</span>
-                    </div>
-                    {m.temas.length > 0 && (
-                      <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
-                        {m.temas.slice(0,4).map((t, j) => (
-                          <span key={j} style={{ fontFamily:"'Geist Mono',monospace", fontSize:9,
-                            padding:'2px 6px', borderRadius:2, background:'rgba(176,130,47,0.08)',
-                            color:C.goldDeep, border:'1px solid rgba(176,130,47,0.18)' }}>{t}</span>
-                        ))}
-                      </div>
-                    )}
-                  </button>
-                );
-              };
-              const groups = [
-                { key:'favorable', label:'Aliados',    sub:'Cobertura favorable',    color:C.teal,   items: visibleMedia.filter(m => m.tono === 'favorable') },
-                { key:'critico',   label:'Contrarios', sub:'Cobertura crítica',      color:C.crim,   items: visibleMedia.filter(m => m.tono === 'critico') },
-                { key:'neutral',   label:'Neutrales',  sub:'Cobertura informativa',  color:'#8A7E6A', items: visibleMedia.filter(m => !m.tono || m.tono === 'neutral') },
-              ].filter(g => g.items.length);
-              return groups.map(g => (
-                <div key={g.key} style={{ marginBottom:16 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:8 }}>
-                    <span style={{ width:7, height:7, borderRadius:'50%', background:g.color, flex:'none' }} />
-                    <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9.5, fontWeight:700,
-                      letterSpacing:'0.12em', textTransform:'uppercase', color:g.color }}>{g.label}</span>
-                    <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:9, color:'#8A7E6A',
-                      letterSpacing:'0.06em', textTransform:'uppercase' }}>· {g.sub} · {g.items.length}</span>
+              // Conteo real de notas por medio (dedup); si aún cargan, usa el de la IA.
+              const withCount = visibleMedia.map(m => {
+                const notes = notesFor(m);
+                const count = newsPosts === null ? (m.notas || 0) : notes.length;
+                return { medio: m, notes, count };
+              });
+              // Clasificación viene de loadFromSupabase (regla: mayoría + piso 40%).
+              const allies  = withCount.filter(x => x.medio.tono === 'favorable').sort((a, b) => b.count - a.count);
+              const critics = withCount.filter(x => x.medio.tono === 'critico').sort((a, b) => b.count - a.count);
+              const neutral = withCount.filter(x => !x.medio.tono || x.medio.tono === 'neutral').sort((a, b) => b.count - a.count);
+              const maxNotas = Math.max(1, ...withCount.map(x => x.count));
+              return (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: isDesktop ? '1fr 1fr' : '1fr', gap: isDesktop ? 24 : 18, marginBottom: 22 }}>
+                    <MediaColumn items={allies}  side="favorable" label="Aliados"    sub="Cobertura favorable" maxNotas={maxNotas} onSelect={setSelectedMedia} />
+                    <MediaColumn items={critics} side="critico"   label="Contrarios" sub="Cobertura crítica"   maxNotas={maxNotas} onSelect={setSelectedMedia} />
                   </div>
-                  <div style={{ display:'grid', gridTemplateColumns: isDesktop ? '1fr 1fr' : '1fr', gap:10 }}>
-                    {g.items.map((m, i) => mediaCard(m, `${g.key}-${i}`))}
-                  </div>
-                </div>
-              ));
+                  {neutral.length > 0 && (
+                    <MediaColumn items={neutral} side="neutral" label="Neutrales" sub="Cobertura informativa" maxNotas={maxNotas} onSelect={setSelectedMedia} />
+                  )}
+                </>
+              );
             })()}
           </motion.div>
         )}
