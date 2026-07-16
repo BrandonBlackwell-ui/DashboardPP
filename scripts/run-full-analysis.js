@@ -616,31 +616,41 @@ ${MESSAGE_FRAMEWORK_PROMPT}
 ${dataPrompt}`;
 
 export async function callAI(apiKey, prompt, models, systemPrompt = AI_PROMPT_SYSTEM) {
+  const AI_TIMEOUT_MS = 90000; // corta un modelo colgado en vez de bloquear toda la corrida
   for (const model of models) {
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://github.com/BrandonBlackwell-ui/DashboardPP',
-        'X-Title': 'Blackwell Dashboard',
-      },
-      body: JSON.stringify({
-        model, response_format: { type: 'json_object' },
-        messages: [
-          { role:'system', content: systemPrompt },
-          { role:'user', content: prompt },
-        ],
-      }),
-    });
-    const json = await res.json();
-    if (json.error) { console.warn(`${model} falló: ${json.error.message}`); continue; }
-    const text = json.choices?.[0]?.message?.content;
-    if (!text) continue;
-    const start = text.indexOf('{'); const end = text.lastIndexOf('}');
-    if (start === -1 || end === -1) continue;
-    try { return { model, analysis: JSON.parse(text.slice(start, end+1)) }; }
-    catch { continue; }
+    // 2 intentos por modelo (timeouts intermitentes), luego pasa al siguiente modelo.
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://github.com/BrandonBlackwell-ui/DashboardPP',
+            'X-Title': 'Blackwell Dashboard',
+          },
+          body: JSON.stringify({
+            model, response_format: { type: 'json_object' },
+            messages: [
+              { role:'system', content: systemPrompt },
+              { role:'user', content: prompt },
+            ],
+          }),
+          signal: AbortSignal.timeout(AI_TIMEOUT_MS),
+        });
+        const json = await res.json();
+        if (json.error) { console.warn(`${model} falló: ${json.error.message}`); break; }
+        const text = json.choices?.[0]?.message?.content;
+        if (!text) break;
+        const start = text.indexOf('{'); const end = text.lastIndexOf('}');
+        if (start === -1 || end === -1) break;
+        return { model, analysis: JSON.parse(text.slice(start, end+1)) };
+      } catch (e) {
+        const timedOut = e?.name === 'TimeoutError' || e?.name === 'AbortError';
+        console.warn(`${model} intento ${attempt} ${timedOut ? 'timeout' : 'error'}: ${e?.message || e}`);
+        if (attempt >= 2) break; // agotó reintentos → siguiente modelo
+      }
+    }
   }
   throw new Error('Todos los modelos AI fallaron');
 }
