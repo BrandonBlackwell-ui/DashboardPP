@@ -506,13 +506,27 @@ function buildDataPrompt({ report, posts, comments, previousAnalysis }) {
     }
     out += `\n`;
   }
+  // Redes propias: los posts son los más recientes del perfil (pueden ser de días
+  // previos), pero los COMENTARIOS son del día del reporte. La lectura debe centrarse
+  // en la conversación de HOY, no en el engagement acumulado de un post viejo.
+  const isOwned = report.theme_key === 'redes_propias';
+  if (isOwned) {
+    const hoy = report.date_key;
+    const publicoHoy = posts.some(p => (p.published_date || '').slice(0, 10) === hoy);
+    out += `--- MARCO REDES PROPIAS (reporte del ${hoy}) ---\n`;
+    out += `Estas son las publicaciones más recientes de Pepe; la etiqueta [HOY] marca las publicadas el ${hoy}. Los comentarios de abajo son EXCLUSIVAMENTE del ${hoy}.\n`;
+    out += publicoHoy
+      ? `Reglas: Pepe SÍ publicó el ${hoy} — esa(s) publicación(es) [HOY] son lo más importante del día; analízalas a fondo. Para posts de días previos, enfócate en qué comenta la gente HOY sobre ellos.\n\n`
+      : `Reglas: Pepe NO publicó el ${hoy}. Su última publicación es de días atrás. Lo relevante hoy es la CONVERSACIÓN del día: enmarca la lectura como "hoy la gente sigue comentando tu post del [fecha del post]", y saca alertas/oportunidades de esos comentarios del ${hoy}, NO del engagement acumulado del post viejo.\n\n`;
+  }
   out += `--- PUBLICACIONES (${posts.length}) ---\n`;
   posts.forEach((p, i) => {
     // Desglose de reacciones de FB cuando existe: haha/angry/sad altos son señal de
     // burla o molestia que el total de likes esconde — la IA debe poder verlo.
     const rxTotal = (p.fb_like||0)+(p.fb_love||0)+(p.fb_haha||0)+(p.fb_wow||0)+(p.fb_sad||0)+(p.fb_angry||0);
     const rx = rxTotal ? ` reacciones[👍${p.fb_like||0} ❤️${p.fb_love||0} 😂${p.fb_haha||0} 😮${p.fb_wow||0} 😢${p.fb_sad||0} 😡${p.fb_angry||0}]` : '';
-    out += `${i+1}. [${p.platform}] @${p.username} | ${p.published_date?.slice(0,10)} | likes:${p.likes} comentarios:${p.comments_count} views:${p.views}${rx} | "${truncate(p.text)}" | ${p.url}\n`;
+    const esHoy = isOwned && (p.published_date || '').slice(0, 10) === report.date_key ? ' [HOY]' : '';
+    out += `${i+1}.${esHoy} [${p.platform}] @${p.username} | ${p.published_date?.slice(0,10)} | likes:${p.likes} comentarios:${p.comments_count} views:${p.views}${rx} | "${truncate(p.text)}" | ${p.url}\n`;
   });
   if (comments.length) {
     // Muestra representativa: los más gustados primero (no todos, para no inflar el prompt)
