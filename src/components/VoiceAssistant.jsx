@@ -3,6 +3,17 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { C } from '../utils/helpers';
 import { useVoiceSession } from '../hooks/useVoiceSession';
 
+// Mismo icono de línea que la pantalla de entrada (ModeSelect).
+const IconVoice = ({ size = 24 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth="1.6" strokeLinecap="square">
+    <rect x="9.2" y="3.5" width="5.6" height="10.5" rx="2.8" />
+    <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0" />
+    <line x1="12" y1="18" x2="12" y2="20.5" />
+    <line x1="8.5" y1="20.5" x2="15.5" y2="20.5" />
+  </svg>
+);
+
 export default function VoiceAssistant() {
   const [open, setOpen] = useState(false);
   const { state, errMsg, start, stop } = useVoiceSession();
@@ -39,7 +50,7 @@ export default function VoiceAssistant() {
           border: 'none', background: open ? C.ink : C.gold, color: open ? C.gold : '#1A1612',
           boxShadow: '0 6px 20px rgba(0,0,0,0.28)', display: 'flex', alignItems: 'center',
           justifyContent: 'center', fontSize: 22 }}>
-        {open ? '×' : '🎙️'}
+        {open ? '×' : <IconVoice size={24} />}
       </motion.button>
 
       <AnimatePresence>
