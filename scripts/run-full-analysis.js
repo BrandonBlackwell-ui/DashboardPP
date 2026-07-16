@@ -472,8 +472,11 @@ const normCommentTT = items => items.map(c => ({
   replies: +(c.replyCommentTotal || 0), url: '',
 })).filter(c => c.text);
 
+// El actor de YouTube a veces devuelve author como objeto {id,name,thumbnails};
+// hay que extraer .name para no guardar el JSON crudo como autor.
+const authorName = a => { const n = (a && typeof a === 'object') ? (a.name || a.title || a.text || '') : (a || ''); return String(n).replace(/^@/, ''); };
 const normCommentYT = items => items.map(c => ({
-  text: c.text || c.commentText || '', author: c.authorText || c.author || '',
+  text: c.text || c.commentText || '', author: c.authorText || authorName(c.author) || '',
   published_time: null, likes: +(c.voteCount || c.likeCount || 0), replies: +(c.replyCount || 0), url: c.commentUrl || '',
 })).filter(c => c.text);
 

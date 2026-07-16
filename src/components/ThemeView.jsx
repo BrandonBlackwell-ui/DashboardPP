@@ -301,6 +301,10 @@ function deriveNetworkPosts(themeData) {
         followers: p.followers,
         thumbnail: p.thumbnail,
         sentiment: p.sentiment,
+        // Desglose de reacciones de FB — sin esto el widget "Reacciones" mostraba
+        // todo el total en 👍 y 0 en las demás.
+        fb_like: p.fb_like, fb_love: p.fb_love, fb_haha: p.fb_haha,
+        fb_wow: p.fb_wow, fb_sad: p.fb_sad, fb_angry: p.fb_angry,
         scraped_comments: p.scraped_comments || []
       });
     });
