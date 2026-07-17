@@ -1409,8 +1409,7 @@ const NEIVA_SECTIONS = [
 
 /* ─── Main ReporteView ───────────────────────────────────────── */
 export default function ReporteView({ isDesktop, data }) {
-  const hasAiReport = !!data?.themes?.resumen?.ai_analysis;
-  const [activeReport, setActiveReport] = useState(hasAiReport ? 'ia' : 'frontera');
+  const [activeReport, setActiveReport] = useState('frontera');
   const [sectionIdx, setSectionIdx] = useState(0);
 
   const sections =
@@ -1447,7 +1446,6 @@ export default function ReporteView({ isDesktop, data }) {
         {/* Report selector */}
         <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
           {[
-            ...(hasAiReport ? [{ key:'ia', label:'⚡ Reporte IA · Actual', sub:'generado del último análisis' }] : []),
             { key:'frontera', label:'Riesgo · Grupo Frontera', sub:'Edinburg, TX · 17 Jul 2026' },
             { key:'neiva', label:'Briefs Medios · Neiva', sub:'Colombia · 19 Jun 2026' },
             { key:'actividades', label:'Actividades · May–Jun', sub:'entregables y hallazgos' },
@@ -1468,9 +1466,6 @@ export default function ReporteView({ isDesktop, data }) {
         </div>
       </div>
 
-      {activeReport === 'ia' ? (
-        <ReporteIA data={data} isDesktop={isDesktop} />
-      ) : (
       <>
       {/* Section pills */}
       <div style={{ display:'flex', gap:4, overflowX:'auto', scrollbarWidth:'none', marginBottom:16, paddingBottom:4 }}>
@@ -1525,7 +1520,6 @@ export default function ReporteView({ isDesktop, data }) {
         </button>
       </div>
       </>
-      )}
 
     </div>
   );
