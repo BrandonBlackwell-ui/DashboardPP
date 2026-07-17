@@ -108,6 +108,204 @@ function QuoteCard({ text, source, tone }) {
   );
 }
 
+/* ─── REPORTE NUEVO: Grupo Frontera Edinburg TX ───────────────────── */
+const FRONTERA_SECTIONS = [
+  {
+    id: '01', tag: '01 · Generales del evento',
+    title: 'Riesgo Medio para Pepe Aguilar en el concierto de Grupo Frontera.',
+    acento: 'Medio',
+    render: () => (
+      <>
+        <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:16 }}>
+          Análisis de riesgo reputacional para <strong>Pepe Aguilar</strong> en su participación en el concierto de Grupo Frontera en Texas.
+        </p>
+        <Table
+          headers={['Eje de información', 'Detalle']}
+          rows={[
+            ['Evento', 'Concierto Grupo Frontera – Triste Pero Bien C*brón Tour'],
+            ['Fecha y sede', '17 de julio de 2026, Bert Ogden Arena, Edinburg, Texas'],
+            ['Contexto', 'Edinburg es la ciudad de origen de Grupo Frontera'],
+            ['Folio', 'BW-26-07-PA-RIESGO-001'],
+          ]}
+        />
+        <Callout label="Semáforo Ejecutivo · Riesgo Medio" color={gold}>
+          La conversación de Pepe, referente al tema de conciertos (de abril a julio) presenta un 88% de sentimiento de hostilidad derivado de la narrativa de cancelaciones y shows pospuestos. Este evento es de riesgo medio: ya que abren posibilidad a retomar temas como el contraste con su propia taquilla y el ángulo "pro-Trump" en una comunidad migrante / fronteriza.
+        </Callout>
+      </>
+    )
+  },
+  {
+    id: '02', tag: '02 · Principales narrativas en torno a Pepe',
+    title: 'Identificación de las narrativas críticas activas.',
+    acento: 'narrativas',
+    render: () => (
+      <>
+        <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:16 }}>
+          Se detectaron tres narrativas principales con nivel de riesgo medio que asocian la baja de ventas y posturas políticas.
+        </p>
+        <Table
+          headers={['Narrativa', 'Origen', 'Vigencia', 'Riesgo']}
+          rows={[
+            ['"A mí nadie me cancela" / karma de taquilla', 'Declaración previa + baja venta y cancelación de fechas en EE.UU.', 'Vigente', 'MEDIO'],
+            ['"Pepe apoya a Trump / sacar inmigrantes"', 'Clips 2025', 'Latente', 'MEDIO'],
+            ['"Soberbio / prefiero a los Fernández"', 'Comparación con dinastía rival (humildad)', 'Vigente', 'MEDIO'],
+          ]}
+        />
+      </>
+    )
+  },
+  {
+    id: '03', tag: '03 · Ejemplos de conversación',
+    title: 'Muestras de la conversación en plataformas.',
+    acento: 'conversación',
+    render: () => (
+      <>
+        <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:16 }}>
+          Ejemplos de las interacciones hostiles capturadas en torno al evento y la venta de boletos.
+        </p>
+        <Table
+          headers={['Fecha', 'Plataforma', 'Autor', 'Resumen', 'Tono']}
+          rows={[
+            ['15 jul', 'TikTok', '@el_chapala_alejandro', '"Cancelan concierto de Pepe Aguilar por no vender boletos"', 'Hostil'],
+            ['13 jul', 'TikTok', '@aaronmachi (21.8K v)', '"Se quedó sin fechas, lo están cancelando poco a poco"', 'Hostil'],
+            ['2 may', 'Facebook', 'PAM (613 coment.)', '"El talento no se cancela, decían" — burla por bajas ventas', 'Hostil'],
+            ['13 jul', 'TikTok', 'comentario (69 ♥)', '"Pero él no es humilde, apoyó al presidente de Estados Unidos"', 'Hostil'],
+            ['6 jul', 'X', '@luazELF', '"Ora los MAGA de Grupo Frontera, quiéranse tantito"', 'Hostil'],
+          ]}
+        />
+      </>
+    )
+  },
+  {
+    id: '04', tag: '04 · Escenarios de riesgo',
+    title: 'Evaluación de posibles escenarios y respuestas.',
+    acento: 'Escenarios',
+    render: () => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ background:paper, border:`1px solid ${border}`, borderLeft:`3px solid ${crim}`, borderRadius:3, padding:'14px 16px' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+            <span style={{ fontFamily:SANS, fontWeight:600, fontSize:13.5, color:ink }}>Escenario 1 · Mayor riesgo</span>
+            <span style={{ fontFamily:MONO, fontSize:9, background:`rgba(219,68,85,0.1)`, color:crim, padding:'2px 6px', borderRadius:2, fontWeight:600 }}>RIESGO ALTO</span>
+          </div>
+          <Table
+            headers={['Variable', 'Descripción']}
+            rows={[
+              ['Probabilidad / Impacto', 'MEDIA-BAJA / ALTO'],
+              ['Qué ocurre', 'La presencia de Pepe reactiva su ciclo hostil: "tuvo que ir de invitado porque él ya no llena conciertos y encima pro-Trump"'],
+              ['Detonador / Indicadores', 'Clip de Pepe con narrativa de migración/Trump en la comunidad fronteriza. Picos de burla y menciones de Trump.'],
+              ['Resultado esperado', 'Se refuerza el relato "cancelado y vendido"; daño de imagen moderado.'],
+              ['Acción / Statement', 'No responder al ataque político.'],
+            ]}
+          />
+        </div>
+
+        <div style={{ background:paper, border:`1px solid ${border}`, borderLeft:`3px solid ${teal}`, borderRadius:3, padding:'14px 16px' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+            <span style={{ fontFamily:SANS, fontWeight:600, fontSize:13.5, color:ink }}>Escenario 2 · Más probable</span>
+            <span style={{ fontFamily:MONO, fontSize:9, background:`rgba(14,165,233,0.1)`, color:teal, padding:'2px 6px', borderRadius:2, fontWeight:600 }}>RIESGO BAJO</span>
+          </div>
+          <Table
+            headers={['Variable', 'Descripción']}
+            rows={[
+              ['Probabilidad / Impacto', 'ALTA / BAJO'],
+              ['Qué ocurre', 'Show de casa exitoso; burla contenida "¿por qué lo invitan?"'],
+              ['Detonador / Indicadores', 'Anuncio o clip de su participación. Comentarios aislados negativos sin trascender a prensa seria.'],
+              ['Resultado esperado', 'Ruido de 24–72h sin daño reputacional.'],
+              ['Acción / Statement', 'No responder la burla. Capitalizar en silencio: días después, clip breve agradeciendo al grupo por la invitación y el cariño del público (sin tono triunfalista).'],
+            ]}
+          />
+        </div>
+
+        <div style={{ background:paper, border:`1px solid ${border}`, borderLeft:`3px solid ${teal}`, borderRadius:3, padding:'14px 16px' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+            <span style={{ fontFamily:SANS, fontWeight:600, fontSize:13.5, color:ink }}>Escenario 3 · Mejor escenario</span>
+            <span style={{ fontFamily:MONO, fontSize:9, background:`rgba(14,165,233,0.1)`, color:teal, padding:'2px 6px', borderRadius:2, fontWeight:600 }}>RIESGO BAJO</span>
+          </div>
+          <Table
+            headers={['Variable', 'Descripción']}
+            rows={[
+              ['Probabilidad / Impacto', 'MEDIA / BAJO'],
+              ['Qué ocurre', 'Pepe es recibido con calidez; el momento se lee como orgullo latino / del regional mexicano.'],
+              ['Detonador / Indicadores', 'Casa llena, recibimiento cálido y buen momento musical junto a Grupo Frontera. Conversación de música supera a la de burla.'],
+              ['Resultado esperado', 'Recupera capital simpático; minimiza el relato "ya nadie lo quiere".'],
+              ['Acción / Statement', 'Aprovechar la ventana. Statement sugerido: "Gracias a Grupo Frontera y a este increíble público por abrirme su casa; la música regional mexicana es de todos." Contenido cálido y agradecido.'],
+            ]}
+          />
+        </div>
+      </div>
+    )
+  },
+  {
+    id: '05', tag: '05 · Recomendaciones por fase',
+    title: 'Protocolos de acción y monitoreo preventivos.',
+    acento: 'monitoreo',
+    render: () => (
+      <>
+        <p style={{ fontFamily:SANS, fontSize:13, color:muted, lineHeight:1.6, marginBottom:16 }}>
+          Acciones prioritarias y preventivas estructuradas por fase temporal del evento.
+        </p>
+        <Table
+          headers={['Fase', 'Acción', 'Prioridad']}
+          rows={[
+            ['Antes', 'Escucha en tiempo real centrada en Pepe', 'ALTA'],
+            ['Durante', 'Comunicación con tono cálido y cariño', 'ALTA'],
+            ['Durante', 'Foco en música y comunidad, no mencionar nada al tema político', 'MEDIA'],
+            ['24h posteriores', 'Si existe conversación de "de arrimado" o ángulo político escala, no confrontar ni responder', 'ALTA'],
+            ['24h posteriores', 'Capitalizar el "sí llena" con sobriedad; imágenes del público / comunidad', 'MEDIA'],
+            ['72h posteriores', 'Evaluación del evento: escucha general de la conversación de Pepe en torno al evento', 'ALTA'],
+          ]}
+        />
+      </>
+    )
+  },
+  {
+    id: '06', tag: '06 · Conclusión estratégica',
+    title: 'Conclusiones clave y focos de atención.',
+    acento: 'Conclusiones',
+    render: () => (
+      <>
+        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          <div style={{ background:paper, border:`1px solid ${border}`, borderRadius:3, padding:'14px 16px' }}>
+            <h4 style={{ fontFamily:SANS, fontWeight:600, fontSize:13, color:ink, margin:'0 0 6px 0' }}>¿El concierto representa un riesgo reputacional para Pepe?</h4>
+            <p style={{ fontFamily:SANS, fontSize:12.5, color:muted, margin:0, lineHeight:1.5 }}>
+              <strong style={{ color: goldDeep }}>MEDIO.</strong> El show añade poco riesgo nuevo y puede incluso ayudarlo de acuerdo a la respuesta del público.
+            </p>
+          </div>
+
+          <div style={{ background:paper, border:`1px solid ${border}`, borderRadius:3, padding:'14px 16px' }}>
+            <h4 style={{ fontFamily:SANS, fontWeight:600, fontSize:13, color:ink, margin:'0 0 6px 0' }}>¿Qué narrativa tiene mayor probabilidad de crecer?</h4>
+            <p style={{ fontFamily:SANS, fontSize:12.5, color:muted, margin:0, lineHeight:1.5 }}>
+              La burla <em style={{ fontStyle: 'normal', color: crim }}>"él ya no llena conciertos / de arrimado"</em> y, en menor medida, el tema Trump.
+            </p>
+          </div>
+
+          <div style={{ background:paper, border:`1px solid ${border}`, borderRadius:3, padding:'14px 16px' }}>
+            <h4 style={{ fontFamily:SANS, fontWeight:600, fontSize:13, color:ink, margin:'0 0 6px 0' }}>¿Cuál es el principal foco de monitoreo?</h4>
+            <p style={{ fontFamily:SANS, fontSize:12.5, color:muted, margin:0, lineHeight:1.5 }}>
+              La aparición de Pepe y su recepción, y cualquier intento de politizar su presencia en clave migratoria.
+            </p>
+          </div>
+        </div>
+        <div style={{ border:`1px solid ${border}`, borderRadius:3, padding:'20px 24px', textAlign:'center',
+          background:paper, margin:'16px 0 12px' }}>
+          <p style={{ fontFamily:SANS, fontWeight:400, fontSize:15, fontStyle:'italic', color:ink,
+            lineHeight:1.55, margin:0, letterSpacing:'-0.01em' }}>
+            «El show añade poco riesgo nuevo y puede incluso ayudarlo de acuerdo a la respuesta del público.»
+          </p>
+          <div style={{ fontFamily:MONO, fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase',
+            color:muted, marginTop:12 }}>Síntesis del Evento Grupo Frontera</div>
+        </div>
+        <div style={{ fontFamily:MONO, fontSize:9, letterSpacing:'0.10em', textTransform:'uppercase',
+          color:muted, display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:6 }}>
+          <span>Folio · BW-26-07-PA-RIESGO-001</span>
+          <span>Preparado por Blackwell Strategy</span>
+          <span style={{ color:crim, fontWeight:600 }}>Confidencial · uso interno</span>
+        </div>
+      </>
+    )
+  }
+];
+
 /* ─── REPORTE 1: Período General Jun 1–16 ───────────────────── */
 const PERIODO_SECTIONS = [
   {
@@ -1212,10 +1410,11 @@ const NEIVA_SECTIONS = [
 /* ─── Main ReporteView ───────────────────────────────────────── */
 export default function ReporteView({ isDesktop, data }) {
   const hasAiReport = !!data?.themes?.resumen?.ai_analysis;
-  const [activeReport, setActiveReport] = useState(hasAiReport ? 'ia' : 'neiva');
+  const [activeReport, setActiveReport] = useState(hasAiReport ? 'ia' : 'frontera');
   const [sectionIdx, setSectionIdx] = useState(0);
 
   const sections =
+    activeReport === 'frontera' ? FRONTERA_SECTIONS :
     activeReport === 'periodo' ? PERIODO_SECTIONS :
     activeReport === 'entrevistas' ? ENTREV_SECTIONS :
     activeReport === 'actividades' ? ACTIVIDADES_SECTIONS :
@@ -1249,6 +1448,7 @@ export default function ReporteView({ isDesktop, data }) {
         <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
           {[
             ...(hasAiReport ? [{ key:'ia', label:'⚡ Reporte IA · Actual', sub:'generado del último análisis' }] : []),
+            { key:'frontera', label:'Riesgo · Grupo Frontera', sub:'Edinburg, TX · 17 Jul 2026' },
             { key:'neiva', label:'Briefs Medios · Neiva', sub:'Colombia · 19 Jun 2026' },
             { key:'actividades', label:'Actividades · May–Jun', sub:'entregables y hallazgos' },
             { key:'album', label:'Álbum · QVAA', sub:'BW-26-06-PA-RAPA-001' },
