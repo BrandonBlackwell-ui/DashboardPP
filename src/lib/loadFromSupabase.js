@@ -391,7 +391,11 @@ export async function loadFromSupabase() {
       }
     }
 
-    // Build ALL_VOICES_DATA: aggregate across all reports and all dates
+    // Build ALL_VOICES_DATA: aggregate across all reports and all dates.
+    // Clave: una misma voz aparece en el tema-red Y en 'resumen' del MISMO día (resumen
+    // consolida), así que sumar todas las filas duplicaba el alcance (ej. 12K → 24K).
+    // Solución: por (voz, fecha) se toma el valor UNA vez (máximo, deduplica red+resumen),
+    // y luego se SUMA entre fechas distintas → sin doble conteo y con acumulación real.
     const voiceAgg = {};
     const addVoiceAgg = (v, sentiment, dateKey) => {
       if (!v?.username) return;
@@ -401,17 +405,17 @@ export async function loadFromSupabase() {
       if (!voiceAgg[k]) {
         voiceAgg[k] = {
           username: v.username, platform: v.platform || '',
-          tier: v.tier || 'micro', posts: 0, likes: 0, comments: 0, engagement: 0,
-          keywords: v.keywords || [], text: v.text || '', url: v.url || '',
-          datesSeen: new Set(), positiveCount: 0, negativeCount: 0,
+          tier: v.tier || 'micro', keywords: v.keywords || [], text: v.text || '', url: v.url || '',
+          byDate: {}, positiveCount: 0, negativeCount: 0,
         };
       }
       const e = voiceAgg[k];
-      e.posts      = Math.max(e.posts, Number(v.posts || 0));
-      e.likes     += Number(v.likes || 0);
-      e.comments  += Number(v.comments || 0);
-      e.engagement+= Number(v.engagement || 0);
-      e.datesSeen.add(dateKey);
+      const d = e.byDate[dateKey] || { posts: 0, likes: 0, comments: 0, engagement: 0 };
+      d.posts      = Math.max(d.posts, Number(v.posts || 0));
+      d.likes      = Math.max(d.likes, Number(v.likes || 0));
+      d.comments   = Math.max(d.comments, Number(v.comments || 0));
+      d.engagement = Math.max(d.engagement, Number(v.engagement || 0));
+      e.byDate[dateKey] = d;
       if (sentiment === 'negative') e.negativeCount++; else e.positiveCount++;
       if (!e.keywords.length && v.keywords?.length) e.keywords = v.keywords;
       if (!e.text && v.text) e.text = v.text;
@@ -437,10 +441,18 @@ export async function loadFromSupabase() {
         }
       });
     }
-    const allVoicesArr = Object.values(voiceAgg).map(e => ({
-      ...e, datesSeen: e.datesSeen.size,
-      sentiment: e.negativeCount > e.positiveCount ? 'negative' : 'positive',
-    })).sort((a, b) => b.engagement - a.engagement);
+    const allVoicesArr = Object.values(voiceAgg).map(({ byDate, positiveCount, negativeCount, ...e }) => {
+      const days = Object.values(byDate);
+      return {
+        ...e,
+        posts:      days.reduce((s, d) => s + d.posts, 0),
+        likes:      days.reduce((s, d) => s + d.likes, 0),
+        comments:   days.reduce((s, d) => s + d.comments, 0),
+        engagement: days.reduce((s, d) => s + d.engagement, 0),
+        datesSeen: days.length,
+        sentiment: negativeCount > positiveCount ? 'negative' : 'positive',
+      };
+    }).sort((a, b) => b.engagement - a.engagement);
     window.ALL_VOICES_DATA = {
       allies:  allVoicesArr.filter(v => v.sentiment !== 'negative'),
       critics: allVoicesArr.filter(v => v.sentiment === 'negative'),
