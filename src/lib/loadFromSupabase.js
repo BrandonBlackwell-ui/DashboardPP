@@ -452,7 +452,9 @@ export async function loadFromSupabase() {
         datesSeen: days.length,
         sentiment: negativeCount > positiveCount ? 'negative' : 'positive',
       };
-    }).sort((a, b) => b.engagement - a.engagement);
+    // Jerarquía: recurrencia (nº de días que apareció) primero — la señal confiable de
+    // "quién publica seguido"; el conteo de posts casi nunca viene. Desempate por alcance.
+    }).sort((a, b) => (b.datesSeen - a.datesSeen) || (b.engagement - a.engagement));
     window.ALL_VOICES_DATA = {
       allies:  allVoicesArr.filter(v => v.sentiment !== 'negative'),
       critics: allVoicesArr.filter(v => v.sentiment === 'negative'),

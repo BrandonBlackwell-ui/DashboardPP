@@ -294,10 +294,10 @@ function BarRow({ v, side, maxEng, index, onSelect }) {
             display:'block', transition:'all 0.15s' }}>
             {v.username}
           </span>
-          {v.posts > 0 && (
+          {(v.datesSeen > 1 || v.posts > 0) && (
             <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:8, color:'#A9997B',
               letterSpacing:'0.04em', display:'block', lineHeight:1 }}>
-              {v.posts} {v.posts === 1 ? 'post' : 'posts'}
+              {v.datesSeen > 1 ? `${v.datesSeen} días activo` : `${v.posts} post`}
             </span>
           )}
         </div>
