@@ -439,7 +439,7 @@ function MediaBarRow({ item, side, maxNotas, index, onSelect }) {
 // ── Columna de medios (aliados / contrarios / neutrales) ────────────────────────
 function MediaColumn({ items, side, label, sub, maxNotas, onSelect }) {
   const accent = side === 'favorable' ? C.teal : side === 'critico' ? C.crim : '#8A7E6A';
-  const TOP = 10;
+  const TOP = 20;
   const shown = items.slice(0, TOP);
   return (
     <div style={{ marginBottom: 4 }}>
