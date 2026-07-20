@@ -467,9 +467,29 @@ function MediaColumn({ items, side, label, sub, maxNotas, onSelect }) {
   );
 }
 
-// ── Panel de detalle de un medio: sus notas acumuladas ──────────────────────────
+// Clasifica el tono de UNA nota. Usa el sentiment real de la nota si existe (lo llena la
+// IA); si no, estima por palabras clave del titular (aproximado, dominio Pepe/familia).
+const NOTE_NEG = ['pelea','golpes','burla','burl','exhibe','roba','robar','escándalo','escandalo','crític','critic','polémic','polemic','demanda','ataca','ataque','arremete','calvicie','bullying','se rapa','cancel','hunde','humilla','acusa','plagio','deuda','drama','tunde','funa','destroza',"can't",'cant stop','vs ','contra ','pleito','indirecta','desubicad','inmadur'];
+const NOTE_POS = ['reconocid','nominad','homenaje','éxito','exito','orgullo','respald','leyenda','celebra','triunfo','aplauso','gala','premi','honra','emotiv','emociona','gran ','maravill','brilla','arrasa','conquista','aplaude','elogi'];
+function classifyNote(note) {
+  const s = (note.sentiment || '').toLowerCase();
+  if (['favorable', 'positive', 'positivo'].includes(s)) return 'pos';
+  if (['critico', 'crítico', 'negative', 'negativo'].includes(s)) return 'neg';
+  if (s === 'neutral') return 'neu';
+  const t = (note.text || '').toLowerCase();
+  const neg = NOTE_NEG.some(k => t.includes(k));
+  const pos = NOTE_POS.some(k => t.includes(k));
+  return neg && !pos ? 'neg' : pos && !neg ? 'pos' : 'neu';
+}
+
+// ── Panel de detalle de un medio: sus notas acumuladas, agrupadas por tono ──────
 function MediaDetail({ medio, notes, onClose, isDesktop }) {
   const accent = medio.tono === 'favorable' ? C.teal : medio.tono === 'critico' ? C.crim : C.goldDeep;
+  const grupos = [
+    { key: 'pos', label: 'Positivas', color: C.teal },
+    { key: 'neu', label: 'Neutrales', color: '#8A7E6A' },
+    { key: 'neg', label: 'Negativas', color: C.crim },
+  ].map(g => ({ ...g, items: notes.filter(n => classifyNote(n) === g.key) })).filter(g => g.items.length);
   return (
     <motion.div
       initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 40 }}
@@ -499,30 +519,42 @@ function MediaDetail({ medio, notes, onClose, isDesktop }) {
         </div>
       </div>
       <div style={{ flex: 1, padding: '14px 20px 24px' }}>
-        <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10, letterSpacing: '0.14em',
-          textTransform: 'uppercase', color: C.goldDeep, fontWeight: 600, marginBottom: 12 }}>
-          Notas publicadas
-        </div>
         {notes.length === 0 && (
           <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10.5, color: '#8A7E6A',
             textTransform: 'uppercase', padding: '20px 0' }}>Sin notas individuales guardadas.</div>
         )}
-        {notes.map((p, i) => (
-          <div key={i} style={{ marginBottom: 10, padding: '11px 13px', background: 'rgba(33,28,23,0.035)',
-            border: '1px solid rgba(33,28,23,0.08)', borderLeft: `3px solid ${accent}`, borderRadius: 3 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}>
-              <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 9.5, color: '#8A7E6A',
-                textTransform: 'uppercase', flex: 1 }}>{formatDate(p.published_date)}</span>
-              {p.url && (
-                <a href={p.url} target="_blank" rel="noopener" style={{ fontFamily: "'Geist Mono',monospace",
-                  fontSize: 9, color: C.goldDeep, fontWeight: 700, textDecoration: 'none', letterSpacing: '0.06em' }}>ABRIR ↗</a>
-              )}
+        {grupos.map(g => (
+          <div key={g.key} style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10,
+              paddingBottom: 6, borderBottom: `2px solid ${g.color}` }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: g.color, flex: 'none' }} />
+              <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10, letterSpacing: '0.12em',
+                textTransform: 'uppercase', color: g.color, fontWeight: 700 }}>{g.label} · {g.items.length}</span>
             </div>
-            <p style={{ fontSize: 13, lineHeight: 1.45, color: C.ink, margin: 0, wordBreak: 'break-word' }}>
-              {p.text || '[Sin título]'}
-            </p>
+            {g.items.map((p, i) => (
+              <div key={i} style={{ marginBottom: 10, padding: '11px 13px', background: 'rgba(33,28,23,0.035)',
+                border: '1px solid rgba(33,28,23,0.08)', borderLeft: `3px solid ${g.color}`, borderRadius: 3 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}>
+                  <span style={{ fontFamily: "'Geist Mono',monospace", fontSize: 9.5, color: '#8A7E6A',
+                    textTransform: 'uppercase', flex: 1 }}>{formatDate(p.published_date)}</span>
+                  {p.url && (
+                    <a href={p.url} target="_blank" rel="noopener" style={{ fontFamily: "'Geist Mono',monospace",
+                      fontSize: 9, color: C.goldDeep, fontWeight: 700, textDecoration: 'none', letterSpacing: '0.06em' }}>ABRIR ↗</a>
+                  )}
+                </div>
+                <p style={{ fontSize: 13, lineHeight: 1.45, color: C.ink, margin: 0, wordBreak: 'break-word' }}>
+                  {p.text || '[Sin título]'}
+                </p>
+              </div>
+            ))}
           </div>
         ))}
+        {notes.length > 0 && (
+          <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 8.5, color: '#A9997B',
+            letterSpacing: '0.04em', marginTop: 4 }}>
+            Clasificación automática por titular; se afina con el análisis de IA.
+          </div>
+        )}
       </div>
     </motion.div>
   );
@@ -545,7 +577,7 @@ export default function AliadosView({ data, isDesktop }) {
       try {
         const { data: rows } = await supabase
           .from('scraped_posts')
-          .select('url, text, published_date, username')
+          .select('url, text, published_date, username, sentiment')
           .eq('platform', 'google_news')
           .order('published_date', { ascending: false })
           .limit(1000);
