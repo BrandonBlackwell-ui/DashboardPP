@@ -655,6 +655,39 @@ function buildFallbackAnalysis(posts, comments, dateKey) {
   };
 }
 
+// Clasifica el tono de cada NOTA de prensa hacia Pepe con un modelo BARATO (los que ya
+// usamos). Un solo llamado por día. Devuelve { [postId]: 'positive'|'neutral'|'negative' }.
+async function classifyNewsSentiment(aiKey, posts) {
+  const batch = posts.slice(0, 80);
+  const list = batch.map((p, i) => `${i}. ${(p.text || '').replace(/\s+/g, ' ').slice(0, 160)}`).join('\n');
+  const prompt = `Clasifica el TONO de cada titular de prensa HACIA Pepe Aguilar y su familia (los Aguilar): "favorable" si lo respalda/elogia/es logro, "neutral" si es informativo sin carga, "critico" si lo ataca/ridiculiza/amplifica escándalo o pleito. Devuelve SOLO JSON: {"tonos":[{"i":0,"t":"neutral"}, ...]} con un objeto por titular (usa el número i del titular).\n\nTITULARES:\n${list}`;
+  const models = ['google/gemini-2.5-flash-lite', 'google/gemini-2.5-flash'];
+  const map = {};
+  try {
+    const { analysis } = await callAI(aiKey, prompt, models, 'Eres un clasificador de sentimiento de prensa. Responde solo JSON válido.');
+    const M = { favorable: 'positive', positivo: 'positive', critico: 'negative', 'crítico': 'negative', negativo: 'negative', neutral: 'neutral' };
+    for (const row of (analysis?.tonos || [])) {
+      const p = batch[Number(row.i)];
+      if (p) map[p.id] = M[String(row.t || '').toLowerCase()] || 'neutral';
+    }
+  } catch (e) { console.warn('[prensa] clasif sentimiento falló:', e?.message || e); }
+  return map;
+}
+
+// Clasifica y guarda el sentimiento de las notas de prensa de un día en scraped_posts.
+async function classifyAndSaveNewsSentiment(aiKey, date, emit = () => {}) {
+  try {
+    const { data: gnRep } = await supabase.from('reports').select('id').eq('date_key', date).eq('theme_key', 'google_news').limit(1);
+    if (!aiKey || !gnRep?.length) return;
+    const { data: gnPosts } = await supabase.from('scraped_posts').select('id,text').eq('report_id', gnRep[0].id);
+    if (!gnPosts?.length) return;
+    const tono = await classifyNewsSentiment(aiKey, gnPosts);
+    let n = 0;
+    for (const [id, s] of Object.entries(tono)) { await supabase.from('scraped_posts').update({ sentiment: s }).eq('id', id); n++; }
+    emit({ type: 'log', msg: `prensa: sentimiento clasificado en ${n} notas` });
+  } catch (e) { emit({ type: 'error', msg: `clasif prensa: ${e.message}` }); }
+}
+
 export async function callAI(apiKey, prompt, models, systemPrompt = AI_PROMPT_SYSTEM) {
   const AI_TIMEOUT_MS = 90000; // corta un modelo colgado en vez de bloquear toda la corrida
   for (const model of models) {
@@ -948,6 +981,10 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, from, to, emit 
     allSavedPosts[key] = saved;
   }
 
+  // Clasificar el sentimiento de cada NOTA de prensa (google_news) con modelo barato,
+  // y guardarlo en scraped_posts.sentiment → agrupado Positivas/Neutrales/Negativas preciso.
+  await classifyAndSaveNewsSentiment(aiKey, DATE, emit);
+
   // Normalizar y guardar — propios
   const ownedNorms = [
     { key:'instagram', result:ownIgR, norm: items => normOwnedInstagram(items) },
@@ -1092,6 +1129,8 @@ export async function runAIOnly({ aiKey, date, emit = () => {} }) {
   const summary = { date: DATE, ai: {}, mode: 'ai-only', startedAt: new Date().toISOString() };
 
   emit({ type:'phase', phase:'C', msg:`Re-análisis IA con data existente del ${DATE} (sin Apify)...` });
+  // Reclasifica el sentimiento de las notas de prensa existentes (modelo barato).
+  await classifyAndSaveNewsSentiment(aiKey, DATE, emit);
   const aiNets = ['facebook','instagram','x','tiktok','google_news','redes_propias'];
   const results = await Promise.allSettled(
     aiNets.map(net => enrichAndSaveAI(aiKey, net, DATE, {}).then(r => { emit({ type:'ai_done', net, result:r }); return r; }))

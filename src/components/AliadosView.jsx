@@ -440,7 +440,8 @@ function MediaBarRow({ item, side, maxNotas, index, onSelect }) {
 function MediaColumn({ items, side, label, sub, maxNotas, onSelect }) {
   const accent = side === 'favorable' ? C.teal : side === 'critico' ? C.crim : '#8A7E6A';
   const TOP = 20;
-  const shown = items.slice(0, TOP);
+  const [expanded, setExpanded] = useState(false);
+  const shown = expanded ? items : items.slice(0, TOP);
   return (
     <div style={{ marginBottom: 4 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, paddingBottom: 8, borderBottom: `2px solid ${accent}` }}>
@@ -458,9 +459,12 @@ function MediaColumn({ items, side, label, sub, maxNotas, onSelect }) {
           ? shown.map((it, i) => <MediaBarRow key={it.medio.nombre + i} item={it} side={side} maxNotas={maxNotas} index={i} onSelect={onSelect} />)
           : <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10, color: '#8A7E6A', textTransform: 'uppercase', padding: '12px 0' }}>Sin medios en esta categoría.</div>}
         {items.length > TOP && (
-          <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 9.5, color: '#A9997B', textTransform: 'uppercase', marginTop: 6, letterSpacing: '0.06em' }}>
-            + {items.length - TOP} medios más
-          </div>
+          <button onClick={() => setExpanded(v => !v)}
+            style={{ font: 'inherit', textAlign: 'left', cursor: 'pointer', background: 'transparent',
+              border: 'none', padding: '6px 0 0', fontFamily: "'Geist Mono',monospace", fontSize: 9.5,
+              color: accent, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>
+            {expanded ? '− ver menos' : `+ ${items.length - TOP} medios más`}
+          </button>
         )}
       </div>
     </div>
