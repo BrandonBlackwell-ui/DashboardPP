@@ -467,9 +467,8 @@ export async function loadFromSupabase() {
         hasPosts: urls.length > 0,
         sentiment: negScore > posScore ? 'negative' : 'positive',
       };
-    // Jerarquía: primero las voces con publicaciones reales capturadas (data dura),
-    // luego recurrencia (días vistos) y alcance como desempates.
-    }).sort((a, b) => (b.hasPosts - a.hasPosts) || (b.datesSeen - a.datesSeen) || (b.engagement - a.engagement));
+    // Jerarquía: cantidad de posts acumulados primero, alcance como desempate.
+    }).sort((a, b) => (b.posts - a.posts) || (b.engagement - a.engagement) || (b.datesSeen - a.datesSeen));
     window.ALL_VOICES_DATA = {
       allies:  allVoicesArr.filter(v => v.sentiment !== 'negative'),
       critics: allVoicesArr.filter(v => v.sentiment === 'negative'),
