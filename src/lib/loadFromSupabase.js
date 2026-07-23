@@ -459,16 +459,20 @@ export async function loadFromSupabase() {
 
     const allVoicesArr = Object.values(voiceAgg).map(({ postsByUrl, postDates, mentionDates, negScore, posScore, ...e }) => {
       const urls = Object.values(postsByUrl);
+      const posts = urls.length;
+      const engagement = urls.reduce((s, n) => s + n, 0);
       return {
         ...e,
-        posts: urls.length,                                   // posts reales capturados
-        engagement: urls.reduce((s, n) => s + n, 0),          // suma del engagement real
+        posts,                                                // posts reales capturados
+        engagement,                                           // suma del engagement real
         datesSeen: new Set([...postDates, ...mentionDates]).size,
-        hasPosts: urls.length > 0,
+        // Score combinado: constancia (nº de posts) × alcance (log para comprimir virales).
+        // 12 posts de 3K ≈ 54 > 1 post viral de 450K ≈ 6.7 > 5 posts de 20 likes ≈ 11.
+        score: posts * (1 + Math.log10(1 + engagement)),
         sentiment: negScore > posScore ? 'negative' : 'positive',
       };
-    // Jerarquía: cantidad de posts acumulados primero, alcance como desempate.
-    }).sort((a, b) => (b.posts - a.posts) || (b.engagement - a.engagement) || (b.datesSeen - a.datesSeen));
+    // Jerarquía: score combinado (posts × alcance log); desempates por posts y alcance.
+    }).sort((a, b) => (b.score - a.score) || (b.posts - a.posts) || (b.engagement - a.engagement) || (b.datesSeen - a.datesSeen));
     window.ALL_VOICES_DATA = {
       allies:  allVoicesArr.filter(v => v.sentiment !== 'negative'),
       critics: allVoicesArr.filter(v => v.sentiment === 'negative'),
