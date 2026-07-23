@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { getWeekendDates, getFridayDateKey, platLabel } from '../utils/helpers';
+import { getWeekendDates, getFridayDateKey, platLabel, classifyNote } from '../utils/helpers';
 
 // Cuentas propias de Pepe Aguilar — nunca son aliado/contrario de sí mismo
 const OWN_HANDLES = new Set(['pepeaguilar_oficial', 'pepeaguilar', 'pepeaguilaroficial', 'pepe aguilar']);
@@ -478,51 +478,64 @@ export async function loadFromSupabase() {
       critics: allVoicesArr.filter(v => v.sentiment === 'negative'),
     };
 
-    // ALL_MEDIA_DATA: aggregate medios_destacados across all reports/dates.
-    // Se excluye 'resumen' (duplica las mismas notas) y por fecha se toma el máximo
-    // (el mismo medio puede aparecer en varios reportes del mismo día).
+    // ALL_MEDIA_DATA — los medios salen de las NOTAS DE PRENSA scrapeadas acumuladas
+    // (conteo real por medio, tono por nota vía classifyNote: sentiment de IA si existe,
+    // keywords como respaldo). Los medios_destacados de la IA solo ENRIQUECEN metadata
+    // (alcance nacional/regional, temas, titular ejemplo, dominio).
+    const domainOf = url => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } };
     const mediaAgg = {};
     for (const rep of reports) {
-      if (rep.theme_key === 'resumen') continue;
-      const medios = rep.ai_analysis?.analisis_voces?.medios_destacados || [];
-      for (const m of medios) {
-        // Solo fuentes de prensa (google_news) — cuentas de redes van en aliados/contrarios
-        if ((m.platform || 'google_news') !== 'google_news') continue;
-        const k = (m.nombre || '').toLowerCase().trim();
-        if (!k) continue;
+      if (rep.theme_key !== 'google_news') continue;
+      for (const p of (rep.scraped_posts || [])) {
+        const nombre = (p.username || '').trim();
+        if (!nombre) continue;
+        const k = nombre.toLowerCase();
         if (!mediaAgg[k]) {
-          mediaAgg[k] = { nombre: m.nombre, platform: 'google_news',
-            dominio: m.dominio || '', alcance: m.alcance || 'medio', byDate: {}, temas: [],
-            titular: m.titular_ejemplo || '' };
+          mediaAgg[k] = { nombre, platform: 'google_news', dominio: domainOf(p.url),
+            alcance: 'medio', temas: [], titular: '', notesByUrl: {}, dates: new Set() };
         }
         const e = mediaAgg[k];
-        if (!e.dominio && m.dominio) e.dominio = m.dominio;
-        const total = Number(m.notas || 0);
-        // Desglose por tono; si no viene (data vieja con un solo "tono"), lo derivamos.
-        let fav = Number(m.notas_favorables || 0), neu = Number(m.notas_neutrales || 0), crit = Number(m.notas_criticas || 0);
-        if (!fav && !neu && !crit) {
-          const t = m.tono || 'neutral';
-          const n = total || 1;
-          if (t === 'favorable') fav = n; else if (t === 'critico') crit = n; else neu = n;
-        }
-        const tot = total || (fav + neu + crit);
-        // Máximo por fecha (un medio puede repetirse en varios reportes del mismo día)
-        if (!e.byDate[rep.date_key] || tot > e.byDate[rep.date_key].total) {
-          e.byDate[rep.date_key] = { fav, neu, crit, total: tot };
-        }
+        if (!e.dominio) e.dominio = domainOf(p.url);
+        // Dedup por URL entre días (la misma nota puede re-scrapearse): clasifica una vez.
+        const key = p.url || `${rep.date_key}|${(p.text || '').slice(0, 60)}`;
+        if (!(key in e.notesByUrl)) e.notesByUrl[key] = classifyNote(p);
+        e.dates.add(rep.date_key);
+      }
+    }
+    // Enriquecer con la metadata de la IA (por nombre normalizado)
+    for (const rep of reports) {
+      if (rep.theme_key === 'resumen') continue;
+      for (const m of (rep.ai_analysis?.analisis_voces?.medios_destacados || [])) {
+        const e = mediaAgg[(m.nombre || '').toLowerCase().trim()];
+        if (!e) continue;
         if (m.alcance === 'macro') e.alcance = 'macro';
+        if (!e.dominio && m.dominio) e.dominio = m.dominio;
         (m.temas || []).forEach(t => { if (!e.temas.includes(t)) e.temas.push(t); });
         if (!e.titular && m.titular_ejemplo) e.titular = m.titular_ejemplo;
       }
     }
-    window.ALL_MEDIA_DATA = Object.values(mediaAgg)
-      .map(({ byDate, ...e }) => {
-        const days = Object.values(byDate);
-        const fav = days.reduce((s, d) => s + d.fav, 0);
-        const neu = days.reduce((s, d) => s + d.neu, 0);
-        const crit = days.reduce((s, d) => s + d.crit, 0);
-        const notas = days.reduce((s, d) => s + (d.total || d.fav + d.neu + d.crit), 0);
-        const denom = fav + neu + crit || 1;
+    // Fusionar variantes del mismo medio (ej. "Infobae" e "infobae.com") por dominio.
+    const byDomain = {};
+    for (const e of Object.values(mediaAgg)) {
+      const dk = e.dominio || e.nombre.toLowerCase();
+      if (!byDomain[dk]) { byDomain[dk] = e; continue; }
+      const t = byDomain[dk];
+      // Preferir el nombre "bonito" (no el que parece dominio)
+      if (/\.[a-z]{2,}$/i.test(t.nombre) && !/\.[a-z]{2,}$/i.test(e.nombre)) t.nombre = e.nombre;
+      for (const [u, tone] of Object.entries(e.notesByUrl)) if (!(u in t.notesByUrl)) t.notesByUrl[u] = tone;
+      e.dates.forEach(d => t.dates.add(d));
+      if (e.alcance === 'macro') t.alcance = 'macro';
+      e.temas.forEach(x => { if (!t.temas.includes(x)) t.temas.push(x); });
+      if (!t.titular && e.titular) t.titular = e.titular;
+    }
+    window.ALL_MEDIA_DATA = Object.values(byDomain)
+      .map(({ notesByUrl, dates, ...e }) => {
+        const tones = Object.values(notesByUrl);
+        const notas = tones.length;
+        const fav = tones.filter(t => t === 'pos').length;
+        const crit = tones.filter(t => t === 'neg').length;
+        const neu = notas - fav - crit;
+        const denom = notas || 1;
         const favPct = Math.round(fav / denom * 100);
         const critPct = Math.round(crit / denom * 100);
         const neuPct = Math.max(0, 100 - favPct - critPct);
@@ -530,9 +543,9 @@ export async function loadFromSupabase() {
         let tono = 'neutral';
         if (favPct >= 40 && fav > crit) tono = 'favorable';
         else if (critPct >= 40 && crit > fav) tono = 'critico';
-        return { ...e, notas, datesSeen: days.length, fav, neu, crit, favPct, neuPct, critPct, tono };
+        return { ...e, notas, datesSeen: dates.size, fav, neu, crit, favPct, neuPct, critPct, tono };
       })
-      .sort((a, b) => b.notas - a.notas);
+      .sort((a, b) => (b.notas - a.notas) || (b.datesSeen - a.datesSeen));
 
     if (latestAiReport && window.PA_DATA?.themes && !window.PA_DATA.themes.resumen?.ai_analysis) {
       window.PA_DATA.themes.resumen = {

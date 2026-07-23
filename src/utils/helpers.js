@@ -17,6 +17,22 @@ export function fmtK(n) {
   if (n>=1e3) return (n/1e3).toFixed(n>=1e4?0:1).replace('.0','')+'K';
   return String(Math.round(n));
 }
+// Clasifica el tono de UNA nota de prensa hacia Pepe. Usa el sentiment real de la nota
+// si existe (lo llena la IA); si no, estima por palabras clave del titular.
+// Compartido por la agregación de medios (loadFromSupabase) y el panel de detalle.
+const NOTE_NEG = ['pelea','golpes','burla','burl','exhibe','roba','robar','escándalo','escandalo','crític','critic','polémic','polemic','demanda','ataca','ataque','arremete','calvicie','bullying','se rapa','cancel','hunde','humilla','acusa','plagio','deuda','drama','tunde','funa','destroza',"can't",'cant stop','vs ','contra ','pleito','indirecta','desubicad','inmadur'];
+const NOTE_POS = ['reconocid','nominad','homenaje','éxito','exito','orgullo','respald','leyenda','celebra','triunfo','aplauso','gala','premi','honra','emotiv','emociona','gran ','maravill','brilla','arrasa','conquista','aplaude','elogi'];
+export function classifyNote(note) {
+  const s = (note.sentiment || '').toLowerCase();
+  if (['favorable', 'positive', 'positivo'].includes(s)) return 'pos';
+  if (['critico', 'crítico', 'negative', 'negativo'].includes(s)) return 'neg';
+  if (s === 'neutral') return 'neu';
+  const t = (note.text || '').toLowerCase();
+  const neg = NOTE_NEG.some(k => t.includes(k));
+  const pos = NOTE_POS.some(k => t.includes(k));
+  return neg && !pos ? 'neg' : pos && !neg ? 'pos' : 'neu';
+}
+
 export function platLabel(p) {
   return ({tiktok:'TikTok',facebook:'Facebook',instagram:'Instagram',twitter:'X',google_news:'Google News'})[p]
     || (p ? p.charAt(0).toUpperCase()+p.slice(1) : '—');

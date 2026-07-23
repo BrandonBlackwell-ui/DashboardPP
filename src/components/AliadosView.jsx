@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { C, fmt, fmtK } from '../utils/helpers';
+import { C, fmt, fmtK, classifyNote } from '../utils/helpers';
 import PlatformIcon from './PlatformIcon';
 import { supabase } from '../lib/supabase';
 
@@ -473,20 +473,8 @@ function MediaColumn({ items, side, label, sub, maxNotas, onSelect }) {
   );
 }
 
-// Clasifica el tono de UNA nota. Usa el sentiment real de la nota si existe (lo llena la
-// IA); si no, estima por palabras clave del titular (aproximado, dominio Pepe/familia).
-const NOTE_NEG = ['pelea','golpes','burla','burl','exhibe','roba','robar','escándalo','escandalo','crític','critic','polémic','polemic','demanda','ataca','ataque','arremete','calvicie','bullying','se rapa','cancel','hunde','humilla','acusa','plagio','deuda','drama','tunde','funa','destroza',"can't",'cant stop','vs ','contra ','pleito','indirecta','desubicad','inmadur'];
-const NOTE_POS = ['reconocid','nominad','homenaje','éxito','exito','orgullo','respald','leyenda','celebra','triunfo','aplauso','gala','premi','honra','emotiv','emociona','gran ','maravill','brilla','arrasa','conquista','aplaude','elogi'];
-function classifyNote(note) {
-  const s = (note.sentiment || '').toLowerCase();
-  if (['favorable', 'positive', 'positivo'].includes(s)) return 'pos';
-  if (['critico', 'crítico', 'negative', 'negativo'].includes(s)) return 'neg';
-  if (s === 'neutral') return 'neu';
-  const t = (note.text || '').toLowerCase();
-  const neg = NOTE_NEG.some(k => t.includes(k));
-  const pos = NOTE_POS.some(k => t.includes(k));
-  return neg && !pos ? 'neg' : pos && !neg ? 'pos' : 'neu';
-}
+// classifyNote (tono por nota) vive en utils/helpers — compartido con la agregación
+// de medios en loadFromSupabase para que columna y panel usen el mismo criterio.
 
 // ── Panel de detalle de un medio: sus notas acumuladas, agrupadas por tono ──────
 function MediaDetail({ medio, notes, onClose, isDesktop }) {
