@@ -391,70 +391,85 @@ export async function loadFromSupabase() {
       }
     }
 
-    // Build ALL_VOICES_DATA: aggregate across all reports and all dates.
-    // Clave: una misma voz aparece en el tema-red Y en 'resumen' del MISMO día (resumen
-    // consolida), así que sumar todas las filas duplicaba el alcance (ej. 12K → 24K).
-    // Solución: por (voz, fecha) se toma el valor UNA vez (máximo, deduplica red+resumen),
-    // y luego se SUMA entre fechas distintas → sin doble conteo y con acumulación real.
+    // Build ALL_VOICES_DATA — las voces salen del HISTÓRICO ACUMULADO de posts scrapeados
+    // (métricas reales: nº de posts, likes, comentarios por autor a través de los días).
+    // Las listas de la IA y la tabla allies_critics_voices solo ENRIQUECEN (tier,
+    // followers, clasificación aliado/contrario), ya que muchas vienen sin métricas.
+    const normKey2 = u => (u || '').toLowerCase().trim().replace(/^@/, '');
     const voiceAgg = {};
-    const addVoiceAgg = (v, sentiment, dateKey) => {
-      if (!v?.username) return;
-      const k = (v.username || '').toLowerCase().trim().replace(/^@/, '');
-      if (!k) return;
-      if (OWN_HANDLES.has(k)) return; // Pepe no es su propio aliado/contrario
+    const getVoice = (username, platform) => {
+      const k = normKey2(username);
+      if (!k || OWN_HANDLES.has(k)) return null;
       if (!voiceAgg[k]) {
         voiceAgg[k] = {
-          username: v.username, platform: v.platform || '',
-          tier: v.tier || 'micro', keywords: v.keywords || [], text: v.text || '', url: v.url || '',
-          byDate: {}, positiveCount: 0, negativeCount: 0,
+          username, platform: platform || '', tier: 'micro', followers: 0,
+          keywords: [], text: '', url: '',
+          postsByUrl: {}, postDates: new Set(), mentionDates: new Set(),
+          negScore: 0, posScore: 0,
         };
       }
-      const e = voiceAgg[k];
-      const d = e.byDate[dateKey] || { posts: 0, likes: 0, comments: 0, engagement: 0 };
-      d.posts      = Math.max(d.posts, Number(v.posts || 0));
-      d.likes      = Math.max(d.likes, Number(v.likes || 0));
-      d.comments   = Math.max(d.comments, Number(v.comments || 0));
-      d.engagement = Math.max(d.engagement, Number(v.engagement || 0));
-      e.byDate[dateKey] = d;
-      if (sentiment === 'negative') e.negativeCount++; else e.positiveCount++;
-      if (!e.keywords.length && v.keywords?.length) e.keywords = v.keywords;
-      if (!e.text && v.text) e.text = v.text;
-      if (!e.url && v.url) e.url = v.url;
-      if (v.tier === 'macro') e.tier = 'macro';
-      else if (v.tier === 'medio' && e.tier === 'micro') e.tier = 'medio';
+      return voiceAgg[k];
     };
+
+    // 1) Posts scrapeados (la fuente de verdad): cada autor de un post público sobre Pepe.
+    //    Se excluyen prensa (tiene su sección de medios) y redes propias (son de Pepe).
+    //    Dedup por URL entre días (un post viral reaparece): se toma el engagement máximo.
     for (const rep of reports) {
-      const aiV = voicesFromAi(rep.ai_analysis);
-      // Table voices (most accurate, have real metrics)
+      if (['resumen', 'google_news', 'redes_propias'].includes(rep.theme_key)) continue;
+      for (const p of (rep.scraped_posts || [])) {
+        const e = getVoice(p.username, rep.theme_key);
+        if (!e) continue;
+        const eng = (Number(p.likes) || 0) + (Number(p.comments_count) || 0) + (Number(p.shares) || 0) + (Number(p.retweets) || 0);
+        const key = p.url || `${rep.date_key}|${(p.text || '').slice(0, 60)}`;
+        e.postsByUrl[key] = Math.max(e.postsByUrl[key] || 0, eng);
+        e.postDates.add(rep.date_key);
+        if (!e.url && p.url) e.url = p.url;
+        if (!e.text && p.text) e.text = p.text;
+        // Tono del post: dato explícito de IA pesa más; keywords como señal débil.
+        if (p.sentiment === 'negative') e.negScore += 2;
+        else if (p.sentiment === 'positive') e.posScore += 2;
+        else { const s = scoreText(p.text); if (s === 'negative') e.negScore += 1; else if (s === 'positive') e.posScore += 1; }
+      }
+    }
+
+    // 2) Enriquecer con la tabla (followers/tier reales) y las listas de la IA
+    //    (clasificación aliado/contrario — pesa más que las keywords).
+    for (const rep of reports) {
       (rep.allies_critics_voices || []).forEach(v => {
-        addVoiceAgg({
-          username: v.username, platform: v.platform, tier: v.tier,
-          posts: v.posts_count, likes: v.likes_count, comments: v.comments_count,
-          engagement: v.total_engagement, keywords: v.keywords, url: v.profile_url,
-        }, v.sentiment === 'negative' ? 'negative' : 'positive', rep.date_key);
+        const e = getVoice(v.username, v.platform);
+        if (!e) return;
+        e.mentionDates.add(rep.date_key);
+        e.followers = Math.max(e.followers, Number(v.followers) || 0);
+        if (v.tier === 'macro') e.tier = 'macro';
+        else if (v.tier === 'medio' && e.tier === 'micro') e.tier = 'medio';
+        if (!e.keywords.length && v.keywords?.length) e.keywords = v.keywords;
+        if (!e.url && v.profile_url) e.url = v.profile_url;
+        if (v.sentiment === 'negative') e.negScore += 3; else e.posScore += 3;
       });
-      // AI voices not in table
-      [...(aiV.allies || []), ...(aiV.critics || [])].forEach(v => {
-        const k = (v.username || '').toLowerCase().trim().replace(/^@/, '');
-        if (!voiceAgg[k]) {
-          addVoiceAgg(v, aiV.critics.some(c => (c.username||'').toLowerCase().replace(/^@/,'') === k) ? 'negative' : 'positive', rep.date_key);
-        }
+      const aiV = voicesFromAi(rep.ai_analysis);
+      [...(aiV.allies || []).map(v => ({ v, neg: false })), ...(aiV.critics || []).map(v => ({ v, neg: true }))].forEach(({ v, neg }) => {
+        const e = getVoice(v.username, v.platform);
+        if (!e) return;
+        e.mentionDates.add(rep.date_key);
+        if (!e.text && v.text) e.text = v.text;
+        if (!e.keywords.length && v.keywords?.length) e.keywords = v.keywords;
+        if (neg) e.negScore += 3; else e.posScore += 3;
       });
     }
-    const allVoicesArr = Object.values(voiceAgg).map(({ byDate, positiveCount, negativeCount, ...e }) => {
-      const days = Object.values(byDate);
+
+    const allVoicesArr = Object.values(voiceAgg).map(({ postsByUrl, postDates, mentionDates, negScore, posScore, ...e }) => {
+      const urls = Object.values(postsByUrl);
       return {
         ...e,
-        posts:      days.reduce((s, d) => s + d.posts, 0),
-        likes:      days.reduce((s, d) => s + d.likes, 0),
-        comments:   days.reduce((s, d) => s + d.comments, 0),
-        engagement: days.reduce((s, d) => s + d.engagement, 0),
-        datesSeen: days.length,
-        sentiment: negativeCount > positiveCount ? 'negative' : 'positive',
+        posts: urls.length,                                   // posts reales capturados
+        engagement: urls.reduce((s, n) => s + n, 0),          // suma del engagement real
+        datesSeen: new Set([...postDates, ...mentionDates]).size,
+        hasPosts: urls.length > 0,
+        sentiment: negScore > posScore ? 'negative' : 'positive',
       };
-    // Jerarquía: recurrencia (nº de días que apareció) primero — la señal confiable de
-    // "quién publica seguido"; el conteo de posts casi nunca viene. Desempate por alcance.
-    }).sort((a, b) => (b.datesSeen - a.datesSeen) || (b.engagement - a.engagement));
+    // Jerarquía: primero las voces con publicaciones reales capturadas (data dura),
+    // luego recurrencia (días vistos) y alcance como desempates.
+    }).sort((a, b) => (b.hasPosts - a.hasPosts) || (b.datesSeen - a.datesSeen) || (b.engagement - a.engagement));
     window.ALL_VOICES_DATA = {
       allies:  allVoicesArr.filter(v => v.sentiment !== 'negative'),
       critics: allVoicesArr.filter(v => v.sentiment === 'negative'),
