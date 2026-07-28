@@ -93,7 +93,8 @@ function VoiceDetail({ v, side, onClose, isDesktop }) {
   const [posts, setPosts] = useState(null);
   const [loading, setLoading] = useState(true);
   const isAlly = side !== 'negative';
-  const accent = isAlly ? C.teal : C.crim;
+  const accent = side === 'negative' ? C.crim : side === 'neutral' ? C.slate : C.teal;
+  const sideLabel = side === 'negative' ? 'Contrario' : side === 'neutral' ? 'Neutral' : 'Aliado';
 
   // Load posts on mount
   useState(() => {
@@ -147,7 +148,7 @@ function VoiceDetail({ v, side, onClose, isDesktop }) {
             </div>
             <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 9.5,
               color: accent, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 2 }}>
-              {isAlly ? 'Aliado' : 'Contrario'} · {v.tier === 'macro' ? 'Macro' : v.tier === 'medio' ? 'Medio' : 'Micro'}
+              {sideLabel} · {v.tier === 'macro' ? 'Macro' : v.tier === 'medio' ? 'Medio' : 'Micro'}
               {v.datesSeen > 1 ? ` · ${v.datesSeen} días activo` : ''}
             </div>
           </div>
@@ -265,11 +266,12 @@ function VoiceDetail({ v, side, onClose, isDesktop }) {
 // ── Bar row ───────────────────────────────────────────────────────────────────
 function BarRow({ v, side, maxEng, index, onSelect }) {
   const [hovered, setHovered] = useState(false);
-  const isAlly = side !== 'negative';
-  const accent = isAlly ? C.teal : C.crim;
-  const barColor = isAlly
-    ? 'linear-gradient(90deg, #2D6A4F 0%, #40916C 100%)'
-    : 'linear-gradient(90deg, #9B3331 0%, #C1453F 100%)';
+  const accent = side === 'negative' ? C.crim : side === 'neutral' ? C.slate : C.teal;
+  const barColor = side === 'negative'
+    ? 'linear-gradient(90deg, #9B3331 0%, #C1453F 100%)'
+    : side === 'neutral'
+      ? 'linear-gradient(90deg, #8C806A 0%, #A9997B 100%)'
+      : 'linear-gradient(90deg, #2D6A4F 0%, #40916C 100%)';
   const pct = maxEng > 0 ? Math.max(2, (v.engagement / maxEng) * 100) : 2;
   const tierLabel = v.tier === 'macro' ? 'Macro' : v.tier === 'medio' ? 'Med' : 'Mic';
   const tierColor = v.tier === 'macro' ? C.crim : v.tier === 'medio' ? C.goldDeep : '#8A7E6A';
@@ -341,8 +343,7 @@ function BarRow({ v, side, maxEng, index, onSelect }) {
 
 // ── Chart section ─────────────────────────────────────────────────────────────
 function ChartSection({ voices, side, label, maxEng, onSelect }) {
-  const isAlly = side !== 'negative';
-  const accent = isAlly ? C.teal : C.crim;
+  const accent = side === 'negative' ? C.crim : side === 'neutral' ? C.slate : C.teal;
   const TOP = 10;
   const shown = voices.slice(0, TOP);
 
@@ -557,7 +558,7 @@ function MediaDetail({ medio, notes, onClose, isDesktop }) {
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function AliadosView({ data, isDesktop }) {
   const voices = window.ALL_VOICES_DATA || buildVoicesFromData(data);
-  const { allies, critics } = voices;
+  const { allies, critics, neutral = [] } = voices;
   const isHistorical = !!window.ALL_VOICES_DATA;
 
   const [selectedVoice, setSelectedVoice] = useState(null);
@@ -593,9 +594,9 @@ export default function AliadosView({ data, isDesktop }) {
   const allMedia = window.ALL_MEDIA_DATA || [];
   const visibleMedia = newsPosts === null ? allMedia : allMedia.filter(m => notesFor(m).length > 0);
 
-  const totalEngagement = [...allies, ...critics].reduce((s, v) => s + v.engagement, 0);
-  const totalPosts = [...allies, ...critics].reduce((s, v) => s + (v.posts || 0), 0);
-  const maxEng = Math.max(...[...allies, ...critics].map(v => v.engagement), 1);
+  const totalEngagement = [...allies, ...neutral, ...critics].reduce((s, v) => s + v.engagement, 0);
+  const totalPosts = [...allies, ...neutral, ...critics].reduce((s, v) => s + (v.posts || 0), 0);
+  const maxEng = Math.max(...[...allies, ...neutral, ...critics].map(v => v.engagement), 1);
 
   const handleSelect = (v, side) => { setSelectedVoice(v); setSelectedSide(side); };
 
@@ -637,6 +638,13 @@ export default function AliadosView({ data, isDesktop }) {
             textTransform:'uppercase', color:C.crim, background:C.crimBg, border:`1px solid ${C.crimBd}` }}>
             {critics.length} Contrarios
           </span>
+          {neutral.length > 0 && (
+            <span style={{ display:'inline-flex', alignItems:'center', padding:'3px 10px', borderRadius:999,
+              fontFamily:"'Geist Mono',monospace", fontSize:10, fontWeight:600, letterSpacing:'0.06em',
+              textTransform:'uppercase', color:C.slate, background:C.slateBg, border:`1px solid ${C.slateBd}` }}>
+              {neutral.length} Neutrales
+            </span>
+          )}
           <span style={{ fontFamily:"'Geist Mono',monospace", fontSize:10, color:'#8A7E6A',
             textTransform:'uppercase', letterSpacing:'0.06em' }}>
             Alcance total: {fmtK(totalEngagement)}
@@ -657,6 +665,12 @@ export default function AliadosView({ data, isDesktop }) {
             <ChartSection voices={critics} side="negative" label="Contrarios" maxEng={maxEng}
               onSelect={v => handleSelect(v, 'negative')} />
           </div>
+          {neutral.length > 0 && (
+            <div style={{ marginTop:28 }}>
+              <ChartSection voices={neutral} side="neutral" label="Neutrales" maxEng={maxEng}
+                onSelect={v => handleSelect(v, 'neutral')} />
+            </div>
+          )}
         </motion.div>
 
         {/* Medios de comunicación */}

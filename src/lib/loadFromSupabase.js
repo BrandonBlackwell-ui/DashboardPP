@@ -405,7 +405,7 @@ export async function loadFromSupabase() {
           username, platform: platform || '', tier: 'micro', followers: 0,
           keywords: [], text: '', url: '',
           postsByUrl: {}, postDates: new Set(), mentionDates: new Set(),
-          negScore: 0, posScore: 0,
+          negScore: 0, posScore: 0, neuScore: 0,
         };
       }
       return voiceAgg[k];
@@ -444,7 +444,9 @@ export async function loadFromSupabase() {
         else if (v.tier === 'medio' && e.tier === 'micro') e.tier = 'medio';
         if (!e.keywords.length && v.keywords?.length) e.keywords = v.keywords;
         if (!e.url && v.profile_url) e.url = v.profile_url;
-        if (v.sentiment === 'negative') e.negScore += 3; else e.posScore += 3;
+        if (v.sentiment === 'negative') e.negScore += 3;
+        else if (v.sentiment === 'neutral') e.neuScore += 3;
+        else e.posScore += 3;
       });
       const aiV = voicesFromAi(rep.ai_analysis);
       [...(aiV.allies || []).map(v => ({ v, neg: false })), ...(aiV.critics || []).map(v => ({ v, neg: true }))].forEach(({ v, neg }) => {
@@ -457,24 +459,30 @@ export async function loadFromSupabase() {
       });
     }
 
-    const allVoicesArr = Object.values(voiceAgg).map(({ postsByUrl, postDates, mentionDates, negScore, posScore, ...e }) => {
+    const allVoicesArr = Object.values(voiceAgg).map(({ postsByUrl, postDates, mentionDates, negScore, posScore, neuScore, ...e }) => {
       const urls = Object.values(postsByUrl);
       const posts = urls.length;
-      const engagement = urls.reduce((s, n) => s + n, 0);
+      const postEng = urls.reduce((s, n) => s + n, 0);
+      // Alcance: voces orgánicas → engagement real de sus posts; entradas de roster sin posts
+      // (canales/medios cargados a mano) → sus seguidores como reach.
+      const engagement = posts > 0 ? postEng : (e.followers || 0);
+      // Clasificación a 3 vías: gana el score dominante (empate → positivo).
+      let sentiment = 'positive';
+      if (negScore > posScore && negScore >= neuScore) sentiment = 'negative';
+      else if (neuScore > posScore && neuScore >= negScore) sentiment = 'neutral';
       return {
         ...e,
-        posts,                                                // posts reales capturados
-        engagement,                                           // suma del engagement real
+        posts,
+        engagement,
         datesSeen: new Set([...postDates, ...mentionDates]).size,
-        // Score combinado: constancia (nº de posts) × alcance (log para comprimir virales).
-        // 12 posts de 3K ≈ 54 > 1 post viral de 450K ≈ 6.7 > 5 posts de 20 likes ≈ 11.
-        score: posts * (1 + Math.log10(1 + engagement)),
-        sentiment: negScore > posScore ? 'negative' : 'positive',
+        // Score: voces orgánicas = constancia × alcance(log); roster sin posts = alcance(log) para que rankeen por reach.
+        score: posts > 0 ? posts * (1 + Math.log10(1 + postEng)) : Math.log10(1 + (e.followers || 0)) * 4,
+        sentiment,
       };
-    // Jerarquía: score combinado (posts × alcance log); desempates por posts y alcance.
     }).sort((a, b) => (b.score - a.score) || (b.posts - a.posts) || (b.engagement - a.engagement) || (b.datesSeen - a.datesSeen));
     window.ALL_VOICES_DATA = {
-      allies:  allVoicesArr.filter(v => v.sentiment !== 'negative'),
+      allies:  allVoicesArr.filter(v => v.sentiment === 'positive'),
+      neutral: allVoicesArr.filter(v => v.sentiment === 'neutral'),
       critics: allVoicesArr.filter(v => v.sentiment === 'negative'),
     };
 
