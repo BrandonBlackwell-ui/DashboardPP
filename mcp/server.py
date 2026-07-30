@@ -31,6 +31,16 @@ HEADERS = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
 
 REDES = ("facebook", "instagram", "tiktok", "x", "google_news", "redes_propias", "youtube", "resumen")
 
+# ─── Audiencia ──────────────────────────────────────────────────────────────────
+# "cliente" (default) es la cara pública: oculta lo interno de la agencia —las sesiones
+# del asistente de voz, el estado de aprobación y los análisis en borrador— porque el
+# cliente solo debe ver material ya revisado. "interno" abre todo para el equipo.
+AUDIENCIA = (os.getenv("MCP_AUDIENCE") or "cliente").strip().lower()
+ES_INTERNO = AUDIENCIA == "interno"
+# Solo análisis publicados. Los registros viejos no traen el campo, así que null cuenta
+# como aprobado (mismo criterio que usa el dashboard para el acceso del cliente).
+SOLO_APROBADOS = {"or": "(approved.is.true,approved.is.null)"}
+
 # ─── Autenticación ──────────────────────────────────────────────────────────────
 # Dos modos, porque los clientes de Claude no piden lo mismo:
 #   · claude.ai web exige OAuth 2.1 con registro dinámico de cliente → GitHubProvider,
@@ -91,18 +101,33 @@ class SoloUsuariosPermitidos(Middleware):
                 raise PermissionError(f"Usuario '{login or 'desconocido'}' sin acceso a esta base.")
         return await call_next(context)
 
+BASE_INSTRUCCIONES = (
+    "Base de escucha social de Pepe Aguilar (Blackwell Strategy). Contiene publicaciones "
+    "públicas de Facebook, Instagram, TikTok, X, YouTube y prensa; sus comentarios; los "
+    "análisis diarios de sentimiento, riesgo y plan de acción; y el mapa de voces aliadas y "
+    "contrarias. Todo es de solo lectura.\n\n"
+    "Qué herramienta usar: '¿cómo vamos?' o '¿hay riesgo?' → obtener_analisis con red='resumen'. "
+    "'¿qué dice la gente?' → buscar_comentarios. '¿qué se publicó?' → buscar_publicaciones. "
+    "'¿vamos mejor o peor?' → evolucion_sentimiento. Las fechas son 'YYYY-MM-DD'.\n\n"
+    "Cómo responder:\n"
+    "· Cada cifra con su origen: red, fecha y sobre cuántos elementos se calculó. Un porcentaje "
+    "sin base no se publica.\n"
+    "· Consulta las herramientas antes de afirmar. Si un dato no está, dilo; nunca lo estimes.\n"
+    "· Una métrica ausente significa que esa red no la reporta, NO que sea cero. Jamás escribas "
+    "'0 views' ni deduzcas de un dato faltante que algo 'no tuvo alcance' o 'falló'.\n"
+    "· Cita textualmente 1-2 comentarios reales cuando ilustren el punto; valen más que un promedio.\n"
+    "· Responde en español, directo y breve, como un analista que reporta a su cliente."
+)
+INSTRUCCIONES_CLIENTE = (
+    "\n\nEste servidor es la vista del cliente. No expone material interno de la agencia "
+    "(borradores sin aprobar, notas de trabajo ni registros del asistente de voz), así que no "
+    "menciones esos elementos ni especules sobre ellos. Tampoco describas la infraestructura: "
+    "nada de proveedores de scraping, modelos, tokens ni nombres de tablas. Habla en términos de "
+    "negocio: 'el monitoreo de la conversación pública'."
+)
 mcp = FastMCP(
     name="Social Listening · Pepe Aguilar",
-    instructions=(
-        "Base de escucha social de Pepe Aguilar (Blackwell Strategy). Contiene publicaciones "
-        "públicas scrapeadas de Facebook, Instagram, TikTok, X, YouTube y prensa; sus comentarios; "
-        "los análisis diarios generados por IA (sentimiento, alertas, plan de acción) y el mapa de "
-        "voces aliadas y contrarias. Todo es de solo lectura.\n\n"
-        "Para responder preguntas del tipo '¿cómo vamos?' usa obtener_analisis con red='resumen'. "
-        "Para '¿qué dice la gente?' usa buscar_comentarios. Para '¿qué se publicó?' usa "
-        "buscar_publicaciones. Las fechas son 'YYYY-MM-DD'. Cuando cites cifras, di siempre de "
-        "dónde salen (red, fecha y cuántos elementos)."
-    ),
+    instructions=BASE_INSTRUCCIONES + ("" if ES_INTERNO else INSTRUCCIONES_CLIENTE),
     auth=auth,
 )
 if USUARIOS_PERMITIDOS:
@@ -139,10 +164,12 @@ async def listar_analisis(
     """Qué análisis existen y de qué días. Úsala primero para saber qué rango hay disponible
     antes de pedir detalles, o cuando el usuario pregunte "¿hasta cuándo hay datos?"."""
     params = {
-        "select": "date_key,theme_key,theme_label,approved",
+        "select": "date_key,theme_key,theme_label",
         "order": "date_key.desc",
         "limit": str(min(max(limite, 1), 90) * 8),
     }
+    if not ES_INTERNO:
+        params.update(SOLO_APROBADOS)
     if desde:
         params["date_key"] = f"gte.{desde}"
     if hasta:
@@ -171,21 +198,26 @@ async def obtener_analisis(
     """Análisis completo de IA de un día: sentimiento, nivel de riesgo, resumen ejecutivo,
     alertas, plan de acción, oportunidades y desglose por red. Es la fuente para "¿cómo vamos?",
     "¿hay riesgo?" o "¿qué recomienda el análisis?". red='resumen' da el panorama consolidado."""
+    campos = "date_key,theme_key,theme_label,ai_analysis" + (",approved" if ES_INTERNO else "")
     params = {
-        "select": "date_key,theme_key,theme_label,approved,ai_analysis",
+        "select": campos,
         "theme_key": f"eq.{red}",
         "ai_analysis": "not.is.null",
         "order": "date_key.desc",
         "limit": "1",
     }
+    if not ES_INTERNO:
+        params.update(SOLO_APROBADOS)
     if fecha:
         params["date_key"] = f"eq.{fecha}"
     filas = await _get("reports", params)
     if not filas:
         return {"encontrado": False, "mensaje": f"No hay análisis de '{red}'" + (f" para {fecha}" if fecha else "")}
     f = filas[0]
-    return {"encontrado": True, "fecha": f["date_key"], "red": f["theme_key"],
-            "aprobado": f.get("approved"), "analisis": f.get("ai_analysis")}
+    out = {"encontrado": True, "fecha": f["date_key"], "red": f["theme_key"], "analisis": f.get("ai_analysis")}
+    if ES_INTERNO:
+        out["aprobado"] = f.get("approved")
+    return out
 
 
 @mcp.tool
@@ -366,6 +398,8 @@ async def evolucion_sentimiento(
         "order": "date_key.asc",
         "limit": "200",
     }
+    if not ES_INTERNO:
+        params.update(SOLO_APROBADOS)
     cond = []
     if desde:
         cond.append(f"date_key.gte.{desde}")
@@ -395,7 +429,6 @@ async def evolucion_sentimiento(
     }
 
 
-@mcp.tool
 async def preguntas_al_asistente(
     limite: Annotated[int, "Máximo de sesiones (1-50)"] = 10,
 ) -> dict:
@@ -412,6 +445,11 @@ async def preguntas_al_asistente(
                       "resumen": f.get("summary"),
                       "preguntas": (f.get("user_questions") or [])[:10]} for f in filas],
     }
+
+
+# Herramienta de uso interno: solo se publica para el equipo, nunca en la cara al cliente.
+if ES_INTERNO:
+    mcp.tool(preguntas_al_asistente)
 
 
 if __name__ == "__main__":

@@ -31,6 +31,20 @@ Como el repo ya tiene un servicio Node, este va **como servicio aparte**:
 
 El endpoint queda en `https://TU-DOMINIO/mcp`.
 
+## Audiencia: cara al cliente vs. interna
+
+| `MCP_AUDIENCE` | Qué ve |
+|---|---|
+| *(sin definir)* o `cliente` | **Default.** Solo análisis aprobados. Sin sesiones del asistente de voz, sin estado de aprobación. Las instrucciones le piden a Claude no mencionar material interno ni infraestructura. |
+| `interno` | Todo: incluye borradores sin aprobar, el campo `aprobado` y la herramienta `preguntas_al_asistente`. |
+
+La protección está en el **servidor**, no en el prompt: lo que no debe verse no sale de la
+base. Las instrucciones ayudan al tono, pero un modelo puede ignorarlas — filtrar los datos
+es lo único que garantiza que no se filtren.
+
+Si quieres las dos vistas a la vez, crea **dos servicios** en Railway apuntando al mismo
+repo y root directory, uno con `MCP_AUDIENCE=interno` (y su propia URL secreta).
+
 ## Variables de entorno
 
 Elige **uno** de los tres modos de acceso. Si defines varios, gana el de más arriba
