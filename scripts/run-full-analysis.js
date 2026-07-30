@@ -526,7 +526,12 @@ function buildDataPrompt({ report, posts, comments, previousAnalysis }) {
     const rxTotal = (p.fb_like||0)+(p.fb_love||0)+(p.fb_haha||0)+(p.fb_wow||0)+(p.fb_sad||0)+(p.fb_angry||0);
     const rx = rxTotal ? ` reacciones[👍${p.fb_like||0} ❤️${p.fb_love||0} 😂${p.fb_haha||0} 😮${p.fb_wow||0} 😢${p.fb_sad||0} 😡${p.fb_angry||0}]` : '';
     const esHoy = isOwned && (p.published_date || '').slice(0, 10) === report.date_key ? ' [HOY]' : '';
-    out += `${i+1}.${esHoy} [${p.platform}] @${p.username} | ${p.published_date?.slice(0,10)} | likes:${p.likes} comentarios:${p.comments_count} views:${p.views}${rx} | "${truncate(p.text)}" | ${p.url}\n`;
+    // YouTube llega por feed RSS, que NO incluye métricas: sus ceros son "no medido",
+    // no "cero engagement". Se etiqueta así para que el análisis no invente hallazgos.
+    const metricas = p.platform === 'youtube'
+      ? 'metricas:NO DISPONIBLES (feed sin metricas — no interpretar como cero)'
+      : `likes:${p.likes} comentarios:${p.comments_count} views:${p.views}${rx}`;
+    out += `${i+1}.${esHoy} [${p.platform}] @${p.username} | ${p.published_date?.slice(0,10)} | ${metricas} | "${truncate(p.text)}" | ${p.url}\n`;
   });
   if (comments.length) {
     // Muestra representativa: los más gustados primero (no todos, para no inflar el prompt)
@@ -600,6 +605,8 @@ ATENCION: los numeros de abajo son marcadores de posicion ("__CALCULA__"). DEBES
 
 Reglas duras:
 - No inventes datos. Aliados/criticos deben existir en los datos. Los porcentajes suman 100.
+- AUSENCIA DE DATO NO ES HALLAZGO. Si una metrica dice "NO DISPONIBLES" o no viene, significa que NO SE MIDIO — nunca la interpretes como cero real ni construyas conclusiones sobre ella. Prohibido inferir "falla de indexacion", "videos invisibles", "sin alcance", "no despego" o cualquier problema de desempeño a partir de metricas ausentes. YouTube es el caso tipico: llega por feed RSS que no trae views/likes/comentarios. Si un canal no tiene metricas, limitate a decir que se publico (titulo y fecha) y que el alcance no es medible en esta fuente.
+- USA published_date, NO la fecha del reporte. Un post listado en el reporte de hoy pudo publicarse dias antes (los feeds de redes propias devuelven las ultimas publicaciones). Nunca digas "publicado el <fecha del reporte>" si su published_date es otra. Cuenta piezas por URL unica: la misma publicacion puede aparecer en reportes de varios dias y no son lanzamientos distintos.
 - CUANDO UN POST TRAIGA reacciones[👍 ❤️ 😂 😮 😢 😡]: usa el desglose como señal. Si 😂 (haha) o 😡 (angry) dominan o superan a 👍, es probable burla/molestia aunque el total de reacciones sea alto — menciónalo en la lectura con los números (ej: "el reel juntó 4,777 reacciones pero 2,664 son 😂 vs 1,400 👍: la gente se rie, no aplaude"). No infieras sentimiento SOLO por reacciones: crúzalo con los comentarios.
 - NO incluyas las cuentas propias de Pepe Aguilar (pepeaguilar_oficial, PepeAguilar, etc.) ni a él mismo como aliado o contrario: él es el sujeto del análisis, no una voz externa.
 - SE ESPECIFICO SIEMPRE: cada punto del resumen_ejecutivo, cada alerta y cada oportunidad debe decir QUIEN (autor con @ o nombre del medio), DONDE (en que red), CUANDO (fecha) y CUANTO (numeros reales: likes, comentarios, views, cantidad de notas o posts). Prohibido lo ambiguo tipo "se confirma X" o "hay criticas" sin decir quien lo publico, en que red y con que engagement. Ejemplo MAL: "Se confirma la realizacion de conciertos en Colombia". Ejemplo BIEN: "El Heraldo de Mexico publico el 1 jul la confirmacion de conciertos en Neiva, Colombia; la nota fue replicada en 3 medios mas y el post de @radioformula en X junto 5,839 likes".
