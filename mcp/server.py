@@ -42,22 +42,35 @@ GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID")
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET")
 PUBLIC_URL = (os.getenv("PUBLIC_URL") or "").rstrip("/")
 MCP_TOKEN = os.getenv("MCP_TOKEN")
+# Tercer modo, para conectar claude.ai sin montar OAuth: el secreto viaja en la ruta
+# (/mcp/<token>) y el servidor no exige cabecera. Así nunca responde 401 —que es lo que
+# hace a claude.ai iniciar el flujo OAuth— sino 404 en cualquier ruta que no acierte el
+# token. Es el patrón "capability URL": la URL completa ES la credencial.
+MCP_URL_TOKEN = os.getenv("MCP_URL_TOKEN")
 # Con OAuth de GitHub, autenticarse solo prueba "soy alguien de GitHub". Esta lista limita
 # quién puede leer la base; si se deja vacía, cualquier cuenta de GitHub entraría.
 USUARIOS_PERMITIDOS = {u.strip().lower() for u in (os.getenv("GITHUB_ALLOWED_USERS") or "").split(",") if u.strip()}
 
+RUTA_MCP = "/mcp"
 if GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET:
     if not PUBLIC_URL:
         raise SystemExit("Con OAuth de GitHub falta PUBLIC_URL (la URL pública del servicio, p. ej. https://mi-mcp.up.railway.app).")
     auth = GitHubProvider(client_id=GITHUB_CLIENT_ID, client_secret=GITHUB_CLIENT_SECRET, base_url=PUBLIC_URL)
     MODO_AUTH = f"OAuth GitHub · usuarios permitidos: {', '.join(sorted(USUARIOS_PERMITIDOS)) or 'TODOS (define GITHUB_ALLOWED_USERS)'}"
+elif MCP_URL_TOKEN:
+    if len(MCP_URL_TOKEN) < 24:
+        raise SystemExit("MCP_URL_TOKEN es la credencial completa: usa al menos 24 caracteres aleatorios.")
+    auth = None
+    RUTA_MCP = f"/mcp/{MCP_URL_TOKEN}"
+    MODO_AUTH = "ruta secreta (la URL es la credencial; sirve en claude.ai sin OAuth)"
 elif MCP_TOKEN:
     auth = StaticTokenVerifier(tokens={MCP_TOKEN: {"client_id": "blackwell", "scopes": ["read"]}})
-    MODO_AUTH = "token estático (sirve en Claude Code/Desktop; claude.ai web necesita el modo OAuth)"
+    MODO_AUTH = "token estático (sirve en Claude Code/Desktop; claude.ai web necesita OAuth o ruta secreta)"
 else:
     raise SystemExit(
-        "Falta configurar autenticación. Elige uno:\n"
-        "  · claude.ai web → GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, PUBLIC_URL y GITHUB_ALLOWED_USERS\n"
+        "Falta configurar autenticación. Elige una:\n"
+        "  · claude.ai sin OAuth → MCP_URL_TOKEN (el endpoint queda en /mcp/<token>)\n"
+        "  · claude.ai con OAuth → GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, PUBLIC_URL y GITHUB_ALLOWED_USERS\n"
         "  · Claude Code/Desktop → MCP_TOKEN con una cadena secreta larga"
     )
 
@@ -403,7 +416,13 @@ async def preguntas_al_asistente(
 
 if __name__ == "__main__":
     puerto = int(os.getenv("PORT", "8080"))
-    print(f"MCP escuchando en 0.0.0.0:{puerto}/mcp", flush=True)
+    # En modo ruta secreta el token va en el path: se apagan los access logs para que no
+    # quede escrito en los registros de la plataforma.
+    oculta_ruta = bool(MCP_URL_TOKEN)
+    print(f"MCP escuchando en 0.0.0.0:{puerto}{'/mcp/<token oculto>' if oculta_ruta else RUTA_MCP}", flush=True)
     print(f"  auth: {MODO_AUTH}", flush=True)
     print(f"  supabase: {SUPABASE_URL}", flush=True)
-    mcp.run(transport="http", host="0.0.0.0", port=puerto)
+    mcp.run(
+        transport="http", host="0.0.0.0", port=puerto, path=RUTA_MCP,
+        uvicorn_config={"access_log": not oculta_ruta},
+    )

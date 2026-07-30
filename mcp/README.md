@@ -33,7 +33,29 @@ El endpoint queda en `https://TU-DOMINIO/mcp`.
 
 ## Variables de entorno
 
-### Para conectar desde claude.ai (web) — requiere OAuth
+Elige **uno** de los tres modos de acceso. Si defines varios, gana el de más arriba
+(OAuth → ruta secreta → token).
+
+### Opción rápida para claude.ai — ruta secreta, sin OAuth
+
+claude.ai solo arranca el flujo OAuth cuando el servidor responde **401**. Si en cambio el
+secreto viaja en la propia ruta, el servidor responde 200 en la URL correcta y **404** en
+cualquier otra: nunca hay 401, así que nunca hay OAuth.
+
+| Variable | Valor |
+|---|---|
+| `MCP_URL_TOKEN` | cadena secreta de 24+ caracteres aleatorios |
+
+El endpoint queda en `https://TU-DOMINIO/mcp/EL_TOKEN` — pega **esa** URL completa en
+claude.ai (Configuración → Conectores → Añadir conector personalizado). No pide login.
+
+Trade-off honesto: **la URL completa es la credencial** (patrón "capability URL", el mismo
+de un enlace de "cualquiera con el link"). No hay identidad por usuario, así que no sabrás
+quién consultó, y compartir la URL es dar acceso. Si se filtra, cambia `MCP_URL_TOKEN` en
+Railway y las URLs viejas empiezan a dar 404. En este modo se apagan los access logs para
+que el token no quede escrito en los registros de la plataforma.
+
+### Para conectar desde claude.ai (web) — con OAuth
 claude.ai solo acepta conectores con OAuth 2.1 y registro dinámico de cliente, así que se
 usa una OAuth App de GitHub como identidad:
 
