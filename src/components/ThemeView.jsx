@@ -1659,7 +1659,11 @@ export default function ThemeView({ tab, date, plat, data, isDesktop, noData, ca
                   <PlatformIcon platform={n.key} size={24} />
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontFamily:"'Geist Mono',monospace", fontWeight:600, fontSize:11, color:C.ink, letterSpacing:'0.08em', textTransform:'uppercase' }}>{n.label}</div>
-                    <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:2 }}>{n.postsLabel} POSTS · {n.viewsLabel} VIEWS · {n.commentsLabel} COM.</div>
+                    {/* Solo métricas con dato: un 0 aquí suele ser "no medido" (ej. YouTube
+                        llega por feed sin métricas) y mostrarlo se lee como cero real. */}
+                    <div style={{ fontFamily:"'Geist Mono',monospace", fontSize:10.5, color:'#8A7E6A', marginTop:2 }}>
+                      {[`${n.postsLabel} POSTS`, n.views ? `${n.viewsLabel} VIEWS` : '', n.comments ? `${n.commentsLabel} COM.` : ''].filter(Boolean).join(' · ')}
+                    </div>
                   </div>
                   <span style={{ ...pill(n.toneMeta.ink,n.toneMeta.bg,n.toneMeta.bd) }}>{n.toneLabel}</span>
                 </div>
