@@ -67,16 +67,35 @@ BASE_INSTRUCCIONES = (
     "· Responde en español, directo y breve, como un analista que reporta a su cliente."
 )
 INSTRUCCIONES_CLIENTE = (
-    "\n\nEsta es la vista del cliente. No expone material interno de la agencia (borradores sin "
-    "aprobar, notas de trabajo ni registros del asistente de voz), así que no menciones esos "
-    "elementos ni especules sobre ellos. Tampoco describas la infraestructura: nada de "
-    "proveedores de scraping, modelos, tokens ni nombres de tablas. Habla en términos de "
-    "negocio: 'el monitoreo de la conversación pública'."
+    "\n\n=== ERES EL ASESOR DE REPUTACIÓN DEL CLIENTE ===\n"
+    "Hablas directamente con Pepe Aguilar y su equipo. Tu trabajo no es describir datos: es "
+    "decirle QUÉ HACER y por qué, con la cifra en la mano.\n\n"
+    "Cuando te pidan una decisión ('¿qué publico mañana?', '¿respondo a esto?', '¿en qué red me "
+    "enfoco?'), sigue siempre este orden:\n"
+    "1. Consulta las herramientas y mira qué funcionó de verdad: rendimiento_publicaciones_propias "
+    "para ver qué contenido suyo rindió mejor, metricas_por_red para saber dónde está la "
+    "conversación, buscar_comentarios para lo que pide la gente.\n"
+    "2. Da una recomendación concreta y accionable.\n"
+    "3. Justifícala con el número y su fuente: 'el post del 19 jun en Instagram juntó 44,724 likes, "
+    "casi el triple de tu promedio; ese tono personal es lo que más conecta — repítelo mañana'.\n"
+    "Nunca recomiendes sin el dato que lo respalda, y nunca des un dato sin decir qué hacer con él.\n\n"
+    "No hables nunca de la cocina del sistema. Está prohibido mencionar: huecos o faltantes de "
+    "datos, qué red no reporta tal métrica, límites de cobertura o de muestra, de dónde salen los "
+    "datos o dónde están alojados, proveedores, modelos, tablas, tokens, borradores o notas "
+    "internas de la agencia. Si algo no está disponible, simplemente trabaja con lo que sí hay y "
+    "no lo menciones; y si de plano no puedes responder, dilo en una línea sin explicar por qué "
+    "falta ('de eso todavía no tengo lectura suficiente para recomendarte algo').\n\n"
+    "Tono: cercano y directo, como un asesor de confianza. Español, sin tecnicismos, sin listas "
+    "interminables. Primero la recomendación, luego el número que la sostiene."
 )
 INSTRUCCIONES_INTERNAS = (
-    "\n\nEsta es la vista interna del equipo de Blackwell: incluye análisis en borrador (aún sin "
-    "aprobar para el cliente) y los registros del asistente de voz. Cuando cites un análisis que "
-    "no esté aprobado, adviértelo explícitamente."
+    "\n\n=== VISTA INTERNA · EQUIPO BLACKWELL ===\n"
+    "Acceso completo a la base: análisis en borrador (sin aprobar), el fundamento interno de cada "
+    "análisis (por qué se concluyó lo que se concluyó, citando el documento de mensajes maestros), "
+    "las sesiones completas del asistente de voz y consulta directa a cualquier tabla.\n"
+    "Habla con el equipo sin filtros: señala los huecos de cobertura, las métricas que una red no "
+    "reporta, los límites de la muestra y las diferencias entre lo aprobado y el borrador. Cuando "
+    "cites un análisis no aprobado, adviértelo. Aquí la precisión importa más que el tono."
 )
 
 
@@ -140,7 +159,9 @@ def crear_servidor(interno: bool) -> FastMCP:
         """Análisis completo de IA de un día: sentimiento, nivel de riesgo, resumen ejecutivo,
         alertas, plan de acción, oportunidades y desglose por red. Es la fuente para "¿cómo vamos?",
         "¿hay riesgo?" o "¿qué recomienda el análisis?". red='resumen' da el panorama consolidado."""
-        campos = "date_key,theme_key,theme_label,ai_analysis" + (",approved" if interno else "")
+        # En interno se añade el estado de aprobación y el fundamento del análisis (la nota
+        # que explica por qué se concluyó eso, citando el documento de mensajes maestros).
+        campos = "date_key,theme_key,theme_label,ai_analysis" + (",approved,admin_rationale" if interno else "")
         params = aprobados({
             "select": campos,
             "theme_key": f"eq.{red}",
@@ -157,6 +178,7 @@ def crear_servidor(interno: bool) -> FastMCP:
         out = {"encontrado": True, "fecha": f["date_key"], "red": f["theme_key"], "analisis": f.get("ai_analysis")}
         if interno:
             out["aprobado"] = f.get("approved")
+            out["fundamento_interno"] = f.get("admin_rationale")
         return out
 
     @mcp.tool
@@ -284,6 +306,73 @@ def crear_servidor(interno: bool) -> FastMCP:
         }
 
     @mcp.tool
+    async def rendimiento_publicaciones_propias(
+        desde: Annotated[str | None, "Fecha inicial YYYY-MM-DD"] = None,
+        hasta: Annotated[str | None, "Fecha final YYYY-MM-DD"] = None,
+        limite: Annotated[int, "Cuántas publicaciones top devolver (1-30)"] = 12,
+    ) -> dict:
+        """Cómo rindieron las publicaciones DE PEPE (sus propias cuentas), ordenadas por engagement
+        y comparadas contra su promedio. Es la base para recomendar qué publicar: úsala cuando
+        pregunten "¿qué publico mañana?", "¿qué formato funciona?", "¿en qué red me conviene
+        publicar?" o "¿cómo va mi contenido?". Cada recomendación debe apoyarse en estos números."""
+        params = {
+            "select": "platform,username,text,url,published_date,likes,comments_count,views,shares",
+            "theme_key": "eq.redes_propias",
+            "order": "likes.desc",
+            "limit": "1000",
+        }
+        cond = []
+        if desde:
+            cond.append(f"published_date.gte.{desde}")
+        if hasta:
+            cond.append(f"published_date.lte.{hasta}T23:59:59")
+        if cond:
+            params["and"] = f"({','.join(cond)})"
+        filas = await _get("scraped_posts", params)
+
+        # El mismo post se guarda cada día que sigue en el perfil: se queda la captura con más
+        # engagement (la más reciente), si no el promedio saldría deformado por los duplicados.
+        mejor: dict[str, dict] = {}
+        for f in filas:
+            clave = f.get("url") or _corta(f.get("text"), 80)
+            eng = (f.get("likes") or 0) + (f.get("comments_count") or 0) * 2 + (f.get("shares") or 0) * 3
+            if clave not in mejor or eng > mejor[clave]["_eng"]:
+                mejor[clave] = {**f, "_eng": eng}
+        posts = sorted(mejor.values(), key=lambda p: -p["_eng"])
+        if not posts:
+            return {"total": 0, "mensaje": "Sin publicaciones propias en esa ventana."}
+
+        prom = round(sum(p["_eng"] for p in posts) / len(posts))
+        por_red: dict[str, dict] = {}
+        for p in posts:
+            r = por_red.setdefault(p["platform"], {"publicaciones": 0, "engagement_total": 0})
+            r["publicaciones"] += 1
+            r["engagement_total"] += p["_eng"]
+        for r in por_red.values():
+            r["engagement_promedio"] = round(r["engagement_total"] / r["publicaciones"])
+
+        def limpia(p):
+            out = {"red": p["platform"], "fecha": (p.get("published_date") or "")[:10],
+                   "texto": _corta(p.get("text"), 200), "url": p.get("url"),
+                   "engagement": p["_eng"],
+                   "vs_promedio": f"{round(p['_eng'] / prom, 1)}x" if prom else None}
+            for etq, val in (("likes", p.get("likes")), ("comentarios", p.get("comments_count")),
+                             ("views", p.get("views")), ("compartidos", p.get("shares"))):
+                if val:
+                    out[etq] = val
+            return out
+
+        return {
+            "total_publicaciones": len(posts),
+            "engagement_promedio": prom,
+            "nota": "engagement = likes + comentarios×2 + compartidos×3, deduplicado por publicación. "
+                    "'vs_promedio' compara cada pieza contra el promedio propio del período.",
+            "por_red": dict(sorted(por_red.items(), key=lambda kv: -kv[1]["engagement_promedio"])),
+            "mejores": [limpia(p) for p in posts[: min(max(limite, 1), 30)]],
+            "peores": [limpia(p) for p in posts[-3:]] if len(posts) > 6 else [],
+        }
+
+    @mcp.tool
     async def voces(
         tipo: Annotated[Literal["todos", "aliados", "contrarios", "neutrales"], "Qué voces traer"] = "todos",
         limite: Annotated[int, "Máximo por categoría (1-50)"] = 15,
@@ -364,23 +453,59 @@ def crear_servidor(interno: bool) -> FastMCP:
 
     if interno:
         @mcp.tool
-        async def preguntas_al_asistente(
+        async def sesiones_asistente(
             limite: Annotated[int, "Máximo de sesiones (1-50)"] = 10,
+            con_transcripcion: Annotated[bool, "Incluir la conversación completa, no solo el resumen"] = False,
         ) -> dict:
-            """Qué le ha preguntado el cliente al asistente de voz (Orwell), con el resumen de cada
-            conversación. Sirve como feedback: revela qué le preocupa y qué información busca.
-            Uso interno del equipo."""
+            """Conversaciones del cliente con el asistente de voz (Orwell): resumen, sus preguntas
+            textuales y, si se pide, la transcripción completa. Es el mejor termómetro de qué le
+            preocupa y qué información busca. Uso interno del equipo."""
+            campos = "created_at,ended_at,turns,user_questions,summary" + (",transcript" if con_transcripcion else "")
             filas = await _get("voice_sessions", {
-                "select": "created_at,turns,user_questions,summary",
+                "select": campos,
                 "order": "created_at.desc",
                 "limit": str(min(max(limite, 1), 50)),
             })
-            return {
-                "total": len(filas),
-                "sesiones": [{"fecha": (f.get("created_at") or "")[:16], "turnos": f.get("turns"),
-                              "resumen": f.get("summary"),
-                              "preguntas": (f.get("user_questions") or [])[:10]} for f in filas],
-            }
+            out = []
+            for f in filas:
+                s = {"fecha": (f.get("created_at") or "")[:16], "turnos": f.get("turns"),
+                     "resumen": f.get("summary"), "preguntas": f.get("user_questions") or []}
+                if con_transcripcion:
+                    s["conversacion"] = f.get("transcript")
+                out.append(s)
+            return {"total": len(out), "sesiones": out}
+
+        TABLAS = {
+            "reports": "análisis diarios (incluye ai_analysis, admin_rationale y approved)",
+            "scraped_posts": "publicaciones capturadas de todas las redes",
+            "scraped_comments": "comentarios de esas publicaciones",
+            "allies_critics_voices": "voces clasificadas como aliadas, contrarias o neutrales",
+            "voice_sessions": "sesiones del asistente de voz",
+        }
+
+        @mcp.tool
+        async def consultar_tabla(
+            tabla: Annotated[str, "reports, scraped_posts, scraped_comments, allies_critics_voices o voice_sessions"],
+            columnas: Annotated[str, "Columnas separadas por coma, o '*' para todas"] = "*",
+            filtros: Annotated[str | None, "Filtros estilo PostgREST separados por coma, p. ej. 'platform=eq.tiktok,likes=gte.1000'"] = None,
+            orden: Annotated[str | None, "Columna y dirección, p. ej. 'likes.desc'"] = None,
+            limite: Annotated[int, "Máximo de filas (1-200)"] = 50,
+        ) -> dict:
+            """Consulta directa de cualquier tabla, para lo que las otras herramientas no cubren.
+            Solo lectura. Úsala cuando necesites un corte específico: columnas concretas, filtros
+            combinados o revisar la forma cruda de los datos."""
+            if tabla not in TABLAS:
+                return {"error": f"Tabla no disponible. Opciones: {', '.join(TABLAS)}", "tablas": TABLAS}
+            params = {"select": columnas or "*", "limit": str(min(max(limite, 1), 200))}
+            if orden:
+                params["order"] = orden
+            if filtros:
+                for parte in filtros.split(","):
+                    if "=" in parte:
+                        col, val = parte.split("=", 1)
+                        params[col.strip()] = val.strip()
+            filas = await _get(tabla, params)
+            return {"tabla": tabla, "descripcion": TABLAS[tabla], "filas": len(filas), "datos": filas}
 
     return mcp
 

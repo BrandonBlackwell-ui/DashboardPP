@@ -6,19 +6,35 @@ Conectado a Claude, permite preguntar por los datos en lenguaje natural.
 
 ## Herramientas
 
-| Herramienta | Para qué sirve |
-|---|---|
-| `listar_analisis` | Qué días tienen análisis y de qué redes |
-| `obtener_analisis` | Análisis completo de un día: sentimiento, riesgo, alertas, plan de acción |
-| `buscar_publicaciones` | Publicaciones scrapeadas con su alcance real y URL |
-| `buscar_comentarios` | Comentarios de la gente, ordenados por likes |
-| `metricas_por_red` | Volumen y alcance agregados por red |
-| `voces` | Aliados, contrarios y neutrales con su alcance |
-| `evolucion_sentimiento` | Serie temporal de sentimiento y riesgo |
-| `preguntas_al_asistente` | Qué le ha preguntado el cliente al asistente de voz |
+| Herramienta | Para qué sirve | Cliente | Interno |
+|---|---|:--:|:--:|
+| `listar_analisis` | Qué días tienen análisis y de qué redes | ✅ | ✅ |
+| `obtener_analisis` | Sentimiento, riesgo, alertas y plan de acción de un día | ✅ | ✅ |
+| `buscar_publicaciones` | Publicaciones capturadas con su alcance y URL | ✅ | ✅ |
+| `buscar_comentarios` | Comentarios de la gente, ordenados por likes | ✅ | ✅ |
+| `metricas_por_red` | Volumen y alcance agregados por red | ✅ | ✅ |
+| `rendimiento_publicaciones_propias` | Cómo rindió el contenido de Pepe vs su promedio — base para recomendar qué publicar | ✅ | ✅ |
+| `voces` | Aliados, contrarios y neutrales con su alcance | ✅ | ✅ |
+| `evolucion_sentimiento` | Serie temporal de sentimiento y riesgo | ✅ | ✅ |
+| `sesiones_asistente` | Conversaciones del cliente con el asistente de voz (con transcripción) | ❌ | ✅ |
+| `consultar_tabla` | Consulta directa de cualquier tabla, para cortes que las demás no cubren | ❌ | ✅ |
+
+En la vista interna, `obtener_analisis` añade además el estado de aprobación y el
+**fundamento interno** del análisis (por qué se concluyó eso, citando el documento de
+mensajes maestros).
 
 Nunca escribe en la base y solo reporta métricas con dato (una métrica ausente significa
 que esa red no la expone, no que sea cero).
+
+## Cómo se comporta cada vista
+
+**Cliente** — actúa como asesor de reputación: ante una decisión ("¿qué publico mañana?")
+primero consulta qué funcionó, luego recomienda y justifica con la cifra y su fuente. Tiene
+prohibido mencionar huecos de datos, límites de cobertura, dónde están alojados los datos,
+proveedores, modelos o tablas; si algo no está, trabaja con lo que hay sin señalar la falta.
+
+**Interno** — habla sin filtros con el equipo: señala huecos de cobertura, métricas que una
+red no reporta, límites de muestra y la diferencia entre lo aprobado y el borrador.
 
 ## Desplegar en Railway
 
