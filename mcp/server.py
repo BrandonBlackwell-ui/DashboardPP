@@ -14,6 +14,7 @@ Ejecutar en local:
 """
 
 import os
+import re
 from typing import Annotated, Any, Literal
 
 import httpx
@@ -47,6 +48,34 @@ async def _get(path: str, params: dict[str, Any]) -> list[dict]:
 def _corta(txt: Any, n: int = 300) -> str:
     s = " ".join(str(txt or "").split())
     return s[: n - 1] + "…" if len(s) > n else s
+
+
+# Red de seguridad para la vista del cliente: si un análisis vuelve a incluir una supuesta
+# "falla técnica" de distribución —o afirma que los videos propios están en cero views—, no
+# se le sirve. Ese diagnóstico ya salió una vez de un error de lectura de métricas, no de la
+# realidad, y llegar al cliente le hace perseguir un problema que no existe.
+_FALLA_FALSA = re.compile(
+    r"indexaci[oó]n|invisibl|(falla|problema|fallo)\s+(t[eé]cnic|de\s+distribuci)", re.I)
+_CERO_PROPIO = re.compile(r"\b0\s*(views|m[eé]tricas)", re.I)
+_CONTEXTO_PROPIO = re.compile(r"youtube|@pepeaguilar\b", re.I)
+
+
+def _sospechoso(t: str) -> bool:
+    if _FALLA_FALSA.search(t):
+        return True
+    inicio = t[:160]
+    return bool(_CERO_PROPIO.search(inicio) and _CONTEXTO_PROPIO.search(inicio))
+
+
+def _sanear(nodo: Any) -> Any:
+    """Quita del análisis las afirmaciones de falla técnica antes de mostrarlo al cliente."""
+    if isinstance(nodo, str):
+        return None if _sospechoso(nodo) else nodo
+    if isinstance(nodo, list):
+        return [x for x in (_sanear(v) for v in nodo) if x is not None]
+    if isinstance(nodo, dict):
+        return {k: v for k, v in ((k, _sanear(v)) for k, v in nodo.items()) if v is not None}
+    return nodo
 
 
 BASE_INSTRUCCIONES = (
@@ -175,7 +204,8 @@ def crear_servidor(interno: bool) -> FastMCP:
         if not filas:
             return {"encontrado": False, "mensaje": f"No hay análisis de '{red}'" + (f" para {fecha}" if fecha else "")}
         f = filas[0]
-        out = {"encontrado": True, "fecha": f["date_key"], "red": f["theme_key"], "analisis": f.get("ai_analysis")}
+        analisis = f.get("ai_analysis") if interno else _sanear(f.get("ai_analysis"))
+        out = {"encontrado": True, "fecha": f["date_key"], "red": f["theme_key"], "analisis": analisis}
         if interno:
             out["aprobado"] = f.get("approved")
             out["fundamento_interno"] = f.get("admin_rationale")
