@@ -16,6 +16,7 @@ Conectado a Claude, permite preguntar por los datos en lenguaje natural.
 | `rendimiento_publicaciones_propias` | Cómo rindió el contenido de Pepe vs su promedio — base para recomendar qué publicar | ✅ | ✅ |
 | `voces` | Aliados, contrarios y neutrales con su alcance | ✅ | ✅ |
 | `evolucion_sentimiento` | Serie temporal de sentimiento y riesgo | ✅ | ✅ |
+| `mensajes_clave` | Catálogo de la estrategia: mensaje maestro, los tres pilares y el pivote de cada tema reactivo | ✅ | ✅ |
 | `sesiones_asistente` | Conversaciones del cliente con el asistente de voz (con transcripción) | ❌ | ✅ |
 | `consultar_tabla` | Consulta directa de cualquier tabla, para cortes que las demás no cubren | ❌ | ✅ |
 
@@ -25,6 +26,35 @@ mensajes maestros).
 
 Nunca escribe en la base y solo reporta métricas con dato (una métrica ausente significa
 que esa red no la expone, no que sea cero).
+
+## Cómo se cuidan los números
+
+La base guarda una captura nueva cada día que una pieza sigue viva, así que la misma
+publicación aparece muchas veces (en X llegaba a 11 copias) y Facebook además reescribe el
+`pfbid` de la URL entre sesiones, con lo que un mismo post llega con dos URLs distintas. Por
+eso todas las herramientas **deduplican por texto normalizado** y no solo por URL, y se
+quedan con la captura de mayor engagement.
+
+Tres reglas más, todas para no publicar una cifra que no se sostiene:
+
+- **Likes incoherentes se descartan.** Un post con cientos de miles de likes pero 124
+  respuestas y 89 retweets no existe: es una lectura errónea del scraper. Si los likes no
+  llegan ni a 1 interacción por cada 1000, no se reportan (la vista interna sí los ve, con
+  el motivo). Sin esto, "¿en qué red tengo más engagement?" contestaba X, donde en realidad
+  casi no hay actividad.
+- **Las views solo se suman si las trae la mayoría** de las piezas de esa red. Sumar las de
+  una de cada tres da un total que no representa nada.
+- **El sentimiento global nunca viaja solo.** Incluye las cuentas propias de Pepe, favorables
+  casi por definición, así que se acompaña del desglose por red y de un `terceros` calculado
+  sin ellas: puede salir 75% favorable el mismo día que la prensa va 60% crítica.
+
+`comentarios_en_publicaciones` es el contador público de cada pieza, no los comentarios
+extraídos uno por uno: para leer lo que dice la gente se usa `buscar_comentarios`.
+
+Los parámetros se validan antes de tocar la base: una fecha con diagonales, un "ayer", un
+rango invertido o un texto con símbolos reciben una instrucción clara. Antes ese error subía
+crudo desde PostgREST **con la URL completa de la base dentro** —proyecto, tabla, columnas y
+filtros—, y esa URL terminaba en la respuesta al usuario.
 
 ## Cómo se comporta cada vista
 
