@@ -625,6 +625,9 @@ Reglas duras:
 - La lectura de cada red debe citar evidencia concreta (autores, temas, numeros), no generalidades.
 - medios_destacados es EXCLUSIVAMENTE para fuentes de prensa de google_news (notas de prensa). NO pongas ahi cuentas de Instagram/Facebook/X/TikTok aunque sean paginas de medios o espectaculos — esas van en aliados_destacados o criticos_destacados segun su tono. Incluye toda fuente de google_news con al menos 1 nota: nombre, dominio web del medio (ej "heraldodemexico.com.mx" — deducelo de la URL de la nota si esta en los datos), platform "google_news", alcance ("macro" nacional, "medio" regional), y temas.
 - IMPORTANTE — DESGLOSE DE TONO POR MEDIO: para cada medio clasifica CADA UNA de sus notas hacia Pepe Aguilar como favorable (lo respalda/elogia/cobertura positiva), neutral (informativa, sin carga) o critica (lo ataca/ridiculiza/amplifica escandalo). Reporta los conteos en "notas_favorables", "notas_neutrales" y "notas_criticas", y "notas" = la suma de los tres. NO pongas un "tono" unico: una nota sobre la pelea o burla de Emiliano es critica aunque el medio tambien tenga notas neutrales; el front deduce si el medio es aliado o contrario a partir de estos conteos. Se honesto con la clasificacion de cada nota segun su titular/contenido real.
+- EL ENGAGEMENT (likes/views) NO ES SENTIMIENTO. El sentimiento se mide por señal textual real: el caption del post y, sobre todo, los comentarios. Si una publicacion no tiene comentarios extraidos, NO la clasifiques como favorable solo porque tiene muchos likes o views — dilo explicitamente en la lectura ("sin comentarios para evaluar tono; el engagement no indica sentimiento") y no la fuerces a favorable en el conteo. El sentimiento de "redes_propias" (las cuentas de Pepe) y el de terceros (prensa, comentaristas externos) son cosas distintas: nunca los trates como equivalentes ni los presentes como si un 100% favorable en redes propias dijera algo sobre como lo ve el publico externo.
+- LOS COMENTARIOS MAS VOTADOS SON LA SEÑAL DE RIESGO MAS IMPORTANTE, MAS QUE LAS NOTAS DE PRENSA O EL ENGAGEMENT. Si en la muestra de comentarios aparecen ataques a la mexicanidad, comparaciones desfavorables con otros artistas o familias, acusaciones de premios/reconocimientos comprados, o criticas directas a la credibilidad, arrogancia o talento de Pepe — con varios likes, no un caso aislado — DEBEN aparecer como alerta explicita citando el comentario y sus likes, aunque la prensa del dia sea neutral o favorable. No dejes que la lectura de una red se quede en "la prensa cubrio X" si los comentarios de esa misma red muestran un frente de critica que la prensa no cubre.
+- NO ESPECULES SOBRE PROYECTOS O COLABORACIONES FUTURAS QUE NO ESTEN CONFIRMADAS EN LOS DATOS. Una oportunidad o recomendacion debe basarse en algo que YA esta en la conversacion real (un tema que la gente pide, un formato que ya funciono), nunca en un supuesto ("si colabora con X", "podria explorar Y"). Si quieres sugerir una direccion nueva, enmarcala como recomendacion de la agencia basada en la tendencia observada — no como una iniciativa que ya este en marcha o que la gente este pidiendo si no hay evidencia de eso en los datos.
 - Si se dio analisis del periodo anterior, calcula tendencia por red y llena comparativa_historica con deltas reales. Si no, omite comparativa_historica y usa "estable".
 - ANCLA EL ANALISIS AL MARCO ESTRATEGICO de abajo: cada recomendacion (resumen_ejecutivo, plan_accion, oportunidades, recomendacion por red) debe estar guiada por los pilares y mensajes clave. Si un tema reactivo (Angela, Nodal, amuleto Tri, etc.) aparece, considera el pivote del marco al recomendar. No agregues campos extra al JSON: el marco guia el CONTENIDO del analisis normal, no cambia su estructura.
 
@@ -1086,11 +1089,14 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, from, to, emit 
   const selectTopByComments = (posts, n=3) =>
     [...(posts||[])].sort((a,b) => b.comments_count - a.comments_count).slice(0, n);
 
-  // SL: top 3 por engagement (likes + comentarios×2), max 20 comentarios c/u
-  const slFbPosts  = selectTopPosts(allSavedPosts.facebook);
-  const slIgPosts  = selectTopPosts(allSavedPosts.instagram);
-  const slTtPosts  = selectTopPosts(allSavedPosts.tiktok);
-  const slXPosts   = selectTopPosts(allSavedPosts.x);
+  // SL: top 5 por engagement (likes + comentarios×2), max 20-25 comentarios c/u.
+  // Antes eran solo 3: un post con muchos likes pero pocos comentarios (como el que reune
+  // los ataques mas votados a la mexicanidad o las comparaciones con otras familias) podia
+  // quedar en 4to o 5to lugar y sus comentarios nunca se scrapeaban ni llegaban al analisis.
+  const slFbPosts  = selectTopPosts(allSavedPosts.facebook, 5);
+  const slIgPosts  = selectTopPosts(allSavedPosts.instagram, 5);
+  const slTtPosts  = selectTopPosts(allSavedPosts.tiktok, 5);
+  const slXPosts   = selectTopPosts(allSavedPosts.x, 5);
 
   // SL: sin filtro de fecha — queremos los 20 comentarios más recientes del post
   addCommentJob('sl_fb', slFbPosts, 'apify/facebook-comments-scraper',

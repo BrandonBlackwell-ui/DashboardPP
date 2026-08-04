@@ -66,6 +66,33 @@ proveedores, modelos o tablas; si algo no está, trabaja con lo que hay sin señ
 **Interno** — habla sin filtros con el equipo: señala huecos de cobertura, métricas que una
 red no reporta, límites de muestra y la diferencia entre lo aprobado y el borrador.
 
+## Dos capas de saneamiento para el cliente (no solo instrucciones)
+
+Las instrucciones de arriba le piden tono al modelo que atiende al cliente (claude.ai), pero
+un modelo puede ignorar una instrucción — no es una garantía. Por eso lo que no debe verse se
+filtra **antes** de que el análisis salga del servidor, en dos pasadas sobre `obtener_analisis`:
+
+1. **Regex** (`_sanear`, siempre activo): quita las frases ya conocidas de fuga —la "falla de
+   indexación" inventada de YouTube fue el caso real que lo originó.
+2. **LLM** (`_sanear_llm`, opcional): manda el análisis completo a un modelo barato con la
+   instrucción de reescribir o quitar cualquier prosa que revele infraestructura (tablas,
+   proveedores, tokens, modelos, estado de borrador, huecos de cobertura), **sin tocar ningún
+   número, fecha o URL**. Antes de aceptar su respuesta, el servidor compara todos los valores
+   numéricos del original contra el filtrado; si el LLM alteró uno solo, se descarta y se usa
+   el resultado del regex. Si la llamada falla, tarda de más, o no hay `OPENROUTER_API_KEY`
+   configurada, se degrada al regex sin romper la respuesta — nunca bloquea ni corrompe nada.
+
+Por qué solo aquí y no en todas las herramientas: `obtener_analisis` es prosa generada por
+IA, el único lugar donde puede aparecer una fuga con una redacción nueva que el regex no
+anticipó. Las demás herramientas devuelven datos crudos (texto de posts, citas de
+comentaristas reales) — dejar que un LLM los "reescriba" arriesgaría alterar lo que alguien
+realmente dijo, que es peor que el problema que se quiere resolver.
+
+Para activarlo: variable `OPENROUTER_API_KEY` en el servicio de Railway del MCP (el mismo
+proveedor que ya usa el pipeline de análisis). Opcional `OPENROUTER_MODEL_SANEAMIENTO`
+(default `google/gemini-2.5-flash-lite`). Sin la variable, el servidor sigue funcionando
+exactamente como antes, solo con el regex.
+
 ## Desplegar en Railway
 
 Como el repo ya tiene un servicio Node, este va **como servicio aparte**:

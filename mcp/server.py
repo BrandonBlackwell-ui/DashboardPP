@@ -13,6 +13,7 @@ Ejecutar en local:
     MCP_URL_TOKEN=una-cadena-larga python server.py
 """
 
+import json
 import os
 import re
 from datetime import date
@@ -230,6 +231,73 @@ def _sanear(nodo: Any) -> Any:
     if isinstance(nodo, dict):
         return {k: v for k, v in ((k, _sanear(v)) for k, v in nodo.items()) if v is not None}
     return nodo
+
+
+# ─── Segunda pasada de saneamiento: un LLM en vez de solo el regex ──────────────
+# _sanear() atrapa los patrones que YA conocemos (la falla de indexación inventada). Pero
+# un regex nunca cubre una frase nueva con otras palabras: si el generador de análisis vuelve
+# a redactar una fuga de infraestructura con otra redacción, el regex la deja pasar. Esta
+# segunda pasada manda el análisis completo a un LLM barato con instrucción de no cambiar
+# ningún número/fecha/URL y solo reescribir o quitar prosa riesgosa; si el LLM no está
+# configurado, tarda demasiado, o su salida altera algún valor real, se descarta en silencio
+# y se devuelve el análisis tal como llegó del regex. Nunca bloquea ni corrompe la respuesta.
+OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY")
+_SANEAMIENTO_LLM_MODEL = os.getenv("OPENROUTER_MODEL_SANEAMIENTO", "google/gemini-2.5-flash-lite")
+_SANEAMIENTO_LLM_SYSTEM = (
+    "Eres una capa de seguridad para un panel de reputación. Recibes un JSON con el análisis "
+    "que va a leer el cliente final (el equipo de un artista), generado por una agencia. Tu "
+    "única tarea: devolver el MISMO JSON, con la MISMA estructura y las mismas claves, los "
+    "mismos valores numéricos, fechas y URLs — pero reescribiendo o eliminando cualquier texto "
+    "que revele infraestructura interna: nombres de tablas o bases de datos, proveedores "
+    "(Apify, Supabase, OpenRouter, Railway, GitHub), tokens o credenciales, nombres de modelos "
+    "de IA, estado de aprobación o borrador, huecos o límites de cobertura de datos, o "
+    "menciones de 'el sistema', 'el scraper' o similar. No inventes contenido nuevo, no "
+    "cambies ningún número, fecha o URL, no agregues ni quites claves. Si un campo no tiene "
+    "nada que corregir, devuélvelo intacto. Responde solo el JSON, sin explicaciones."
+)
+
+
+def _valores_numericos(nodo: Any, ruta: str = "", out: dict | None = None) -> dict:
+    """Todos los números de un JSON, por ruta. Sirve para comprobar que el filtro LLM no
+    tocó ningún dato real (likes, fechas, conteos): si algo numérico cambió, no es de fiar."""
+    if out is None:
+        out = {}
+    if isinstance(nodo, dict):
+        for k, v in nodo.items():
+            _valores_numericos(v, f"{ruta}.{k}", out)
+    elif isinstance(nodo, list):
+        for i, v in enumerate(nodo):
+            _valores_numericos(v, f"{ruta}[{i}]", out)
+    elif isinstance(nodo, (int, float)) and not isinstance(nodo, bool):
+        out[ruta] = nodo
+    return out
+
+
+async def _sanear_llm(analisis: dict | None) -> dict | None:
+    if not OPENROUTER_KEY or not analisis:
+        return analisis
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {OPENROUTER_KEY}", "Content-Type": "application/json"},
+                json={
+                    "model": _SANEAMIENTO_LLM_MODEL,
+                    "response_format": {"type": "json_object"},
+                    "messages": [
+                        {"role": "system", "content": _SANEAMIENTO_LLM_SYSTEM},
+                        {"role": "user", "content": json.dumps(analisis, ensure_ascii=False)},
+                    ],
+                },
+            )
+            r.raise_for_status()
+            texto = r.json()["choices"][0]["message"]["content"]
+        filtrado = json.loads(texto[texto.index("{"): texto.rindex("}") + 1])
+    except Exception:
+        return analisis
+    if not isinstance(filtrado, dict) or _valores_numericos(filtrado) != _valores_numericos(analisis):
+        return analisis
+    return filtrado
 
 
 # ─── Marco de mensajes (BW-26-07-PA-MSG-001) ────────────────────────────────────
@@ -470,7 +538,7 @@ def crear_servidor(interno: bool) -> FastMCP:
         if not filas:
             return {"encontrado": False, "mensaje": f"No hay análisis de '{red}'" + (f" para {fecha}" if fecha else "")}
         f = filas[0]
-        analisis = f.get("ai_analysis") if interno else _sanear(f.get("ai_analysis"))
+        analisis = f.get("ai_analysis") if interno else await _sanear_llm(_sanear(f.get("ai_analysis")))
         out = {"encontrado": True, "fecha": f["date_key"], "red": f["theme_key"], "analisis": analisis}
         # El sentimiento del resumen promedia las cuentas propias —favorables por definición,
         # son suyas— con lo que dicen los terceros. Ese promedio puede salir 75% favorable el
@@ -1011,6 +1079,7 @@ if __name__ == "__main__":
     print(f"MCP escuchando en 0.0.0.0:{puerto}{'/mcp/<token oculto>' if oculta else ruta}", flush=True)
     print(f"  auth: {MODO_AUTH}", flush=True)
     print(f"  supabase: {SUPABASE_URL}", flush=True)
+    print(f"  saneamiento LLM (vista cliente): {'activo · ' + _SANEAMIENTO_LLM_MODEL if OPENROUTER_KEY else 'inactivo (falta OPENROUTER_API_KEY; solo regex)'}", flush=True)
     if es_asgi:
         import uvicorn
         uvicorn.run(servidor, host="0.0.0.0", port=puerto, access_log=False, log_level="warning")
