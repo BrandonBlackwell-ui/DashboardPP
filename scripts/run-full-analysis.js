@@ -557,6 +557,20 @@ function buildDataPrompt({ report, posts, comments, previousAnalysis }) {
 function buildResumenPrompt({ networkResults, previousAnalysis }) {
   const asList = x => Array.isArray(x) ? x : (x ? [x] : []);
   let out = `RESULTADOS DE ANALISIS POR RED (ya procesados por la IA de cada red). Tu trabajo: CONSOLIDAR un panorama global a partir de estos resultados. NO tienes comentarios crudos y no los necesitas; confía en estos análisis.\n\n`;
+
+  // Sentimiento de TERCEROS calculado aquí en código (no delegado al modelo): las cuentas
+  // propias de Pepe son favorables casi por definición, y promediarlas con lo que dice la
+  // gente de afuera es lo que producía el "75% favorable" el mismo día que la prensa iba
+  // 60% crítica. Se lo entregamos ya calculado para que no dependa de que el modelo decida
+  // excluirlas por su cuenta.
+  const terceros = networkResults.filter(r => r.theme !== 'redes_propias' && r.ai?.sentimiento);
+  if (terceros.length) {
+    const avg = k => Math.round(terceros.reduce((a, r) => a + (+r.ai.sentimiento[k] || 0), 0) / terceros.length);
+    out += `--- SENTIMIENTO DE TERCEROS (prensa y público externo, SIN tus cuentas propias; ya promediado de ${terceros.map(r => r.theme).join(', ')}) ---\n`;
+    out += `favorable ${avg('favorable')}% / neutral ${avg('neutral')}% / critico ${avg('critico')}%.\n`;
+    out += `USA ESTE NUMERO como el "sentimiento" del panorama, en resumen_ejecutivo y en comparativa_historica: es cómo te ve la gente de afuera, que es lo que importa para "cómo vamos". NUNCA promedies con el de redes_propias ni presentes ese promedio como "el sentimiento general" — tus propias cuentas se reportan aparte, etiquetadas explícitamente como tus cuentas, nunca mezcladas.\n\n`;
+  }
+
   if (previousAnalysis) {
     const ps = previousAnalysis.ai_analysis?.sentimiento || {};
     out += `--- PERIODO ANTERIOR (${previousAnalysis.date_key}) PARA COMPARAR ---\n`;
@@ -628,6 +642,7 @@ Reglas duras:
 - EL ENGAGEMENT (likes/views) NO ES SENTIMIENTO. El sentimiento se mide por señal textual real: el caption del post y, sobre todo, los comentarios. Si una publicacion no tiene comentarios extraidos, NO la clasifiques como favorable solo porque tiene muchos likes o views — dilo explicitamente en la lectura ("sin comentarios para evaluar tono; el engagement no indica sentimiento") y no la fuerces a favorable en el conteo. El sentimiento de "redes_propias" (las cuentas de Pepe) y el de terceros (prensa, comentaristas externos) son cosas distintas: nunca los trates como equivalentes ni los presentes como si un 100% favorable en redes propias dijera algo sobre como lo ve el publico externo.
 - LOS COMENTARIOS MAS VOTADOS SON LA SEÑAL DE RIESGO MAS IMPORTANTE, MAS QUE LAS NOTAS DE PRENSA O EL ENGAGEMENT. Si en la muestra de comentarios aparecen ataques a la mexicanidad, comparaciones desfavorables con otros artistas o familias, acusaciones de premios/reconocimientos comprados, o criticas directas a la credibilidad, arrogancia o talento de Pepe — con varios likes, no un caso aislado — DEBEN aparecer como alerta explicita citando el comentario y sus likes, aunque la prensa del dia sea neutral o favorable. No dejes que la lectura de una red se quede en "la prensa cubrio X" si los comentarios de esa misma red muestran un frente de critica que la prensa no cubre.
 - NO ESPECULES SOBRE PROYECTOS O COLABORACIONES FUTURAS QUE NO ESTEN CONFIRMADAS EN LOS DATOS. Una oportunidad o recomendacion debe basarse en algo que YA esta en la conversacion real (un tema que la gente pide, un formato que ya funciono), nunca en un supuesto ("si colabora con X", "podria explorar Y"). Si quieres sugerir una direccion nueva, enmarcala como recomendacion de la agencia basada en la tendencia observada — no como una iniciativa que ya este en marcha o que la gente este pidiendo si no hay evidencia de eso en los datos.
+- SI SE TE DIO UN BLOQUE "SENTIMIENTO DE TERCEROS" ya calculado (arriba, antes de los datos): el campo "sentimiento" de tu respuesta y el texto de resumen_ejecutivo y comparativa_historica deben partir de ESE numero, no de un promedio propio que incluya redes_propias. Si mencionas el desempeño de las cuentas propias, dilo aparte y con esa etiqueta ("en tus redes propias..."), nunca como si fuera "el sentimiento" a secas.
 - Si se dio analisis del periodo anterior, calcula tendencia por red y llena comparativa_historica con deltas reales. Si no, omite comparativa_historica y usa "estable".
 - ANCLA EL ANALISIS AL MARCO ESTRATEGICO de abajo: cada recomendacion (resumen_ejecutivo, plan_accion, oportunidades, recomendacion por red) debe estar guiada por los pilares y mensajes clave. Si un tema reactivo (Angela, Nodal, amuleto Tri, etc.) aparece, considera el pivote del marco al recomendar. No agregues campos extra al JSON: el marco guia el CONTENIDO del analisis normal, no cambia su estructura.
 
@@ -705,6 +720,90 @@ async function classifyAndSaveNewsSentiment(aiKey, date, emit = () => {}) {
     for (const [id, s] of Object.entries(tono)) { await supabase.from('scraped_posts').update({ sentiment: s }).eq('id', id); n++; }
     emit({ type: 'log', msg: `prensa: sentimiento clasificado en ${n} notas` });
   } catch (e) { emit({ type: 'error', msg: `clasif prensa: ${e.message}` }); }
+}
+
+// ─── Voces (aliados/contrarios/neutrales) ────────────────────────────────────
+// Cuentas propias de Pepe: nunca deben aparecer como aliado o contrario de sí mismo.
+const OWNED_USERNAMES = new Set(['pepeaguilar_oficial', 'pepeaguilar', 'pepe aguilar']);
+const decodeUsername = u => { try { return decodeURIComponent(String(u || '')); } catch { return String(u || ''); } };
+// Un caption puede llevar "#pepeaguilar" entre 20 hashtags de un tema ajeno (audio, viajes,
+// turismo) sin que la cuenta tenga relación real con él. Quitamos el bloque de hashtags
+// antes de exigir relevancia, para no dejar pasar cuentas que solo venían por el hashtag de moda.
+const stripHashtagBlock = t => String(t || '').replace(/#[\p{L}\p{N}_]+/gu, ' ');
+
+// Clasifica la postura de cada autor (de posts y comentarios del día) HACIA PEPE
+// específicamente, con un modelo barato — un solo llamado por día. Antes esto se hacía
+// (o se intentó hacer) por palabra suelta ("hermosa"→aliado, "chisme"→contrario) y todo lo
+// que no matcheaba cae en neutral por default; aquí "neutral" es una conclusión de la IA,
+// no un cajón por defecto, y la postura se juzga hacia Pepe, no hacia Ángela o Nodal (por
+// eso una cuenta de shippers de Nodal/Ángela podía salir como "aliada" de Pepe).
+async function classifyVoicesPosture(aiKey, entries) {
+  const list = entries.map((v, i) => `${i}. @${v.username} (${v.platform}): "${v.textos[0]}"`).join('\n');
+  const prompt = `Clasifica la postura de cada cuenta HACIA PEPE AGUILAR específicamente — no hacia Ángela Aguilar, Christian Nodal u otros familiares por separado, solo hacia Pepe. "aliado" si defiende, apoya, celebra o amplifica positivamente A PEPE. "contrario" si critica, ridiculiza o ataca A PEPE. "neutral" SOLO si el texto de verdad no toma postura hacia Pepe (puramente informativo, una pregunta, o habla de otra persona sin relación clara con Pepe) — NO uses "neutral" como opción por defecto cuando SÍ hay una postura clara aunque sea sutil. Devuelve SOLO JSON: {"clasificaciones":[{"i":0,"tipo":"aliado|contrario|neutral","tema":"1-2 palabras del tema"}]}\n\n${list}`;
+  const { analysis } = await callAI(aiKey, prompt, ['google/gemini-2.5-flash-lite', 'google/gemini-2.5-flash'],
+    'Eres un clasificador de postura hacia una figura pública. Responde solo JSON válido.');
+  return analysis?.clasificaciones || [];
+}
+
+// Junta posts + comentarios del día en un roster único por (usuario, red), filtra por
+// relevancia real (sin solo-hashtag) y excluye las cuentas propias de Pepe.
+function buildVoicesRoster(posts, comments, postById) {
+  const roster = new Map();
+  const add = (rawUsername, platform, text, likes, followers, reportId) => {
+    const username = decodeUsername(rawUsername).trim();
+    const clave = username.toLowerCase().replace(/^@/, '');
+    if (!username || OWNED_USERNAMES.has(clave)) return;
+    if (!isRelevant(stripHashtagBlock(text))) return; // exige relevancia mas alla del hashtag
+    const key = `${platform}::${clave}`;
+    const v = roster.get(key) || { username, platform, textos: [], likes: 0, followers: 0, posts: 0, reportId };
+    v.textos.push(truncate(text, 200));
+    v.likes += likes || 0;
+    v.followers = Math.max(v.followers, followers || 0);
+    v.posts += 1;
+    roster.set(key, v);
+  };
+  posts.forEach(p => add(p.username, p.platform, p.text, p.likes, p.followers, p.report_id));
+  comments.forEach(c => { const p = postById[c.post_id]; if (p) add(c.author, p.platform, c.text, c.likes, 0, p.report_id); });
+  return [...roster.values()];
+}
+
+// Clasifica y guarda las voces (aliados/contrarios/neutrales) del día en allies_critics_voices.
+async function classifyAndSaveVoices(aiKey, date, emit = () => {}) {
+  try {
+    const { data: reps } = await supabase.from('reports').select('id').eq('date_key', date).neq('theme_key', 'resumen');
+    if (!aiKey || !reps?.length) return;
+    const repIds = reps.map(r => r.id);
+
+    const { data: posts } = await supabase.from('scraped_posts')
+      .select('id,report_id,platform,username,text,likes,followers').in('report_id', repIds);
+    const postIds = (posts || []).map(p => p.id);
+    let comments = [];
+    if (postIds.length) {
+      const { data } = await supabase.from('scraped_comments').select('post_id,author,text,likes').in('post_id', postIds);
+      comments = data || [];
+    }
+    const postById = {}; (posts || []).forEach(p => { postById[p.id] = p; });
+
+    const entries = buildVoicesRoster(posts || [], comments, postById);
+    if (!entries.length) return;
+
+    const clasificaciones = await classifyVoicesPosture(aiKey, entries);
+    const M = { aliado: 'positive', contrario: 'negative', neutral: 'neutral' };
+    let n = 0;
+    for (const row of clasificaciones) {
+      const v = entries[Number(row.i)];
+      if (!v) continue;
+      const sentiment = M[String(row.tipo || '').toLowerCase()] || 'neutral';
+      const tier = v.followers >= 100000 ? 'macro' : v.followers >= 10000 ? 'medio' : 'micro';
+      const { error } = await supabase.from('allies_critics_voices').upsert({
+        report_id: v.reportId, username: v.username, platform: v.platform, sentiment,
+        followers: v.followers, posts_count: v.posts, likes_count: v.likes,
+        total_engagement: v.likes, tier, keywords: row.tema ? [row.tema] : [], theme_key: v.platform,
+      }, { onConflict: 'report_id,username,platform' });
+      if (!error) n++;
+    }
+    emit({ type: 'log', msg: `voces: ${n} cuentas clasificadas hacia Pepe (de ${entries.length} candidatas relevantes)` });
+  } catch (e) { emit({ type: 'error', msg: `clasif voces: ${e.message}` }); }
 }
 
 export async function callAI(apiKey, prompt, models, systemPrompt = AI_PROMPT_SYSTEM) {
@@ -1114,6 +1213,10 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, from, to, emit 
   await Promise.allSettled(commentJobs);
   emit({ type:'phase_done', phase:'B', msg:'Comentarios guardados (propios + social listening).' });
 
+  // Clasifica cada autor (de posts y comentarios de hoy) por su postura hacia Pepe y lo
+  // guarda en allies_critics_voices. Necesita los comentarios ya guardados (Fase B).
+  await classifyAndSaveVoices(aiKey, DATE, emit);
+
   // ── FASE C: AI por red en paralelo (Gemini) ───────────────────────────────
   emit({ type:'phase', phase:'C', msg:'Análisis IA por red (paralelo)...' });
 
@@ -1153,6 +1256,8 @@ export async function runAIOnly({ aiKey, date, emit = () => {} }) {
   emit({ type:'phase', phase:'C', msg:`Re-análisis IA con data existente del ${DATE} (sin Apify)...` });
   // Reclasifica el sentimiento de las notas de prensa existentes (modelo barato).
   await classifyAndSaveNewsSentiment(aiKey, DATE, emit);
+  // Reclasifica las voces (aliados/contrarios) con los posts/comentarios ya guardados.
+  await classifyAndSaveVoices(aiKey, DATE, emit);
   const aiNets = ['facebook','instagram','x','tiktok','google_news','redes_propias'];
   const results = await Promise.allSettled(
     aiNets.map(net => enrichAndSaveAI(aiKey, net, DATE, {}).then(r => { emit({ type:'ai_done', net, result:r }); return r; }))
@@ -1235,4 +1340,4 @@ if (process.argv[1]?.endsWith('run-full-analysis.js')) {
 }
 
 // Exportados para pruebas (la watchlist es RSS gratis y se puede validar sin Apify).
-export { scrapeWatchlist, parseRssItems, fetchFeed, dedupePress, normOwnedFacebook, MEDIA_WATCHLIST, WATCHLIST_SEARCH_TERMS };
+export { scrapeWatchlist, parseRssItems, fetchFeed, dedupePress, normOwnedFacebook, MEDIA_WATCHLIST, WATCHLIST_SEARCH_TERMS, classifyAndSaveVoices };
