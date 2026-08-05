@@ -374,6 +374,299 @@ export async function getDashboardData(args = {}) {
   };
 }
 
+// ─── Herramientas de consulta (todo se busca en las tablas, nada de memoria) ───
+// Portadas del MCP, recortadas para voz: pocas filas y textos cortos, porque la
+// respuesta se escucha, no se lee.
+
+const ENG = p => (p.likes || 0) + (p.comments_count || 0) * 2 + ((p.shares || 0) + (p.retweets || 0)) * 3;
+
+// Una captura del mismo post cada día llegaba como filas distintas (y Facebook
+// reescribe la URL), así que se deduplica por texto normalizado y se conserva la
+// versión con más engagement.
+const dedupPosts = (filas) => {
+  const porClave = new Map();
+  for (const f of filas || []) {
+    const clave = `${f.platform || ''}|${String(f.text || '').replace(/\s+/g, ' ').trim().slice(0, 160).toLowerCase()}`;
+    const prev = porClave.get(clave);
+    if (!prev || ENG(f) > ENG(prev)) porClave.set(clave, f);
+  }
+  return [...porClave.values()];
+};
+
+// PostgREST rompe el filtro ilike con comas, paréntesis o comodines.
+const limpiaBusqueda = (texto) => String(texto || '').replace(/[,()*%"'\\;:{}[\]&=]/g, ' ').split(/\s+/).filter(Boolean).join(' ');
+
+const rangoPosts = (q, from, to) => {
+  if (from) q = q.gte('published_date', from);
+  if (to) q = q.lte('published_date', to + 'T23:59:59');
+  return q;
+};
+
+// ── Buscar por tema: la pregunta humana no trae fecha ("¿qué dijeron de mi
+// presentación con Grupo Frontera?"). Devuelve en qué días aparece el tema.
+export async function buscarTema(args = {}) {
+  if (!supabase) return { error: 'Base no configurada.' };
+  const tema = limpiaBusqueda(args.tema || args.question);
+  if (!tema) return { error: 'Dime qué tema buscar.' };
+  const n = Math.min(Math.max(Number(args.limit || 8), 3), 20);
+  const red = normalizePlatform(args.red || args.platform);
+  const patron = `%${tema}%`;
+
+  let qp = supabase.from('scraped_posts')
+    .select('text,username,platform,theme_key,url,likes,views,comments_count,sentiment,published_date,fb_haha,fb_angry,fb_like')
+    .ilike('text', patron).order('likes', { ascending: false }).limit(120);
+  if (red) qp = qp.eq('theme_key', red);
+  qp = rangoPosts(qp, args.from, args.to);
+
+  const [{ data: posts }, { data: comentarios }, { data: analisis }] = await Promise.all([
+    qp,
+    supabase.from('scraped_comments').select('text,author,likes,published_time')
+      .ilike('text', patron).order('likes', { ascending: false }).limit(40),
+    supabase.from('reports').select('date_key,theme_key,ai_analysis')
+      .eq('approved', true).not('ai_analysis', 'is', null)
+      .order('date_key', { ascending: false }).limit(300),
+  ]);
+
+  // Los análisis se filtran en memoria: el tema puede estar en cualquier parte del JSON.
+  const termino = tema.toLowerCase();
+  const enAnalisis = (analisis || [])
+    .filter(r => JSON.stringify(r.ai_analysis || {}).toLowerCase().includes(termino))
+    .slice(0, 12)
+    .map(r => ({
+      date: r.date_key,
+      donde: PLATFORM_LABELS[r.theme_key] || r.theme_key,
+      lectura: compactText(r.ai_analysis?.desglose_por_red?.[r.theme_key]?.lectura
+        || (Array.isArray(r.ai_analysis?.resumen_ejecutivo) ? r.ai_analysis.resumen_ejecutivo.join(' · ') : r.ai_analysis?.resumen_ejecutivo), 260),
+    }));
+
+  const limpios = dedupPosts(posts).sort((a, b) => ENG(b) - ENG(a));
+  const porDia = {};
+  for (const p of limpios) {
+    const d = (p.published_date || '').slice(0, 10);
+    if (d) porDia[d] = (porDia[d] || 0) + 1;
+  }
+  for (const a of enAnalisis) porDia[a.date] = porDia[a.date] || 0;
+
+  const dias = Object.entries(porDia).sort((a, b) => a[0] < b[0] ? -1 : 1)
+    .map(([date, menciones]) => ({ date, menciones_encontradas: menciones }));
+
+  return {
+    tema,
+    dias_donde_aparece: dias,
+    total_publicaciones: limpios.length,
+    publicaciones: limpios.slice(0, n).map(p => ({
+      date: (p.published_date || '').slice(0, 10),
+      red: PLATFORM_LABELS[p.theme_key] || p.platform,
+      autor: p.username, texto: compactText(p.text, 200), url: p.url,
+      likes: p.likes || 0, views: p.views || 0, sentimiento: p.sentiment || '',
+      ...((p.fb_haha || p.fb_angry) ? { reacciones: { like: p.fb_like || 0, haha: p.fb_haha || 0, angry: p.fb_angry || 0 } } : {}),
+    })),
+    comentarios: (comentarios || []).slice(0, n).map(c => ({
+      autor: c.author || '', texto: compactText(c.text, 180), likes: c.likes || 0,
+    })),
+    analisis_que_lo_mencionan: enAnalisis,
+    instruction: dias.length
+      ? 'Ya tienes las fechas donde aparece el tema. Para el sentimiento de ese día llama a get_dashboard_data con esa fecha exacta. No respondas el sentimiento con lo que veas aquí.'
+      : 'No se encontró el tema. Dile a Pepe que no aparece en lo monitoreado en lugar de suponer.',
+  };
+}
+
+// ── Voces: quiénes hablan de Pepe y de qué lado están.
+export async function consultarVoces(args = {}) {
+  if (!supabase) return { error: 'Base no configurada.' };
+  const tipo = ['aliados', 'contrarios', 'neutrales'].includes(args.tipo) ? args.tipo : 'todos';
+  const n = Math.min(Math.max(Number(args.limit || 10), 3), 30);
+  const minAlcance = Number.isFinite(Number(args.min_alcance)) ? Number(args.min_alcance) : 50;
+  const mapa = { aliados: 'positive', contrarios: 'negative', neutrales: 'neutral' };
+  const inv = { positive: 'aliados', negative: 'contrarios', neutral: 'neutrales' };
+
+  let q = supabase.from('allies_critics_voices')
+    .select('username,platform,sentiment,followers,total_engagement,tier,keywords,profile_url')
+    .order('total_engagement', { ascending: false }).limit(600);
+  if (tipo !== 'todos') q = q.eq('sentiment', mapa[tipo]);
+  const red = normalizePlatform(args.red || args.platform);
+  if (red) q = q.eq('platform', red);
+  const { data: filas, error } = await q;
+  if (error) return { error: error.message };
+
+  const grupos = {}; const vistos = new Set(); let sueltos = 0;
+  for (const f of filas || []) {
+    const u = (f.username || '').toLowerCase().trim().replace(/^@/, '');
+    const cat = inv[f.sentiment] || 'neutrales';
+    if (!u || vistos.has(cat + u)) continue;
+    vistos.add(cat + u);
+    const alcance = f.total_engagement || f.followers || 0;
+    if (alcance < Math.max(minAlcance, 0)) { sueltos++; continue; }
+    // Un medio nacional y alguien con un like no pesan igual: van en secciones distintas.
+    const esCuenta = ['macro', 'medio'].includes(f.tier) || (f.followers || 0) >= 10000 || alcance >= 5000;
+    const seccion = esCuenta ? 'medios_y_cuentas' : 'comentaristas';
+    grupos[cat] ||= {}; grupos[cat][seccion] ||= [];
+    if (grupos[cat][seccion].length >= n) continue;
+    grupos[cat][seccion].push({
+      cuenta: f.username, red: PLATFORM_LABELS[f.platform] || f.platform, alcance,
+      ...(f.followers ? { seguidores: f.followers } : {}),
+      ...(f.tier ? { nivel: f.tier } : {}),
+      ...(f.profile_url ? { perfil: f.profile_url } : {}),
+    });
+  }
+
+  return {
+    voces: grupos,
+    totales: Object.fromEntries(Object.entries(grupos).map(([c, s]) => [c, Object.fromEntries(Object.entries(s).map(([k, v]) => [k, v.length]))])),
+    nota: `Solo voces con alcance ≥ ${Math.max(minAlcance, 0)}${sueltos ? ` (${sueltos} comentaristas más pequeños quedaron fuera)` : ''}. `
+      + 'Alcance = engagement acumulado o seguidores, el mayor de los dos. Al hablarlo, nombra primero medios y cuentas con peso; los comentaristas sueltos son ruido individual.',
+  };
+}
+
+// ── Medios: qué prensa lo está cubriendo y con qué tono.
+export async function consultarMedios(args = {}) {
+  if (!supabase) return { error: 'Base no configurada.' };
+  const n = Math.min(Math.max(Number(args.limit || 12), 3), 30);
+  let q = supabase.from('scraped_posts')
+    .select('username,url,text,sentiment,published_date,likes')
+    .eq('theme_key', 'google_news').order('published_date', { ascending: false }).limit(600);
+  q = rangoPosts(q, args.from, args.to);
+  const { data: notas, error } = await q;
+  if (error) return { error: error.message };
+  if (!notas?.length) return { total_notas: 0, message: 'No hay notas de prensa en esa ventana.' };
+
+  const porMedio = {};
+  for (const nt of dedupPosts(notas)) {
+    const medio = (nt.username || '').trim() || 'sin identificar';
+    const m = porMedio[medio] ||= { medio, notas: 0, favorable: 0, critico: 0, neutral: 0, ultima: '', ejemplo: '', link: '' };
+    m.notas += 1;
+    const s = (nt.sentiment || '').toLowerCase();
+    if (s.includes('fav') || s.includes('pos')) m.favorable++;
+    else if (s.includes('crit') || s.includes('neg')) m.critico++;
+    else m.neutral++;
+    const fecha = (nt.published_date || '').slice(0, 10);
+    if (fecha > m.ultima) { m.ultima = fecha; m.ejemplo = compactText(nt.text, 140); m.link = nt.url || ''; }
+  }
+
+  const lista = Object.values(porMedio).sort((a, b) => b.notas - a.notas).slice(0, n)
+    .map(m => ({
+      ...m,
+      tono: m.critico > m.favorable ? 'crítico' : m.favorable > m.critico ? 'favorable' : 'neutral',
+    }));
+
+  return {
+    ventana: { from: args.from || 'todo el histórico', to: args.to || 'hoy' },
+    total_notas: notas.length, medios_distintos: Object.keys(porMedio).length,
+    medios: lista,
+    nota: 'El tono sale de la clasificación pieza por pieza. Un medio con muchas notas neutrales no es lo mismo que uno con pocas pero críticas: dilo así.',
+  };
+}
+
+// ── Rendimiento de las publicaciones de Pepe: la base para "¿qué publico?".
+export async function rendimientoPropias(args = {}) {
+  if (!supabase) return { error: 'Base no configurada.' };
+  const n = Math.min(Math.max(Number(args.limit || 8), 3), 20);
+  let q = supabase.from('scraped_posts')
+    .select('platform,username,text,url,published_date,likes,comments_count,views,shares,retweets')
+    .eq('theme_key', 'redes_propias').order('likes', { ascending: false }).limit(800);
+  q = rangoPosts(q, args.from, args.to);
+  const { data: filas, error } = await q;
+  if (error) return { error: error.message };
+
+  const posts = dedupPosts(filas).sort((a, b) => ENG(b) - ENG(a));
+  if (!posts.length) return { total_publicaciones: 0, message: 'Sin publicaciones propias en esa ventana.' };
+
+  const porRed = {};
+  for (const p of posts) {
+    const r = porRed[p.platform] ||= { publicaciones: 0, engagement_total: 0 };
+    r.publicaciones += 1; r.engagement_total += ENG(p);
+  }
+  for (const r of Object.values(porRed)) r.engagement_promedio = Math.round(r.engagement_total / r.publicaciones);
+
+  // Contra el promedio de SU red: medir un post de Instagram contra el global infla el múltiplo.
+  const limpia = p => {
+    const base = porRed[p.platform]?.engagement_promedio || 0;
+    const e = ENG(p);
+    return {
+      red: PLATFORM_LABELS[p.platform] || p.platform, fecha: (p.published_date || '').slice(0, 10),
+      texto: compactText(p.text, 170), url: p.url || '', engagement: e,
+      likes: p.likes || 0, comentarios: p.comments_count || 0, views: p.views || 0,
+      ...(base ? { vs_promedio_de_su_red: `${(e / base).toFixed(1)}x` } : {}),
+    };
+  };
+
+  return {
+    total_publicaciones: posts.length,
+    engagement_promedio_global: Math.round(posts.reduce((a, p) => a + ENG(p), 0) / posts.length),
+    por_red: porRed,
+    mejores: posts.slice(0, n).map(limpia),
+    peores: posts.length > 6 ? posts.slice(-3).map(limpia) : [],
+    nota: 'engagement = likes + comentarios×2 + compartidos×3. Esto es rendimiento de SU contenido, no opinión pública. Para recomendar qué publicar, apóyate en los mejores y di el múltiplo vs el promedio de esa red.',
+  };
+}
+
+// ── Evolución: "¿voy mejor o peor?", con la crítica de terceros aparte.
+export async function evolucionSentimiento(args = {}) {
+  if (!supabase) return { error: 'Base no configurada.' };
+  const red = normalizePlatform(args.red || args.platform) || 'resumen';
+  let q = supabase.from('reports').select('date_key,theme_key,ai_analysis')
+    .eq('approved', true).not('ai_analysis', 'is', null)
+    .order('date_key', { ascending: true }).limit(600);
+  if (args.from) q = q.gte('date_key', args.from);
+  if (args.to) q = q.lte('date_key', args.to);
+  const { data: filas, error } = await q;
+  if (error) return { error: error.message };
+
+  const porDia = {};
+  for (const f of filas || []) (porDia[f.date_key] ||= {})[f.theme_key] = f.ai_analysis || {};
+
+  const serie = [];
+  for (const fecha of Object.keys(porDia).sort()) {
+    const temas = porDia[fecha];
+    const ai = temas[red];
+    if (!ai) continue;
+    const s = ai.sentimiento || {};
+    const punto = { fecha, favorable: s.favorable ?? null, critico: s.critico ?? null, riesgo: ai.nivel_riesgo || '' };
+    if (red === 'resumen') {
+      // El % publicado incluye las cuentas propias; este no.
+      const terceros = Object.entries(temas)
+        .filter(([k]) => k !== 'resumen' && k !== OWN_ACCOUNTS_KEY)
+        .map(([, t]) => Number(t?.sentimiento?.critico)).filter(Number.isFinite);
+      if (terceros.length) punto.critico_terceros = Math.round(terceros.reduce((a, b) => a + b, 0) / terceros.length);
+    }
+    serie.push(punto);
+  }
+  if (!serie.length) return { red, dias: 0, message: 'No hay análisis publicado en ese rango.' };
+
+  const critT = serie.map(p => p.critico_terceros).filter(Number.isFinite);
+  return {
+    red: PLATFORM_LABELS[red] || red, dias: serie.length,
+    primero: serie[0], ultimo: serie[serie.length - 1],
+    promedio_favorable: prom(serie.map(p => p.favorable)),
+    ...(critT.length ? {
+      promedio_critico_terceros: Math.round(critT.reduce((a, b) => a + b, 0) / critT.length),
+      nota: 'critico_terceros es la crítica de medios y público sin las cuentas propias de Pepe; el porcentaje global las incluye y sale más favorable. Usa el de terceros para hablar de reputación.',
+    } : {}),
+    serie,
+  };
+}
+
+// ── Catálogo oficial de mensajes (BW-26-07-PA-MSG-001). Fijo, no se deduce.
+const MENSAJES_CLAVE = {
+  documento: 'BW-26-07-PA-MSG-001',
+  mensaje_maestro: 'Elegí ser dueño de lo que creo, de lo que construyo y de lo que cuido. Eso es lo que soy, y lo que seré.',
+  pilares: [
+    { nombre: 'PIONERO', eje: 'independencia', idea: 'El artista dueño de su obra y de su infraestructura; libertad y autenticidad.' },
+    { nombre: 'VISIONARIO', eje: 'tecnología / IA', idea: 'La IA como herramienta al servicio del creador; soberanía tecnológica y relevancia.' },
+    { nombre: 'GUARDIÁN', eje: 'charrería / mexicanidad', idea: 'Charrería, mariachi, orgullo mexicano y el legado de Don Antonio como patrimonio.' },
+  ],
+  valores_transversales: ['soberanía', 'orgullo mexicano', 'compromiso con el público', 'respeto al talento', 'independencia real', 'excelencia', 'pertenencia cultural'],
+  pivotes_reactivos: [
+    { tema: 'Ángela Aguilar', pivote: 'cada artista, su propio escenario', manejo: 'Regresar al show y al catálogo propio. Nunca entrar en polémica.' },
+    { tema: 'Nodal / Cazzu / Emiliano', pivote: 'cada quien habla por sí mismo, hoy vine a cantar', manejo: 'Cortar el hilo y volver a la música.' },
+    { tema: 'Amuleto del Tri', pivote: 'presencia, no oráculo', manejo: 'Cero apropiación del apodo.' },
+    { tema: "Críticas a 'El Son de la Negra' y comparaciones", pivote: 'silencio activo y posición de altura', manejo: 'Solo responde un tercero creíble, nunca Pepe directo.' },
+    { tema: 'Cancelación de conciertos EEUU/Canadá', pivote: 'comunicación oficial desde producción', manejo: 'No desde Pepe; distinguir casos (visas por show, no todos).' },
+    { tema: 'Homenaje Día de San Juan / legado Don Antonio', pivote: 'patrimonio compartido', manejo: 'Cero apropiación desde Pepe.' },
+  ],
+  como_usarlo: 'Ancla cada recomendación a un pilar y dilo. Ante un tema reactivo aplica el pivote tal como está escrito. Son TRES pilares.',
+};
+
 const VOICE_TOOLS = [{
   functionDeclarations: [{
     name: 'get_dashboard_data',
@@ -389,8 +682,86 @@ const VOICE_TOOLS = [{
       },
       required: ['question'],
     },
+  }, {
+    name: 'buscar_tema',
+    description: 'Busca un tema, evento, persona o frase en TODO lo monitoreado (publicaciones, comentarios y analisis) sin saber la fecha. Uso obligatorio cuando Pepe menciona algo por su nombre y no por su fecha: "mi presentacion con Grupo Frontera", "lo del amuleto", "los que dicen que no vendo boletos". Devuelve en que dias aparece el tema; despues consulta esos dias con get_dashboard_data.',
+    parameters: {
+      type: 'object',
+      properties: {
+        tema: { type: 'string', description: 'Palabra o frase a buscar. Corta y sin comillas: "Grupo Frontera", "boletos", "amuleto".' },
+        from: { type: 'string', description: 'Opcional. Fecha inicial YYYY-MM-DD.' },
+        to: { type: 'string', description: 'Opcional. Fecha final YYYY-MM-DD.' },
+        red: { type: 'string', description: 'Opcional: facebook, instagram, x, tiktok, google_news, redes_propias.' },
+        limit: { type: 'number', description: 'Ejemplos a devolver, 3 a 20.' },
+      },
+      required: ['tema'],
+    },
+  }, {
+    name: 'voces',
+    description: 'Quien habla de Pepe y de que lado esta: aliados, contrarios y neutrales, separando medios y cuentas con peso real de comentaristas sueltos, con su alcance. Para "quienes son mis aliados", "quienes me atacan", "que cuentas me estan pegando en TikTok".',
+    parameters: {
+      type: 'object',
+      properties: {
+        tipo: { type: 'string', description: 'aliados, contrarios, neutrales o todos.' },
+        red: { type: 'string', description: 'Opcional: filtrar por una red.' },
+        limit: { type: 'number', description: 'Maximo por categoria, 3 a 30.' },
+        min_alcance: { type: 'number', description: 'Alcance minimo. 0 incluye comentaristas pequenos.' },
+      },
+      required: [],
+    },
+  }, {
+    name: 'medios',
+    description: 'Que medios de prensa estan cubriendo a Pepe, cuantas notas publico cada uno y con que tono. Para "que medios hablan de mi", "quien me esta pegando en prensa", "como viene la prensa esta semana".',
+    parameters: {
+      type: 'object',
+      properties: {
+        from: { type: 'string', description: 'Fecha inicial YYYY-MM-DD.' },
+        to: { type: 'string', description: 'Fecha final YYYY-MM-DD.' },
+        limit: { type: 'number', description: 'Medios a devolver, 3 a 30.' },
+      },
+      required: [],
+    },
+  }, {
+    name: 'rendimiento_propias',
+    description: 'Como rindieron las publicaciones DE PEPE en sus propias cuentas, comparadas contra el promedio de su misma red. Es la base para recomendar: "que publico manana", "que formato funciona", "en que red me conviene publicar", "como va mi contenido". NO es opinion publica.',
+    parameters: {
+      type: 'object',
+      properties: {
+        from: { type: 'string', description: 'Fecha inicial YYYY-MM-DD.' },
+        to: { type: 'string', description: 'Fecha final YYYY-MM-DD.' },
+        limit: { type: 'number', description: 'Publicaciones top a devolver, 3 a 20.' },
+      },
+      required: [],
+    },
+  }, {
+    name: 'evolucion',
+    description: 'Serie dia por dia de sentimiento y riesgo para saber si va mejor o peor, con la critica de terceros calculada aparte (sin las cuentas propias). Para "como vengo", "mejore respecto a la semana pasada", "como evoluciono el mes".',
+    parameters: {
+      type: 'object',
+      properties: {
+        from: { type: 'string', description: 'Fecha inicial YYYY-MM-DD.' },
+        to: { type: 'string', description: 'Fecha final YYYY-MM-DD.' },
+        red: { type: 'string', description: 'resumen para el global (default) o una red concreta.' },
+      },
+      required: [],
+    },
+  }, {
+    name: 'mensajes_clave',
+    description: 'Catalogo oficial de la estrategia: mensaje maestro, los TRES pilares (PIONERO, VISIONARIO, GUARDIAN) y el pivote para cada tema reactivo. Consultalo SIEMPRE que pregunten por los mensajes, los pilares, como responder a un tema delicado o si algo esta alineado a la estrategia. No los deduzcas de los analisis.',
+    parameters: { type: 'object', properties: {}, required: [] },
   }],
 }];
+
+// Despachador: nombre de la herramienta → función que la resuelve.
+const TOOL_HANDLERS = {
+  get_dashboard_data: getDashboardData,
+  buscar_tema: buscarTema,
+  voces: consultarVoces,
+  medios: consultarMedios,
+  rendimiento_propias: rendimientoPropias,
+  evolucion: evolucionSentimiento,
+  mensajes_clave: async () => MENSAJES_CLAVE,
+};
 
 // ─── Memoria de conversaciones (para dar sensación de continuidad) ─────────────
 // Trae el resumen de las últimas 1-2 sesiones. Solo resúmenes cortos → costo mínimo de tokens.
@@ -531,7 +902,7 @@ const ORWELL_STYLE = `
 - SALUDA UNA SOLA VEZ: el saludo y el briefing de apertura van SOLO en tu primer turno de la sesión. Si ya saludaste, nunca vuelvas a presentarte ni a repetir el resumen inicial, aunque el turno se haya cortado a media frase o Pepe se quede callado. Retoma donde iban.
 
 === REGLAS SOBRE LOS DATOS (INVIOLABLES) ===
-1. NO AFIRMES UN SENTIMIENTO SIN HABERLO CONSULTADO. Si Pepe pregunta cómo recibieron algo (una presentación, una colaboración, una entrevista) y no consultaste ESA fecha con get_dashboard_data, no contestes: primero ubica la fecha en la LÍNEA DE TIEMPO y consúltala. Está prohibido contestar "fue muy positivo" con lo que recuerdes del contexto general.
+1. CERO DATOS DE MEMORIA. Ninguna cifra, nombre de aliado o contrario, medio, fecha o lectura sale de este prompt: todo se consulta con las herramientas en el momento. Si Pepe pregunta cómo recibieron algo (una presentación, una colaboración, una entrevista) y no consultaste ESA fecha, no contestes: ubica la fecha con buscar_tema o en la LÍNEA DE TIEMPO y consúltala. Está prohibido contestar "fue muy positivo" de memoria. Si te preguntan quiénes son sus aliados, llama a voces; si preguntan por prensa, llama a medios; si preguntan qué publicar, llama a rendimiento_propias. Vale más tardar dos segundos que inventar.
 2. LOS REPORTES DE BLACKWELL MANDAN. Si Pepe dice que un reporte, documento o correo de Blackwell dice algo distinto a lo que tú ves, el reporte tiene razón y tú te equivocaste. Nunca sugieras que el reporte está confundido, que habla de otro tema o que tiene mal las fechas. Responde: reconoce la diferencia, pídele la fecha del reporte, consúltala y corrige tu lectura en voz alta ("tienes razón, Pepe, déjame ver ese día... efectivamente...").
 3. LAS CUENTAS PROPIAS NO SON EL PÚBLICO. "Redes propias" es el público que YA sigue a Pepe: favorable por definición. Nunca la presentes como "la gente opina" ni la promedies con terceros. Para cómo lo recibió la gente usa el sentimiento de terceros y el panorama del día.
 4. EL PROMEDIO PUEDE ESCONDER UNA DIVISIÓN. Cuando una red va favorable y otra crítica el mismo día, dilo explícitamente con las dos cifras; es la información que más le sirve. Un evento puede celebrarse en Instagram y ser masacrado en Facebook y TikTok: eso NO es "recepción positiva".
@@ -703,7 +1074,19 @@ export function attachVoiceRelay(server, { geminiKey, aiKey }) {
 
 Te llamas ORWELL. Si Pepe te pregunta tu nombre o cómo te llamas, responde con calidez que eres Orwell, su analista de reputación. Puedes presentarte como Orwell en tu primer saludo.
 ${ORWELL_STYLE}${memoria.block}${perfil.block}${timeline}${brief}
-Tambien tienes acceso a la herramienta get_dashboard_data para consultar Supabase en vivo. Usala SIEMPRE que Pepe pregunte por fechas, rangos, historico, "semana pasada", "ayer", comparativas, posts, comentarios, links, aliados o contrarios que no esten explicitamente en el contexto visible. No inventes datos: primero consulta la herramienta y despues responde.` }] },
+=== TUS HERRAMIENTAS (TODO DATO SE CONSULTA, NADA SE RECUERDA) ===
+No traes cifras precargadas en la cabeza: este prompt solo te orienta. CADA dato concreto que digas
+tiene que salir de una consulta hecha en ESTA conversacion. Si no consultaste, no lo afirmes.
+- get_dashboard_data — sentimiento y panorama de una fecha o rango, publicaciones y comentarios del dia.
+- buscar_tema — un tema/evento por su NOMBRE cuando no sabes la fecha. Te dice en que dias aparece.
+- voces — aliados, contrarios y neutrales con su alcance.
+- medios — que prensa lo cubre, cuantas notas y con que tono.
+- rendimiento_propias — como rindieron SUS publicaciones (para recomendar que publicar).
+- evolucion — dia por dia, si va mejor o peor, con la critica de terceros aparte.
+- mensajes_clave — el catalogo oficial de mensaje maestro, pilares y pivotes.
+Ruta obligada cuando Pepe menciona un evento por su nombre ("mi presentacion con Grupo Frontera"):
+1) buscar_tema para ubicar la fecha  2) get_dashboard_data con ESA fecha  3) recien entonces responde.
+Puedes llamar varias herramientas en un mismo turno. Mientras consultas, dile algo breve ("dejame ver eso").` }] },
               tools: VOICE_TOOLS,
               // Habilita transcripción de lo que dice el usuario y lo que responde Gemini.
               inputAudioTranscription: {},
@@ -736,17 +1119,18 @@ Tambien tienes acceso a la herramienta get_dashboard_data para consultar Supabas
           if (data.toolCall?.functionCalls?.length) {
             const functionResponses = [];
             for (const call of data.toolCall.functionCalls) {
-              if (call.name !== 'get_dashboard_data') {
+              const handler = TOOL_HANDLERS[call.name];
+              if (!handler) {
                 functionResponses.push({ id: call.id, name: call.name, response: { error: 'Herramienta no soportada.' } });
                 continue;
               }
               try {
-                console.log('[voz] tool get_dashboard_data', JSON.stringify(call.args || {}));
-                const result = await getDashboardData(call.args || {});
+                console.log(`[voz] tool ${call.name}`, JSON.stringify(call.args || {}));
+                const result = await handler(call.args || {});
                 functionResponses.push({ id: call.id, name: call.name, response: result });
               } catch (e) {
-                console.error('[voz] error en tool get_dashboard_data:', e?.message || e);
-                functionResponses.push({ id: call.id, name: call.name, response: { error: e?.message || 'Error consultando Supabase.' } });
+                console.error(`[voz] error en tool ${call.name}:`, e?.message || e);
+                functionResponses.push({ id: call.id, name: call.name, response: { error: e?.message || 'Error consultando la base.' } });
               }
             }
             google.send(JSON.stringify({ toolResponse: { functionResponses } }));
