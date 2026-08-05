@@ -19,6 +19,15 @@ const MIC_CONSTRAINTS = {
   autoGainControl: false,
 };
 
+// Avisos de walkie-talkie: un tono corto al abrir el micrófono, otro al soltar y
+// uno más tenue cuando Orwell termina y vuelve a ser tu turno. Sintetizados (nada
+// que descargar) y a volumen bajo a propósito: son una señal, no una alarma.
+const TONOS = {
+  abre:   { de: 620, a: 940, dur: 0.09, vol: 0.05 },  // ya puedes hablar
+  cierra: { de: 900, a: 560, dur: 0.11, vol: 0.045 }, // se envió lo que dijiste
+  turno:  { de: 720, a: 760, dur: 0.07, vol: 0.025 }, // Orwell terminó, te toca
+};
+
 // ── Helpers de audio ──────────────────────────────────────────────
 function floatTo16kPCM(float32, srcRate) {
   const ratio = srcRate / IN_RATE;
@@ -89,6 +98,28 @@ export function useVoiceSession() {
 
   useEffect(() => () => cleanup(), []);
 
+  const beep = useCallback((kind) => {
+    const ctx = playCtxRef.current;
+    const t = TONOS[kind];
+    if (!ctx || !t || ctx.state === 'closed') return;
+    try {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(t.de, now);
+      osc.frequency.exponentialRampToValueAtTime(t.a, now + t.dur);
+      // Rampas exponenciales desde/hacia casi-cero: un corte seco se oye como clic.
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(t.vol, now + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + t.dur);
+      osc.connect(g);
+      g.connect(ctx.destination); // directo: no pasa por la ganancia de la voz
+      osc.start(now);
+      osc.stop(now + t.dur + 0.02);
+    } catch { /* el tono nunca debe romper la sesión */ }
+  }, []);
+
   const stopPlayback = () => {
     sourcesRef.current.forEach(s => { try { s.stop(); } catch { /* noop */ } });
     sourcesRef.current = [];
@@ -116,7 +147,11 @@ export function useVoiceSession() {
     setPhase('speaking');
     src.onended = () => {
       sourcesRef.current = sourcesRef.current.filter(s => s !== src);
-      if (!sourcesRef.current.length && !talkingRef.current) setPhase('ready');
+      // Solo cuando termina de hablar de verdad: si lo cortaste tú, ya sonó 'abre'.
+      if (!sourcesRef.current.length && !talkingRef.current) {
+        if (stateRef.current === 'speaking') beep('turno');
+        setPhase('ready');
+      }
     };
     sourcesRef.current.push(src);
   };
@@ -178,7 +213,10 @@ export function useVoiceSession() {
           stopPlayback();
         } else if (m.type === 'turn_complete') {
           // Turno cerrado sin audio pendiente (ej. solo consultó datos): vuelve a esperar.
-          if (!talkingRef.current && !sourcesRef.current.length) setPhase('ready');
+          if (!talkingRef.current && !sourcesRef.current.length) {
+            if (stateRef.current === 'speaking' || stateRef.current === 'thinking') beep('turno');
+            setPhase('ready');
+          }
         } else if (m.type === 'error') {
           setErrMsg(m.msg || 'Error del asistente'); setPhase('error');
         } else if (m.type === 'closed') {
@@ -205,18 +243,20 @@ export function useVoiceSession() {
     if (!live || wsRef.current?.readyState !== 1) return;
     talkingRef.current = true;
     stopPlayback();                  // corta a Orwell en el navegador…
+    beep('abre');
     streamRef.current?.getAudioTracks().forEach(t => { t.enabled = true; });
     send({ type: 'activity_start' }); // …y en Gemini (START_OF_ACTIVITY_INTERRUPTS)
     setPhase('recording');
-  }, []);
+  }, [beep]);
 
   const endTalk = useCallback(() => {
     if (!talkingRef.current) return;
     talkingRef.current = false;
     streamRef.current?.getAudioTracks().forEach(t => { t.enabled = false; });
+    beep('cierra');
     send({ type: 'activity_end' });
     setPhase('thinking');
-  }, []);
+  }, [beep]);
 
   return { state, errMsg, start, stop, beginTalk, endTalk, canTalk };
 }
