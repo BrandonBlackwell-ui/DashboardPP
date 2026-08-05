@@ -16,7 +16,7 @@ const IconVoice = ({ size = 24 }) => (
 
 export default function VoiceAssistant() {
   const [open, setOpen] = useState(false);
-  const { state, errMsg, start, stop } = useVoiceSession();
+  const { state, errMsg, start, stop, beginTalk, endTalk, canTalk } = useVoiceSession();
 
   // Permite abrir el asistente desde otro botón (ej. el sidebar de admin)
   useEffect(() => {
@@ -30,13 +30,24 @@ export default function VoiceAssistant() {
     else { setOpen(true); }
   };
 
+  // Suelta el turno aunque el cursor/dedo se levante fuera del botón.
+  useEffect(() => {
+    if (!canTalk) return;
+    const up = () => endTalk();
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+    return () => { window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up); };
+  }, [canTalk, endTalk]);
+
   const stateMeta = {
-    idle:       { label: 'Toca para hablar', color: C.gold, pulse: false },
+    idle:       { label: 'Sesión cerrada', color: C.gold, pulse: false },
     connecting: { label: 'Conectando…', color: C.gold, pulse: true },
-    listening:  { label: 'Escuchando…', color: C.teal, pulse: true },
-    speaking:   { label: 'Respondiendo…', color: C.goldDeep, pulse: true },
+    ready:      { label: 'Mantén presionado', color: '#7A7263', pulse: false },
+    recording:  { label: 'Grabando… suelta para enviar', color: C.teal, pulse: true },
+    thinking:   { label: 'Pensando…', color: C.gold, pulse: true },
+    speaking:   { label: 'Respondiendo… presiona para cortar', color: C.goldDeep, pulse: true },
     error:      { label: errMsg || 'Error', color: C.crim, pulse: false },
-  }[state];
+  }[state] || { label: '', color: C.gold, pulse: false };
 
   return (
     <>
@@ -76,13 +87,25 @@ export default function VoiceAssistant() {
 
             <div style={{ padding: '22px 16px 18px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
               <motion.button
-                onClick={state === 'idle' || state === 'error' ? start : stop}
+                onPointerDown={(e) => {
+                  if (!canTalk) return;
+                  try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* noop */ }
+                  beginTalk();
+                }}
+                onPointerUp={() => canTalk && endTalk()}
+                onClick={() => { if (state === 'idle' || state === 'error') start(); }}
+                onContextMenu={(e) => e.preventDefault()}
                 whileTap={{ scale: 0.95 }}
-                style={{ width: 84, height: 84, borderRadius: '50%', cursor: 'pointer',
-                  border: `2px solid ${stateMeta.color}`, background: `${stateMeta.color}18`,
+                title={canTalk ? 'Mantén presionado para hablar' : 'Iniciar sesión'}
+                style={{ width: 84, height: 84, borderRadius: '50%',
+                  cursor: state === 'connecting' ? 'wait' : 'pointer',
+                  userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none', touchAction: 'none',
+                  border: `2px solid ${stateMeta.color}`,
+                  background: state === 'recording' ? `${stateMeta.color}33` : `${stateMeta.color}18`,
+                  boxShadow: state === 'recording' ? `0 0 0 5px ${stateMeta.color}22` : 'none',
                   color: stateMeta.color, fontSize: 30, display: 'flex', alignItems: 'center',
                   justifyContent: 'center', position: 'relative' }}>
-                {state === 'idle' || state === 'error' ? '🎙️' : '■'}
+                {canTalk ? '🎙️' : state === 'connecting' ? '…' : '▶'}
                 {stateMeta.pulse && (
                   <motion.span
                     animate={{ scale: [1, 1.35, 1], opacity: [0.5, 0, 0.5] }}
@@ -98,9 +121,33 @@ export default function VoiceAssistant() {
                 {stateMeta.label}
               </div>
 
+              {/* Sesión: abrir / cerrar */}
+              <div style={{ display: 'flex', gap: 8 }}>
+                {(state === 'idle' || state === 'error') && (
+                  <button onClick={start}
+                    style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10, fontWeight: 700,
+                      letterSpacing: '0.08em', textTransform: 'uppercase', color: '#FBF8F1',
+                      background: C.ink, border: '1.5px solid #211C17', borderRadius: 3,
+                      padding: '9px 16px', cursor: 'pointer' }}>
+                    Iniciar sesión
+                  </button>
+                )}
+                {canTalk && (
+                  <button onClick={stop}
+                    style={{ fontFamily: "'Geist Mono',monospace", fontSize: 10, fontWeight: 700,
+                      letterSpacing: '0.08em', textTransform: 'uppercase', color: C.crim,
+                      background: 'transparent', border: `1.5px solid ${C.crim}`, borderRadius: 3,
+                      padding: '9px 16px', cursor: 'pointer' }}>
+                    Cerrar sesión
+                  </button>
+                )}
+              </div>
+
               <div style={{ fontFamily: "'Geist Mono',monospace", fontSize: 9, color: '#A9997B',
                 textAlign: 'center', lineHeight: 1.5 }}>
-                Conoce sentimiento, aliados, medios e histórico.<br/>Habla con naturalidad; puedes interrumpir.
+                {canTalk
+                  ? <>Mantén presionado el micrófono mientras hablas<br/>y suelta para enviar. Presiona de nuevo para interrumpir.</>
+                  : <>Conoce sentimiento, aliados, medios e histórico.<br/>Sesión por turnos, tipo walkie-talkie.</>}
               </div>
             </div>
           </motion.div>

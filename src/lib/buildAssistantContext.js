@@ -23,7 +23,7 @@ export function buildAssistantContext() {
   L.push('Te llamas ORWELL, el asistente de voz del dashboard de reputación de Pepe Aguilar, hecho por Blackwell Strategy. Si te preguntan tu nombre, responde que eres Orwell.');
   L.push('Estás hablando DIRECTAMENTE con Pepe Aguilar. Dirígete a él siempre como "Pepe". Sé amable, cordial, servicial y cercano; suena humano y cálido, nunca robótico.');
   L.push('Respondes SOLO con los datos de este contexto (monitoreo de redes y prensa sobre Pepe Aguilar y su familia). No inventes cifras. Si te preguntan algo fuera de estos datos, acláralo con amabilidad. Responde breve, directo y en español, como un analista de confianza que reporta a su cliente.');
-  L.push('MUY IMPORTANTE — tu PRIMERA intervención de la conversación: sin importar lo que diga Pepe (aunque solo salude con un "hola"), salúdalo por su nombre con calidez y dale de inmediato un resumen rápido del panorama general (sentimiento favorable/crítico, nivel de riesgo y lo más relevante del día). Ejemplo de tono: "¡Hola Pepe, soy Orwell, qué gusto escucharte hoy! Te traigo el análisis: en general estás en [X]% favorable, con riesgo [nivel], y lo más importante es [...]". Después de ese resumen inicial, responde puntual a lo que te pregunte.');
+  L.push('MUY IMPORTANTE — tu PRIMERA intervención de la conversación (y SOLO esa, una vez por sesión): sin importar lo que diga Pepe (aunque solo salude con un "hola"), salúdalo por su nombre con calidez y dale de inmediato un resumen rápido del panorama general (sentimiento favorable/crítico, nivel de riesgo y lo más relevante del día). Ejemplo de tono: "¡Hola Pepe, soy Orwell, qué gusto escucharte hoy! Te traigo el análisis: en general estás en [X]% favorable, con riesgo [nivel], y lo más importante es [...]". Después de ese resumen inicial, responde puntual a lo que te pregunte y NO vuelvas a saludar ni a repetir el resumen aunque un turno se corte.');
   L.push(`Fecha del último análisis: ${fdate(D.meta?.latest_ai_report?.date_key) || D.meta?.range_label || 'reciente'}.`);
   L.push('');
 
@@ -55,13 +55,15 @@ export function buildAssistantContext() {
 
   // Detalle por red
   L.push('=== DETALLE POR RED ===');
+  L.push('OJO con "Redes Propias": son las cuentas de Pepe, o sea su propio público — favorables por definición. NO es sentimiento público y no se promedia con las demás. Para "cómo me recibió la gente" usa las redes de terceros (Facebook, Instagram, TikTok, X, prensa).');
   for (const key of (D.order || Object.keys(themes))) {
     const t = themes[key];
     if (!t || key === 'resumen') continue;
     const ai = t.ai_analysis;
     const s = t.sentiment || ai?.sentimiento || {};
     const posts = t.totals?.posts ?? t.networkStrategy?.totalPosts ?? '?';
-    L.push(`# ${NET_LABEL[key] || key} — ${posts} publicaciones. Sentimiento: ${s.pos ?? s.favorable ?? '?'}% favorable, ${s.neg ?? s.critico ?? '?'}% crítico.`);
+    const propia = key === 'redes_propias' ? ' [CUENTAS DE PEPE — no es sentimiento público]' : '';
+    L.push(`# ${NET_LABEL[key] || key}${propia} — ${posts} publicaciones. Sentimiento: ${s.pos ?? s.favorable ?? '?'}% favorable, ${s.neg ?? s.critico ?? '?'}% crítico.`);
     const red = ai?.desglose_por_red?.[key];
     if (red?.lectura) L.push(`  Lectura: ${red.lectura}`);
     if (red?.tendencia) L.push(`  Tendencia: ${red.tendencia}.`);
@@ -91,12 +93,16 @@ export function buildAssistantContext() {
   const dayKeys = Object.keys(cal).sort();
   if (dayKeys.length) {
     L.push('=== HISTÓRICO DÍA POR DÍA (para comparar evolución) ===');
-    L.push('Formato: fecha | red: favorable%/crítico% (riesgo).');
+    L.push('Formato: fecha [AAAA-MM-DD] | PANORAMA del día (el veredicto que manda) | luego cada red: favorable%/crítico% (riesgo).');
+    L.push('Si una red va favorable y otra crítica el mismo día, el promedio esconde la división: cita las dos. El PANORAMA es el número oficial del día, no el de la red que se vea mejor.');
     for (const dk of dayKeys) {
-      const parts = Object.entries(cal[dk] || {})
+      const dia = cal[dk] || {};
+      const r = dia.resumen;
+      const parts = Object.entries(dia)
         .filter(([tk]) => tk !== 'resumen')
-        .map(([tk, v]) => `${NET_LABEL[tk]||tk}: ${v.pos||0}%/${v.neg||0}% (${v.risk||'bajo'})`);
-      if (parts.length) L.push(`${fdate(dk)} | ${parts.join(' · ')}`);
+        .map(([tk, v]) => `${NET_LABEL[tk]||tk}${tk === 'redes_propias' ? ' (cuentas de Pepe)' : ''}: ${v.pos||0}%/${v.neg||0}% (${v.risk||'bajo'})`);
+      const pano = r ? `PANORAMA ${r.pos||0}%/${r.neg||0}% (riesgo ${r.risk||'?'})` : 'PANORAMA sin dato';
+      if (parts.length || r) L.push(`${fdate(dk)} [${dk}] | ${pano} | ${parts.join(' · ')}`);
     }
     L.push('');
   }
