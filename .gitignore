@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Respaldos del relleno historico (no van al repo)
+backfill-respaldo/
+.env.backfill
+
+ia-pendiente/
+ia-respuestas/
+cosecha/
