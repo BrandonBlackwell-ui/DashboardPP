@@ -850,7 +850,9 @@ export async function callAI(apiKey, prompt, models, systemPrompt = AI_PROMPT_SY
     console.log(`[ia-archivo] prompt guardado → ${archivo}`);
     throw new Error(`${IA_PENDIENTE}: ${etiqueta}`);
   }
-  const AI_TIMEOUT_MS = 90000; // corta un modelo colgado en vez de bloquear toda la corrida
+  // 90s se quedaba corto: con prompts de ~15 KB este modelo tarda más y todos los
+  // intentos morían por timeout. Ajustable con AI_TIMEOUT_MS.
+  const AI_TIMEOUT_MS = Number(process.env.AI_TIMEOUT_MS || 240000);
   for (const model of models) {
     // Varios intentos por modelo: los timeouts son intermitentes y con un solo
     // modelo configurado no hay a quién pasarle el trabajo.
@@ -958,9 +960,15 @@ async function enrichAndSaveAI(apiKey, themeKey, dateKey, allPostsByTheme) {
     // Modo archivo: el prompt quedó en disco esperando respuesta. NO se guarda nada
     // (ni el respaldo automático): el día queda pendiente hasta que se aplique.
     if (String(e?.message || '').startsWith(IA_PENDIENTE)) return { pendiente: `${dateKey}__${themeKey}` };
-    // Piso garantizado: si TODOS los modelos fallan, no dejamos la red sin capa de IA.
-    // Estimación automática por palabras clave sobre posts+comentarios reales, marcada
-    // como _fallback para que el admin sepa que no la generó la IA.
+    // Si la IA no responde, NO se inventa un análisis. La estimación por palabras
+    // clave se guardaba marcada como _fallback, pero en el dashboard y en boca del
+    // asistente se lee igual que uno real: un porcentaje de sentimiento que nadie
+    // calculó a partir del contenido. Preferimos el hueco, que es honesto y se puede
+    // reintentar. Con AI_FALLBACK=1 vuelve el comportamiento anterior.
+    if (process.env.AI_FALLBACK !== '1') {
+      console.error(`[${themeKey}] ${dateKey}: la IA no respondió (${e?.message || e}). Se deja SIN análisis para reintentar.`);
+      return { sinAnalisis: true, themeKey, dateKey, motivo: String(e?.message || e) };
+    }
     console.warn(`[${themeKey}] IA no disponible (${e?.message||e}); guardando estimación automática de respaldo.`);
     model = 'fallback-local';
     analysis = buildFallbackAnalysis(posts, comments, dateKey);
