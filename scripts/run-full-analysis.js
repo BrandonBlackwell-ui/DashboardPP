@@ -1297,16 +1297,25 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, from, to, emit 
 }
 
 // ─── Re-análisis IA sin scraping — usa los posts/comentarios ya guardados en Supabase ──
-export async function runAIOnly({ aiKey, date, emit = () => {} }) {
+// `temas`: lista de redes a analizar. Sirve para completar un día sin rehacer lo que
+// ya estaba bien — rellenando el histórico, un día al que solo le faltaba Facebook
+// terminaba con Instagram, TikTok y X reescritos de más (y desaprobados). El
+// panorama SIEMPRE se regenera: el día cambió al ganar redes que antes no tenía.
+export async function runAIOnly({ aiKey, date, emit = () => {}, temas = null }) {
   const DATE = date || new Date().toISOString().slice(0, 10);
-  const summary = { date: DATE, ai: {}, mode: 'ai-only', startedAt: new Date().toISOString() };
+  const soloAlgunas = Array.isArray(temas) && temas.length > 0;
+  const summary = { date: DATE, ai: {}, mode: soloAlgunas ? 'ai-only-parcial' : 'ai-only', startedAt: new Date().toISOString() };
 
-  emit({ type:'phase', phase:'C', msg:`Re-análisis IA con data existente del ${DATE} (sin Apify)...` });
-  // Reclasifica el sentimiento de las notas de prensa existentes (modelo barato).
-  await classifyAndSaveNewsSentiment(aiKey, DATE, emit);
-  // Reclasifica las voces (aliados/contrarios) con los posts/comentarios ya guardados.
-  await classifyAndSaveVoices(aiKey, DATE, emit);
-  const aiNets = ['facebook','instagram','x','tiktok','google_news','redes_propias'];
+  emit({ type:'phase', phase:'C', msg:`Re-análisis IA con data existente del ${DATE}${soloAlgunas ? ` (solo ${temas.join(', ')})` : ''}...` });
+  // Reclasificar prensa y voces re-escribe datos de todo el día: solo en corrida completa.
+  if (!soloAlgunas) {
+    // Reclasifica el sentimiento de las notas de prensa existentes (modelo barato).
+    await classifyAndSaveNewsSentiment(aiKey, DATE, emit);
+    // Reclasifica las voces (aliados/contrarios) con los posts/comentarios ya guardados.
+    await classifyAndSaveVoices(aiKey, DATE, emit);
+  }
+  const TODAS = ['facebook','instagram','x','tiktok','google_news','redes_propias'];
+  const aiNets = soloAlgunas ? temas.filter(t => TODAS.includes(t)) : TODAS;
   const results = await Promise.allSettled(
     aiNets.map(net => enrichAndSaveAI(aiKey, net, DATE, {}).then(r => { emit({ type:'ai_done', net, result:r }); return r; }))
   );

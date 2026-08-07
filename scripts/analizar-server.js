@@ -183,6 +183,10 @@ const server = http.createServer((req, res) => {
     }
 
     const date = url.searchParams.get('date') || new Date().toISOString().slice(0, 10);
+    // ?redes=facebook,x → analiza SOLO esas y regenera el panorama. Sin el parámetro
+    // rehace el día completo (que sobre un día ya analizado lo desaprueba entero).
+    const temas = (url.searchParams.get('redes') || '')
+      .split(',').map(s => s.trim()).filter(Boolean);
 
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -193,9 +197,9 @@ const server = http.createServer((req, res) => {
     const send = (data) => { res.write(`data: ${JSON.stringify(data)}\n\n`); };
 
     running = true;
-    send({ type: 'start', date, mode: 'ai-only' });
+    send({ type: 'start', date, mode: temas.length ? `ai-only:${temas.join('+')}` : 'ai-only' });
 
-    runAIOnly({ aiKey: AI_KEY, date, emit: send })
+    runAIOnly({ aiKey: AI_KEY, date, emit: send, temas: temas.length ? temas : null })
       .catch(e => send({ type: 'error', msg: e.message }))
       .finally(() => { running = false; res.end(); });
 
