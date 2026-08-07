@@ -1319,13 +1319,15 @@ export async function runAIOnly({ aiKey, date, emit = () => {}, temas = null }) 
   const summary = { date: DATE, ai: {}, mode: soloAlgunas ? 'ai-only-parcial' : 'ai-only', startedAt: new Date().toISOString() };
 
   emit({ type:'phase', phase:'C', msg:`Re-análisis IA con data existente del ${DATE}${soloAlgunas ? ` (solo ${temas.join(', ')})` : ''}...` });
-  // Reclasificar prensa y voces re-escribe datos de todo el día: solo en corrida completa.
-  if (!soloAlgunas) {
-    // Reclasifica el sentimiento de las notas de prensa existentes (modelo barato).
+  // El sentimiento de prensa reescribe la etiqueta de cada nota: solo si se está
+  // rehaciendo google_news o el día completo.
+  if (!soloAlgunas || temas.includes('google_news')) {
     await classifyAndSaveNewsSentiment(aiKey, DATE, emit);
-    // Reclasifica las voces (aliados/contrarios) con los posts/comentarios ya guardados.
-    await classifyAndSaveVoices(aiKey, DATE, emit);
   }
+  // Las voces SIEMPRE: son aditivas (upsert por cuenta) y no pisan ningún análisis.
+  // Saltarlas en modo parcial dejó 57 días sin aliados ni contrarios — justo la
+  // pregunta "¿quién me defiende?" quedaba sin respuesta en esos días.
+  await classifyAndSaveVoices(aiKey, DATE, emit);
   const TODAS = ['facebook','instagram','x','tiktok','google_news','redes_propias'];
   const aiNets = soloAlgunas ? temas.filter(t => TODAS.includes(t)) : TODAS;
   const results = await Promise.allSettled(
