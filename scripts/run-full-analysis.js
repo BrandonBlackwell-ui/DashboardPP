@@ -707,7 +707,7 @@ async function classifyNewsSentiment(aiKey, posts) {
   const batch = posts.slice(0, 80);
   const list = batch.map((p, i) => `${i}. ${(p.text || '').replace(/\s+/g, ' ').slice(0, 160)}`).join('\n');
   const prompt = `Clasifica el TONO de cada titular de prensa HACIA Pepe Aguilar y su familia (los Aguilar): "favorable" si lo respalda/elogia/es logro, "neutral" si es informativo sin carga, "critico" si lo ataca/ridiculiza/amplifica escándalo o pleito. Devuelve SOLO JSON: {"tonos":[{"i":0,"t":"neutral"}, ...]} con un objeto por titular (usa el número i del titular).\n\nTITULARES:\n${list}`;
-  const models = ['google/gemini-2.5-flash-lite', 'google/gemini-2.5-flash'];
+  const models = [MODELO];
   const map = {};
   try {
     const { analysis } = await callAI(aiKey, prompt, models, 'Eres un clasificador de sentimiento de prensa. Responde solo JSON válido.');
@@ -755,7 +755,7 @@ const stripHashtagBlock = t => String(t || '').replace(/#[\p{L}\p{N}_]+/gu, ' ')
 async function classifyVoicesPosture(aiKey, entries) {
   const list = entries.map((v, i) => `${i}. @${v.username} (${v.platform}): "${v.textos[0]}"`).join('\n');
   const prompt = `Clasifica la postura de cada cuenta HACIA PEPE AGUILAR específicamente — no hacia Ángela Aguilar, Christian Nodal u otros familiares por separado, solo hacia Pepe. "aliado" si defiende, apoya, celebra o amplifica positivamente A PEPE. "contrario" si critica, ridiculiza o ataca A PEPE. "neutral" SOLO si el texto de verdad no toma postura hacia Pepe (puramente informativo, una pregunta, o habla de otra persona sin relación clara con Pepe) — NO uses "neutral" como opción por defecto cuando SÍ hay una postura clara aunque sea sutil. Devuelve SOLO JSON: {"clasificaciones":[{"i":0,"tipo":"aliado|contrario|neutral","tema":"1-2 palabras del tema"}]}\n\n${list}`;
-  const { analysis } = await callAI(aiKey, prompt, ['google/gemini-2.5-flash-lite', 'google/gemini-2.5-flash'],
+  const { analysis } = await callAI(aiKey, prompt, [MODELO],
     'Eres un clasificador de postura hacia una figura pública. Responde solo JSON válido.');
   return analysis?.clasificaciones || [];
 }
@@ -837,6 +837,12 @@ function dejarPromptEnArchivo({ etiqueta, prompt, systemPrompt }) {
   return archivo;
 }
 
+// Modelo único para todo el análisis. La virgulilla es parte del id en OpenRouter:
+// es el alias flotante a la última versión de deepseek-v4-flash. Con un solo modelo
+// no hay cadena de respaldo, así que se insiste más veces antes de darse por vencido.
+export const MODELO = process.env.AI_MODEL || '~deepseek/deepseek-v4-flash-latest';
+const INTENTOS_POR_MODELO = Number(process.env.AI_INTENTOS || 5);
+
 export async function callAI(apiKey, prompt, models, systemPrompt = AI_PROMPT_SYSTEM, etiqueta = null) {
   if (AI_ARCHIVO()) {
     if (!etiqueta) throw new Error(`${IA_PENDIENTE}: sin etiqueta`); // rationale/voces: se omiten
@@ -846,8 +852,9 @@ export async function callAI(apiKey, prompt, models, systemPrompt = AI_PROMPT_SY
   }
   const AI_TIMEOUT_MS = 90000; // corta un modelo colgado en vez de bloquear toda la corrida
   for (const model of models) {
-    // 2 intentos por modelo (timeouts intermitentes), luego pasa al siguiente modelo.
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    // Varios intentos por modelo: los timeouts son intermitentes y con un solo
+    // modelo configurado no hay a quién pasarle el trabajo.
+    for (let attempt = 1; attempt <= INTENTOS_POR_MODELO; attempt++) {
       try {
         const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
@@ -888,11 +895,8 @@ async function enrichAndSaveAI(apiKey, themeKey, dateKey, allPostsByTheme) {
   if (!rep?.length) return null;
   const report = rep[0];
 
-  // Cadena de respaldo: si un modelo falla (2 intentos c/u en callAI), pasa al siguiente.
-  // Orden: GLM primero, luego Claude Opus 4.8 como respaldo fuerte, y al final los Gemini.
-  const models = themeKey === 'resumen'
-    ? ['z-ai/glm-5.2', 'anthropic/claude-opus-4.8', 'google/gemini-2.5-flash']
-    : ['z-ai/glm-5.2', 'anthropic/claude-opus-4.8', 'google/gemini-2.5-flash-lite', 'google/gemini-2.5-flash'];
+  // Un solo modelo para todo el análisis, con varios intentos (ver MODELO).
+  const models = [MODELO];
 
   // Análisis del período anterior → deja calcular tendencia real
   let previousAnalysis = null;
