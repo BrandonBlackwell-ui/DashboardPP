@@ -77,10 +77,39 @@ async function respaldar(fecha) {
 
 // El endpoint responde SSE: se lee el stream hasta que cierra.
 // `redes` limita qué se analiza: nunca se reescribe una red que ya tenía análisis.
+const dormir = ms => new Promise(r => setTimeout(r, ms));
+
+// Un dia con timeouts de modelo puede tardar media hora: se espera a que /status
+// diga que esta libre en vez de dar por perdido el dia.
+async function esperarLibre(fecha, maxMin = 45) {
+  const limite = maxMin * 2; // sondeos de 30s
+  for (let i = 0; i < limite; i++) {
+    try {
+      const j = await (await fetch(`${SERVIDOR}/status`)).json();
+      if (!j.running) return;
+      if (i === 0) log(`  ${fecha}: el servidor sigue con otro análisis, espero a que termine`);
+    } catch { /* red intermitente: se reintenta */ }
+    await dormir(30000);
+  }
+  log(`  ${fecha}: el servidor lleva ${maxMin} min ocupado, lo intento de todos modos`);
+}
+
 async function reanalizarDia(fecha, redes) {
   const t0 = Date.now();
   const q = redes?.length ? `&redes=${redes.join(',')}` : '';
-  const res = await fetch(`${SERVIDOR}/reanalizar?date=${fecha}${q}`);
+  // El servidor atiende un análisis a la vez. Si un corte de red mata el stream, el
+  // servidor sigue trabajando y responde 409 un rato: hay que esperarlo, no quemar
+  // la lista entera contra el candado (asi se perdieron 16 dias en la primera pasada).
+  await esperarLibre(fecha);
+  let res;
+  for (let intento = 1; ; intento++) {
+    res = await fetch(`${SERVIDOR}/reanalizar?date=${fecha}${q}`);
+    if (res.status !== 409) break;
+    if (intento > 60) throw new Error('el servidor lleva demasiado tiempo ocupado');
+    await res.text();
+    if (intento === 1 || intento % 5 === 0) log(`  ${fecha}: servidor ocupado, esperando...`);
+    await dormir(30000);
+  }
   if (!res.ok) throw new Error(`${res.status}: ${(await res.text()).slice(0, 160)}`);
   const lector = res.body.getReader();
   const dec = new TextDecoder();
