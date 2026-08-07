@@ -8,6 +8,8 @@
  * También usado por analizar-server.js como módulo.
  */
 
+import fs from 'node:fs';
+import { join as pathJoin } from 'node:path';
 import { createClient } from '@supabase/supabase-js';
 import { MESSAGE_FRAMEWORK_PROMPT, RATIONALE_SYSTEM, buildRationalePrompt } from './message-framework.js';
 
@@ -103,8 +105,18 @@ const isRelevantNews = t => NEWS_KW.some(k => (t||'').toLowerCase().includes(k))
 const nextDay  = d => { const dt = new Date(d+'T12:00:00Z'); dt.setDate(dt.getDate()+1); return dt.toISOString().slice(0,10); };
 const daysAgo  = (d, n) => { const dt = new Date(d+'T12:00:00Z'); dt.setDate(dt.getDate()-n); return dt.toISOString().slice(0,10); };
 // Ventana exacta por timestamp (ms); 'to' exclusivo. Post sin fecha parseable se conserva
-// (mejor incluir que perder por dato faltante).
-const inRange    = (dateStr, fromTs, toTs) => { if (!dateStr) return true; const t = Date.parse(dateStr); return Number.isNaN(t) ? true : (t >= fromTs && t < toTs); };
+// (mejor incluir que perder por dato faltante) — EXCEPTO en relleno histórico.
+//
+// En la corrida diaria, una pieza sin fecha casi siempre es de hoy, así que incluirla
+// acierta. Rellenando un día de julio es al revés: el scraper devuelve lo que encuentra
+// hoy, y una pieza sin fecha entraría fechada en julio sin serlo. Con STRICT_DATE=1
+// (lo que usa el backfill) solo entra lo que demuestra su fecha.
+const STRICT_DATE = process.env.STRICT_DATE === '1';
+const inRange    = (dateStr, fromTs, toTs) => {
+  if (!dateStr) return !STRICT_DATE;
+  const t = Date.parse(dateStr);
+  return Number.isNaN(t) ? !STRICT_DATE : (t >= fromTs && t < toTs);
+};
 const dayStartTs = d => Date.parse(d + 'T00:00:00Z');
 const safeIso    = d => { const t = Date.parse(d || ''); return Number.isNaN(t) ? null : new Date(t).toISOString(); };
 
@@ -710,6 +722,9 @@ async function classifyNewsSentiment(aiKey, posts) {
 
 // Clasifica y guarda el sentimiento de las notas de prensa de un día en scraped_posts.
 async function classifyAndSaveNewsSentiment(aiKey, date, emit = () => {}) {
+  // En modo archivo el sentimiento de prensa se resuelve junto con el análisis de
+  // google_news; no tiene sentido dejar un pendiente aparte por cada nota.
+  if (AI_ARCHIVO()) { emit({ type: 'log', msg: 'modo archivo: sentimiento de prensa se omite' }); return; }
   try {
     const { data: gnRep } = await supabase.from('reports').select('id').eq('date_key', date).eq('theme_key', 'google_news').limit(1);
     if (!aiKey || !gnRep?.length) return;
@@ -769,6 +784,7 @@ function buildVoicesRoster(posts, comments, postById) {
 
 // Clasifica y guarda las voces (aliados/contrarios/neutrales) del día en allies_critics_voices.
 async function classifyAndSaveVoices(aiKey, date, emit = () => {}) {
+  if (AI_ARCHIVO()) { emit({ type: 'log', msg: 'modo archivo: clasificación de voces se omite (se puede correr después)' }); return; }
   try {
     const { data: reps } = await supabase.from('reports').select('id').eq('date_key', date).neq('theme_key', 'resumen');
     if (!aiKey || !reps?.length) return;
@@ -806,7 +822,28 @@ async function classifyAndSaveVoices(aiKey, date, emit = () => {}) {
   } catch (e) { emit({ type: 'error', msg: `clasif voces: ${e.message}` }); }
 }
 
-export async function callAI(apiKey, prompt, models, systemPrompt = AI_PROMPT_SYSTEM) {
+// Modo "IA en archivo": en vez de llamar a OpenRouter, deja el prompt en disco para
+// que lo conteste un analista (humano o un modelo de otra sesión) y lo aplique
+// ia-offline.js. Sirve para rellenar histórico sin gastar créditos de OpenRouter
+// y sin tener que traer esa llave a la máquina.
+export const AI_ARCHIVO = () => process.env.AI_MODE === 'archivo';
+export const IA_PENDIENTE = 'IA_PENDIENTE';
+const DIR_PENDIENTES = process.env.IA_PENDIENTES_DIR || 'ia-pendiente';
+
+function dejarPromptEnArchivo({ etiqueta, prompt, systemPrompt }) {
+  fs.mkdirSync(DIR_PENDIENTES, { recursive: true });
+  const archivo = pathJoin(DIR_PENDIENTES, `${etiqueta}.json`);
+  fs.writeFileSync(archivo, JSON.stringify({ etiqueta, system: systemPrompt, prompt }, null, 2), 'utf8');
+  return archivo;
+}
+
+export async function callAI(apiKey, prompt, models, systemPrompt = AI_PROMPT_SYSTEM, etiqueta = null) {
+  if (AI_ARCHIVO()) {
+    if (!etiqueta) throw new Error(`${IA_PENDIENTE}: sin etiqueta`); // rationale/voces: se omiten
+    const archivo = dejarPromptEnArchivo({ etiqueta, prompt, systemPrompt });
+    console.log(`[ia-archivo] prompt guardado → ${archivo}`);
+    throw new Error(`${IA_PENDIENTE}: ${etiqueta}`);
+  }
   const AI_TIMEOUT_MS = 90000; // corta un modelo colgado en vez de bloquear toda la corrida
   for (const model of models) {
     // 2 intentos por modelo (timeouts intermitentes), luego pasa al siguiente modelo.
@@ -912,8 +949,11 @@ async function enrichAndSaveAI(apiKey, themeKey, dateKey, allPostsByTheme) {
 
   let model, analysis;
   try {
-    ({ model, analysis } = await callAI(apiKey, prompt, models));
+    ({ model, analysis } = await callAI(apiKey, prompt, models, AI_PROMPT_SYSTEM, `${dateKey}__${themeKey}`));
   } catch (e) {
+    // Modo archivo: el prompt quedó en disco esperando respuesta. NO se guarda nada
+    // (ni el respaldo automático): el día queda pendiente hasta que se aplique.
+    if (String(e?.message || '').startsWith(IA_PENDIENTE)) return { pendiente: `${dateKey}__${themeKey}` };
     // Piso garantizado: si TODOS los modelos fallan, no dejamos la red sin capa de IA.
     // Estimación automática por palabras clave sobre posts+comentarios reales, marcada
     // como _fallback para que el admin sepa que no la generó la IA.
@@ -966,7 +1006,7 @@ async function enrichAndSaveAI(apiKey, themeKey, dateKey, allPostsByTheme) {
 
   // Segunda llamada — SOLO en el panorama: "analisis del analisis" que explica el porque
   // citando el documento de mensajes. Es de uso interno (admin); el cliente no lo ve.
-  if (themeKey === 'resumen') {
+  if (themeKey === 'resumen' && !AI_ARCHIVO()) {
     try {
       const { analysis: rationale } = await callAI(apiKey, buildRationalePrompt(analysis), models, RATIONALE_SYSTEM);
       const { error: rErr } = await supabase.from('reports').update({ admin_rationale: rationale }).eq('id', report.id);
@@ -1005,12 +1045,20 @@ export async function runFullAnalysis({ apifyToken, aiKey, date, from, to, emit 
 
   const [fbR, igR, xR, ttR, gnR, ownIgR, ownFbR, ownTtR, ownYtR, ownXR, wlR, fbwR] = await Promise.allSettled([
     // Público
+    // Query SIN comillas ni OR: medido el 2026-08-07 contra el mismo día, la versión
+    // entrecomillada devolvía 1 post y esta 40-51 (14 del día objetivo). El ruido que
+    // entra de más lo corta isRelevant() aquí abajo, que es gratis; los posts que la
+    // query no encuentra no los recupera nadie.
     runActor(apifyToken, 'igview-owner/facebook-old-posts-search',
-      { query:'"Pepe Aguilar" OR "los Aguilar"', startDate:DATE, endDate:DATE, maxResults:50 }, 0.12, 'fb_search'),
+      { query:'Pepe Aguilar', startDate:DATE, endDate:DATE, maxResults:50 }, 0.15, 'fb_search'),
+    // OJO con 'until' en este actor: significa "posts MÁS NUEVOS que esta fecha", no
+    // "hasta". Pidiendo until=DATE llegan el día objetivo y los posteriores, así que
+    // con maxItems bajo el cupo se lo comían los días de después y del día pedido
+    // quedaban 1-9 posts. Con 50 el día objetivo entra completo.
     runActor(apifyToken, 'apidojo/instagram-hashtag-scraper',
-      { keyword:'pepeaguilar', until:DATE, getPosts:true, getReels:false, maxItems:25 }, 0.05, 'ig_hash1').then(async r1 => {
+      { keyword:'pepeaguilar', until:DATE, getPosts:true, getReels:false, maxItems:50 }, 0.07, 'ig_hash1').then(async r1 => {
         const r3 = await runActor(apifyToken, 'apidojo/instagram-hashtag-scraper',
-          { keyword:'losaguilar', until:DATE, getPosts:true, getReels:false, maxItems:25 }, 0.05, 'ig_hash3');
+          { keyword:'losaguilar', until:DATE, getPosts:true, getReels:false, maxItems:50 }, 0.07, 'ig_hash3');
         return [...r1, ...r3];
       }),
     runActor(apifyToken, 'apidojo/tweet-scraper',
@@ -1341,3 +1389,6 @@ if (process.argv[1]?.endsWith('run-full-analysis.js')) {
 
 // Exportados para pruebas (la watchlist es RSS gratis y se puede validar sin Apify).
 export { scrapeWatchlist, parseRssItems, fetchFeed, dedupePress, normOwnedFacebook, MEDIA_WATCHLIST, WATCHLIST_SEARCH_TERMS, classifyAndSaveVoices };
+// Para la cosecha histórica (cosecha.js): reparte piezas ya descargadas al día que
+// les toca reusando EXACTAMENTE el mismo mapeo y filtro que la corrida diaria.
+export { normX, normFacebook, normInstagram, normTikTok, upsertReport, insertPosts, dayStartTs };
